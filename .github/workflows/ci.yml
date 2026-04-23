@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: back-end-gest-o
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: back-end-gest-o/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run test:coverage
+      - name: Upload backend coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: back-end-gest-o/coverage
+      - name: npm audit (high+)
+        run: npm run audit
+        continue-on-error: false
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: front-end-gest-o
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: front-end-gest-o/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:unit
+      - run: npm run build
+      - run: npm run size:check
+      - name: npm audit (high+)
+        run: npm run audit
+        continue-on-error: false
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: true
+      FRONTEND_URL: http://127.0.0.1:4173
+    defaults:
+      run:
+        working-directory: front-end-gest-o
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: front-end-gest-o/package-lock.json
+      - name: Instalar dependencias backend
+        working-directory: back-end-gest-o
+        run: npm ci
+      - name: Reset usuario para seed E2E (admin@iga.com / admin123)
+        run: rm -f "../back-end-gest-o/data/users.json"
+      - name: Build backend
+        working-directory: back-end-gest-o
+        run: npm run build
+      - name: Subir API em background
+        working-directory: back-end-gest-o
+        run: |
+          node dist/server.js &
+          echo $! > /tmp/iga-backend.pid
+      - name: Aguardar /health
+        run: |
+          for i in $(seq 1 40); do
+            curl -fsS http://127.0.0.1:3000/health && exit 0
+            sleep 1
+          done
+          exit 1
+      - run: npm ci
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('front-end-gest-o/package-lock.json') }}
+      - run: npx playwright install --with-deps chromium
+      - name: E2E (Playwright)
+        run: npm run test:e2e
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            front-end-gest-o/playwright-report
+            front-end-gest-o/test-results
+      - name: Encerrar API
+        if: always()
+        run: |
+          if [ -f /tmp/iga-backend.pid ]; then kill $(cat /tmp/iga-backend.pid) 2>/dev/null || true; fi

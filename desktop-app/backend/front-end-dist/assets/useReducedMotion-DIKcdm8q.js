@@ -1,0 +1,1 @@
+import{o as e}from"./rolldown-runtime-Bhmf7a9N.js";import{ct as t}from"./vendor-antd-wgqOkBeM.js";var n=e(t(),1);function r(){let[e,t]=(0,n.useState)(!1);return(0,n.useEffect)(()=>{let e=window.matchMedia(`(prefers-reduced-motion: reduce)`),n=()=>t(e.matches);return n(),e.addEventListener(`change`,n),()=>e.removeEventListener(`change`,n)},[]),e}export{r as t};

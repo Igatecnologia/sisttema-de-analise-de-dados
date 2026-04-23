@@ -1,0 +1,1 @@
+var e=`/login`;function t(t,n=`/dashboard`){if(typeof t!=`string`)return n;let r;try{r=decodeURIComponent(t).trim()}catch{return n}return!r.startsWith(`/`)||r.startsWith(`//`)||r.includes(`\\`)||r.includes(`\0`)||/^\/[^/]*:/i.test(r)||r===e||r.startsWith(`${e}/`)||r.startsWith(`${e}?`)?n:r||n}export{t};

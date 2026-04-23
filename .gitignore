@@ -1,0 +1,19 @@
+node_modules/
+dist/
+dist-windows/
+.env
+.env.*
+!.env.example
+*.log
+*.rar
+*.zip
+.DS_Store
+Thumbs.db
+
+# Electron release binaries (muito pesados)
+desktop-app/release/
+installer/runtime/node/
+
+# Build artifacts
+*.exe
+*.msi

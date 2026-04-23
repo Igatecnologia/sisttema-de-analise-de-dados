@@ -1,0 +1,24 @@
+{
+  "name": "iga-gestao-desktop",
+  "version": "1.2.0",
+  "private": true,
+  "description": "IGA Gestao Desktop (Electron)",
+  "main": "main.mjs",
+  "type": "module",
+  "scripts": {
+    "build:icon": "node scripts/build-icon.mjs",
+    "prepare:assets": "cmd /c \"..\\build-windows.bat\"",
+    "prepare:desktop-assets": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$ErrorActionPreference='Stop'; if (Test-Path 'backend') { Remove-Item 'backend' -Recurse -Force -ErrorAction Stop }; Copy-Item '..\\dist-windows\\back-end-gest-o' 'backend' -Recurse -Force -ErrorAction Stop\"",
+    "rebuild:backend-native": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$env:npm_config_runtime='electron'; $env:npm_config_target='37.10.3'; $env:npm_config_disturl='https://electronjs.org/headers'; Push-Location backend; npm rebuild better-sqlite3; Pop-Location; Remove-Item Env:npm_config_runtime,Env:npm_config_target,Env:npm_config_disturl -ErrorAction SilentlyContinue\"",
+    "start": "electron .",
+    "build:dir": "npm run build:icon && npm run prepare:assets && npm run prepare:desktop-assets && npm run rebuild:backend-native && npx @electron/packager . \"IGA Gestao\" --platform=win32 --arch=x64 --out=release --overwrite --icon=../installer/assets/logo.ico --prune=true --ignore=\"^/release$|^/scripts$\"",
+    "build:win": "npm run build:dir",
+    "build:installer": "npm run build:dir && \"C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe\" \".\\installer-electron.iss\""
+  },
+  "devDependencies": {
+    "@electron/packager": "^18.4.3",
+    "electron": "^37.3.0",
+    "jimp": "^1.6.1",
+    "png-to-ico": "^3.0.1"
+  }
+}

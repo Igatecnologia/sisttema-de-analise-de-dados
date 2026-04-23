@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IGA Gestao — De Desktop para SaaS</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080d12;
+    --surface: #111920;
+    --surface-2: #1a2330;
+    --text: #e8eef4;
+    --text-dim: #8a9bb0;
+    --green: #10B981;
+    --green-lt: #34D399;
+    --blue: #1a7ab5;
+    --blue-lt: #3b9fd4;
+    --orange: #e8930c;
+    --gold: #F59E0B;
+    --red: #ef4444;
+    --purple: #8b5cf6;
+    --pink: #ec4899;
+    --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --ease: cubic-bezier(.22,1,.36,1);
+  }
+
+  html { scroll-behavior: smooth; scroll-snap-type: y mandatory; overflow-x: hidden; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.6; overflow-x: hidden; }
+
+  /* ── Slide ── */
+  .slide {
+    min-height: 100vh;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    padding: 60px 40px;
+    position: relative;
+    scroll-snap-align: start;
+    overflow: hidden;
+  }
+  .slide-inner { max-width: 1100px; width: 100%; position: relative; z-index: 2; }
+
+  /* ── BG effects ── */
+  .grid-bg {
+    position: absolute; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(26,122,181,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(26,122,181,.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+  .glow {
+    position: absolute; border-radius: 50%; filter: blur(130px); z-index: 0;
+    animation: pulse 6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity:.12; transform:scale(1); }
+    50% { opacity:.25; transform:scale(1.08); }
+  }
+
+  /* ── Progress ── */
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, var(--green), var(--blue), var(--purple)); z-index: 200; transform-origin: left; transform: scaleX(0); transition: transform .3s; }
+
+  /* ── Nav dots ── */
+  .nav { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); z-index: 100; display: flex; flex-direction: column; gap: 10px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--text-dim); opacity: .25; cursor: pointer; border: none; transition: all .3s var(--ease); position: relative; }
+  .dot:hover { opacity: .6; transform: scale(1.3); }
+  .dot.on { opacity: 1; background: var(--green); transform: scale(1.4); box-shadow: 0 0 12px rgba(16,185,129,.5); }
+  .dot .tip { position: absolute; right: 22px; top: 50%; transform: translateY(-50%); background: var(--surface-2); color: var(--text); padding: 4px 10px; border-radius: 6px; font-size: 11px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .dot:hover .tip { opacity: 1; }
+
+  /* ── Typography ── */
+  .huge { font-size: clamp(2.5rem,6vw,4.5rem); font-weight: 800; line-height: 1.08; letter-spacing: -.03em; }
+  .big  { font-size: clamp(1.8rem,4vw,2.8rem); font-weight: 700; line-height: 1.15; letter-spacing: -.02em; }
+  .mid  { font-size: clamp(1.1rem,2vw,1.35rem); color: var(--text-dim); line-height: 1.55; }
+  .label { font-size: .7rem; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: var(--green); margin-bottom: 10px; }
+  .grad { background: linear-gradient(135deg, var(--green), var(--blue-lt), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .divider { width: 50px; height: 3px; background: linear-gradient(90deg, var(--green), var(--blue)); border-radius: 2px; margin: 14px 0; }
+
+  /* ── Reveal ── */
+  .r { opacity: 0; transform: translateY(36px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
+  .r.v { opacity: 1; transform: translateY(0); }
+  .d1 { transition-delay: .1s; } .d2 { transition-delay: .2s; } .d3 { transition-delay: .3s; }
+  .d4 { transition-delay: .4s; } .d5 { transition-delay: .5s; } .d6 { transition-delay: .6s; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface); border: 1px solid rgba(255,255,255,.06); border-radius: 16px; padding: 28px;
+    transition: transform .3s var(--ease), box-shadow .3s;
+  }
+  .card:hover { transform: translateY(-4px); box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+
+  /* ── Badge ── */
+  .tag { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 100px; font-size: .72rem; font-weight: 600; }
+  .tag-g { background: rgba(16,185,129,.12); color: var(--green-lt); }
+  .tag-b { background: rgba(26,122,181,.12); color: var(--blue-lt); }
+  .tag-o { background: rgba(232,147,12,.12); color: var(--orange); }
+  .tag-r { background: rgba(239,68,68,.12); color: var(--red); }
+  .tag-p { background: rgba(139,92,246,.12); color: var(--purple); }
+  .tag-k { background: rgba(245,158,11,.12); color: var(--gold); }
+
+  /* ── Grids ── */
+  .g2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 24px; }
+  .g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
+  .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; }
+  @media(max-width:900px) { .g2,.g3,.g4 { grid-template-columns: 1fr; } .slide { padding: 40px 20px; } .nav { right: 10px; } }
+  @media(min-width:901px) and (max-width:1100px) { .g4 { grid-template-columns: repeat(2,1fr); } }
+
+  /* ── Particles ── */
+  .particle { position: absolute; border-radius: 50%; opacity: 0; animation: floatUp 8s linear infinite; }
+  @keyframes floatUp {
+    0% { opacity: 0; transform: translateY(100vh) scale(0); }
+    10% { opacity: .5; } 90% { opacity: .15; }
+    100% { opacity: 0; transform: translateY(-100px) scale(1); }
+  }
+
+  /* ── Hero logo ── */
+  .logo-box {
+    width: 80px; height: 80px; border-radius: 20px;
+    background: linear-gradient(135deg, var(--green), var(--blue));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; font-weight: 900; color: #fff; margin-bottom: 32px;
+    animation: logoIn 1s var(--ease) both;
+    box-shadow: 0 0 60px rgba(16,185,129,.3);
+  }
+  @keyframes logoIn { from { opacity: 0; transform: scale(.5) rotate(-10deg); } }
+
+  .fadeUp { animation: fadeUp .8s var(--ease) both; }
+  .fadeUp2 { animation: fadeUp .8s var(--ease) .25s both; }
+  .fadeUp3 { animation: fadeUp .8s var(--ease) .45s both; }
+  .fadeUp4 { animation: fadeUp .8s var(--ease) .65s both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── Rotating words ── */
+  .rotator { display: inline-block; position: relative; overflow: hidden; vertical-align: bottom; height: 1.15em; min-width: 260px; }
+  .rotator span { display: block; position: absolute; left: 0; opacity: 0; animation: rotWord 16s ease-in-out infinite; }
+  .rotator span:nth-child(1) { animation-delay: 0s; }
+  .rotator span:nth-child(2) { animation-delay: 4s; }
+  .rotator span:nth-child(3) { animation-delay: 8s; }
+  .rotator span:nth-child(4) { animation-delay: 12s; }
+  @keyframes rotWord {
+    0%,2% { opacity: 0; transform: translateY(30px); }
+    6%,20% { opacity: 1; transform: translateY(0); }
+    24%,100% { opacity: 0; transform: translateY(-30px); }
+  }
+
+  /* ── Scroll indicator ── */
+  .scroll-hint { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; animation: bob 2s ease-in-out infinite; z-index: 5; }
+  .scroll-hint span { font-size: .65rem; color: var(--text-dim); letter-spacing: .12em; text-transform: uppercase; }
+  .arrow-d { width: 20px; height: 20px; border-right: 2px solid var(--green); border-bottom: 2px solid var(--green); transform: rotate(45deg); opacity: .5; }
+  @keyframes bob { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(10px); } }
+
+  /* ── Comparison: Before / After ── */
+  .compare-card {
+    background: var(--surface); border: 1px solid rgba(255,255,255,.06); border-radius: 16px;
+    padding: 32px; position: relative; overflow: hidden;
+  }
+  .compare-card .stripe { position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+
+  .item-row { display: flex; align-items: flex-start; gap: 14px; padding: 13px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+  .item-row:last-child { border-bottom: none; }
+  .icon-circle { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: .85rem; flex-shrink: 0; }
+  .ic-g { background: rgba(16,185,129,.12); color: var(--green-lt); }
+  .ic-r { background: rgba(239,68,68,.12); color: var(--red); }
+  .ic-b { background: rgba(26,122,181,.12); color: var(--blue-lt); }
+  .ic-p { background: rgba(139,92,246,.12); color: var(--purple); }
+  .ic-o { background: rgba(232,147,12,.12); color: var(--orange); }
+  .ic-k { background: rgba(245,158,11,.12); color: var(--gold); }
+  .ic-pk { background: rgba(236,72,153,.12); color: var(--pink); }
+  .item-title { font-size: .88rem; font-weight: 600; }
+  .item-sub { font-size: .75rem; color: var(--text-dim); margin-top: 2px; }
+
+  /* ── Architecture nodes ── */
+  .arch { background: var(--surface); border: 1px solid rgba(255,255,255,.06); border-radius: 20px; padding: 36px; }
+  .arch-row { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin: 10px 0; }
+  .node { background: var(--surface-2); border: 1px solid rgba(255,255,255,.07); border-radius: 12px; padding: 14px 20px; font-size: .82rem; font-weight: 600; text-align: center; min-width: 130px; transition: all .3s var(--ease); }
+  .node:hover { border-color: var(--green); box-shadow: 0 0 18px rgba(16,185,129,.12); transform: translateY(-2px); }
+  .node small { display: block; font-size: .68rem; color: var(--text-dim); font-weight: 400; margin-top: 3px; }
+  .node-g { border-color: rgba(16,185,129,.25); background: rgba(16,185,129,.06); }
+  .node-b { border-color: rgba(26,122,181,.25); background: rgba(26,122,181,.06); }
+  .node-p { border-color: rgba(139,92,246,.25); background: rgba(139,92,246,.06); }
+  .node-o { border-color: rgba(232,147,12,.25); background: rgba(232,147,12,.06); }
+  .pipe { width: 2px; height: 18px; background: linear-gradient(to bottom, rgba(16,185,129,.3), transparent); margin: 0 auto; }
+
+  /* ── Visual analogy icons (big) ── */
+  .analogy { font-size: 3.2rem; line-height: 1; margin-bottom: 14px; }
+
+  /* ── Timeline ── */
+  .timeline { position: relative; padding-left: 36px; }
+  .timeline::before { content: ''; position: absolute; left: 13px; top: 0; bottom: 0; width: 2px; background: linear-gradient(to bottom, var(--green), var(--blue), var(--purple), var(--orange)); opacity: .25; }
+  .tl-item { position: relative; margin-bottom: 22px; padding-left: 18px; }
+  .tl-dot { position: absolute; left: -27px; top: 5px; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--green); background: var(--bg); }
+  .tl-dot.on { background: var(--green); box-shadow: 0 0 10px rgba(16,185,129,.5); }
+  .tl-dur { font-size: .68rem; color: var(--green); font-weight: 600; }
+  .tl-name { font-weight: 700; font-size: .95rem; margin-bottom: 3px; }
+  .tl-desc { font-size: .8rem; color: var(--text-dim); }
+
+  /* ── Pricing ── */
+  .price-card { background: var(--surface); border: 1px solid rgba(255,255,255,.06); border-radius: 20px; padding: 30px 22px; text-align: center; transition: all .3s var(--ease); position: relative; }
+  .price-card:hover { transform: translateY(-6px); box-shadow: 0 24px 64px rgba(0,0,0,.35); }
+  .price-card.pop { border-color: var(--green); background: linear-gradient(to bottom, rgba(16,185,129,.07), var(--surface)); transform: scale(1.04); }
+  .price-card.pop:hover { transform: scale(1.04) translateY(-6px); }
+  .pop-tag { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, var(--green), var(--blue)); color: #fff; font-size: .65rem; font-weight: 700; padding: 3px 14px; border-radius: 100px; text-transform: uppercase; letter-spacing: .08em; }
+  .price-name { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+  .price-val { font-size: 2.4rem; font-weight: 800; line-height: 1; margin-bottom: 2px; }
+  .price-val span { font-size: .9rem; font-weight: 400; color: var(--text-dim); }
+  .price-list { list-style: none; margin: 18px 0; text-align: left; font-size: .82rem; }
+  .price-list li { padding: 5px 0; display: flex; align-items: center; gap: 8px; color: var(--text-dim); }
+  .price-list li::before { content: '\2713'; color: var(--green); font-weight: 700; font-size: .75rem; }
+
+  /* ── Metric counters ── */
+  .metric { text-align: center; padding: 24px 16px; }
+  .metric-val { font-size: clamp(2rem,5vw,3.2rem); font-weight: 800; line-height: 1; margin-bottom: 6px; }
+  .metric-lbl { font-size: .8rem; color: var(--text-dim); }
+
+  /* ── Phase cards ── */
+  .phase-card { border-top: 3px solid; border-radius: 16px; }
+
+  /* ── Feature rows ── */
+  .feat-row { display: flex; align-items: center; gap: 14px; padding: 11px 14px; border-radius: 10px; transition: background .2s; }
+  .feat-row:hover { background: rgba(255,255,255,.02); }
+  .feat-name { font-weight: 600; font-size: .88rem; }
+  .feat-desc { font-size: .75rem; color: var(--text-dim); }
+
+  /* ── CTA ── */
+  .btn { display: inline-flex; align-items: center; gap: 10px; padding: 16px 36px; border-radius: 14px; font-size: 1.05rem; font-weight: 700; border: none; cursor: pointer; transition: all .3s var(--ease); text-decoration: none; }
+  .btn-g { background: linear-gradient(135deg, var(--green), #0d9668); color: #fff; box-shadow: 0 4px 20px rgba(16,185,129,.3); }
+  .btn-g:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(16,185,129,.4); }
+  .btn-o { background: transparent; color: var(--text); border: 1px solid rgba(255,255,255,.12); }
+  .btn-o:hover { border-color: var(--green); background: rgba(16,185,129,.04); }
+
+  .pulse-ring { position: relative; }
+  .pulse-ring::before { content: ''; position: absolute; inset: -4px; border-radius: 18px; border: 2px solid var(--green); opacity: 0; animation: pring 2s ease-out infinite; }
+  @keyframes pring { 0% { opacity: .5; transform: scale(1); } 100% { opacity: 0; transform: scale(1.12); } }
+
+  /* ── Explainer box ── */
+  .explain {
+    background: rgba(16,185,129,.04); border: 1px solid rgba(16,185,129,.15);
+    border-radius: 14px; padding: 20px 24px; margin-top: 28px; font-size: .88rem;
+    line-height: 1.7; color: var(--text-dim);
+  }
+  .explain strong { color: var(--green-lt); }
+
+  /* ── Slide number ── */
+  .snum { position: absolute; bottom: 20px; right: 36px; font-size: .65rem; color: var(--text-dim); opacity: .25; font-weight: 600; letter-spacing: .1em; z-index: 5; }
+
+  /* ── Reduced motion ── */
+  @media(prefers-reduced-motion:reduce) { *, *::before, *::after { animation-duration: .01ms!important; transition-duration: .01ms!important; } }
+</style>
+</head>
+<body>
+
+<div class="progress" id="prog"></div>
+<nav class="nav" id="nav"></nav>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 1 — O QUE E O IGA?
+     ═══════════════════════════════════════════════════ -->
+<section class="slide" id="s0" data-nav="Inicio">
+  <div class="glow" style="width:600px;height:600px;background:var(--green);top:-200px;right:-200px;"></div>
+  <div class="glow" style="width:500px;height:500px;background:var(--blue);bottom:-200px;left:-200px;animation-delay:2s;"></div>
+  <div class="grid-bg"></div>
+  <div id="particles" style="position:absolute;inset:0;overflow:hidden;z-index:1;"></div>
+
+  <div class="slide-inner" style="text-align:center;">
+    <div class="logo-box">IGA</div>
+
+    <div class="fadeUp">
+      <p class="huge">
+        Sua fabrica inteira<br>
+        <span class="grad">
+          <span class="rotator">
+            <span>numa unica tela.</span>
+            <span>com decisoes mais rapidas.</span>
+            <span>com inteligencia artificial.</span>
+            <span>acessivel de qualquer lugar.</span>
+          </span>
+        </span>
+      </p>
+    </div>
+
+    <p class="mid fadeUp2" style="max-width:680px;margin:20px auto 0;">
+      O IGA Gestao conecta ao ERP que voce <strong style="color:var(--text);">ja usa</strong> e transforma seus dados em dashboards de producao, estoque, financeiro e vendas — <strong style="color:var(--green-lt);">sem trocar nenhum sistema</strong>.
+    </p>
+
+    <div class="fadeUp3" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:28px;">
+      <span class="tag tag-g">Dashboard em tempo real</span>
+      <span class="tag tag-b">Conecta a qualquer ERP</span>
+      <span class="tag tag-p">IA Copilot integrada</span>
+      <span class="tag tag-o">100% na nuvem</span>
+    </div>
+  </div>
+
+  <div class="scroll-hint"><span>Role para baixo</span><div class="arrow-d"></div></div>
+  <div class="snum">01 / 12</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 2 — O PROBLEMA
+     ═══════════════════════════════════════════════════ -->
+<section class="slide" id="s1" data-nav="O Problema">
+  <div class="grid-bg"></div>
+  <div class="glow" style="width:400px;height:400px;background:var(--red);top:30%;left:10%;animation-delay:1s;"></div>
+  <div class="slide-inner">
+    <div class="r" style="text-align:center;margin-bottom:40px;">
+      <p class="label">O problema que resolvemos</p>
+      <h2 class="big">Sua fabrica tem dados. <span class="grad">Mas ninguem os ve.</span></h2>
+      <p class="mid" style="max-width:660px;margin:10px auto 0;">A maioria das industrias ja tem um ERP — mas os dados ficam presos dentro dele. O gestor acaba tomando decisoes no escuro, olhando planilhas desatualizadas.</p>
+    </div>
+
+    <div class="g3 r d1">
+      <div class="compare-card">
+        <div class="stripe" style="background:var(--red);"></div>
+        <div class="analogy" style="margin-top:12px;">&#128196;</div>
+        <h4 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;color:var(--red);">Planilhas</h4>
+        <p style="font-size:.85rem;color:var(--text-dim);">Dados manuais, desatualizados, sem grafico, sem alerta. Erros o tempo todo. Cada setor tem a sua propria versao.</p>
+      </div>
+
+      <div class="compare-card">
+        <div class="stripe" style="background:var(--orange);"></div>
+        <div class="analogy" style="margin-top:12px;">&#128187;</div>
+        <h4 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;color:var(--orange);">ERP pesado</h4>
+        <p style="font-size:.85rem;color:var(--text-dim);">Caro, complicado, voce usa 10% das funcoes. O BI dele e fraco ou custa uma fortuna a parte.</p>
+      </div>
+
+      <div class="compare-card" style="border-color:rgba(16,185,129,.2);">
+        <div class="stripe" style="background:var(--green);"></div>
+        <div class="analogy" style="margin-top:12px;">&#128640;</div>
+        <h4 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;color:var(--green-lt);">IGA Gestao</h4>
+        <p style="font-size:.85rem;color:var(--text-dim);">Conecta ao ERP que voce ja tem. Em 10 minutos voce tem dashboards prontos, alertas e IA que responde suas perguntas.</p>
+      </div>
+    </div>
+
+    <div class="explain r d2" style="text-align:center;">
+      <strong>Resumo:</strong> O IGA nao substitui seu ERP — ele <strong>da vida aos dados</strong> que ja estao la dentro.
+    </div>
+  </div>
+  <div class="snum">02 / 12</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 3 — HOJE vs AMANHA
+     ═══════════════════════════════════════════════════ -->
+<section class="slide" id="s2" data-nav="Hoje vs Amanha">
+  <div class="grid-bg"></div>
+  <div class="glow" style="width:500px;height:500px;background:var(--blue);bottom:-150px;right:-100px;animation-delay:3s;"></div>
+  <div class="slide-inner">
+    <div class="r" style="text-align:center;margin-bottom:36px;">
+      <p class="label">A transformacao</p>
+      <h2 class="big">De <span style="color:var(--text-dim);">programa de computador</span> para <span class="grad">plataforma na nuvem</span></h2>
+      <p class="mid" style="max-width:650px;margin:10px auto 0;">Hoje o IGA roda como um app instalado no PC de um unico cliente. Vamos transforma-lo num servico online que qualquer industria do Brasil pode assinar.</p>
+    </div>
+
+    <div class="g2">
+      <div class="compare-card r d1">
+        <div class="stripe" style="background:var(--text-dim);"></div>
+        <h3 style="font-size:1rem;font-weight:700;color:var(--text-dim);margin:12px 0 16px;">&#128187; Hoje (Desktop)</h3>
+        <div class="item-row"><div class="icon-circle ic-r">&#10005;</div><div><div class="item-title">1 cliente por vez</div><div class="item-sub">Instalado no PC do cliente</div></div></div>
+        <div class="item-row"><div class="icon-circle ic-r">&#10005;</div><div><div class="item-title">So funciona com 1 ERP</div><div class="item-sub">Preso ao SGBR BI / espumas</div></div></div>
+        <div class="item-row"><div class="icon-circle ic-r">&#10005;</div><div><div class="item-title">Sem cobranca automatica</div><div class="item-sub">Nao tem planos nem assinatura</div></div></div>
+        <div class="item-row"><div class="icon-circle ic-r">&#10005;</div><div><div class="item-title">Banco de dados local</div><div class="item-sub">SQLite no PC — sem backup cloud</div></div></div>
+      </div>
+
+      <div class="compare-card r d2" style="border-color:rgba(16,185,129,.2);">
+        <div class="stripe" style="background:var(--green);"></div>
+        <h3 style="font-size:1rem;font-weight:700;color:var(--green-lt);margin:12px 0 16px;">&#9729; Amanha (SaaS)</h3>
+        <div class="item-row"><div class="icon-circle ic-g">&#10003;</div><div><div class="item-title">Infinitos clientes ao mesmo tempo</div><div class="item-sub">Cada empresa com seu espaco isolado</div></div></div>
+        <div class="item-row"><div class="icon-circle ic-g">&#10003;</div><div><div class="item-title">Conecta a qualquer ERP</div><div class="item-sub">SGBR, Bling, Tiny, Omie, CSV...</div></div></div>
+        <div class="item-row"><div class="icon-circle ic-g">&#10003;</div><div><div class="item-title">Planos com cobranca via Pix/boleto</div><div class="item-sub">Trial gratis de 14 dias, sem cartao</div></div></div>
+        <div class="item-row"><div class="icon-circle ic-g">&#10003;</div><div><div class="item-title">Banco profissional na nuvem</div><div class="item-sub">PostgreSQL + Redis + backups automaticos</div></div></div>
+      </div>
+    </div>
+
+    <div class="explain r d3" style="text-align:center;">
+      <strong>O que ja temos pronto:</strong> proxy de APIs, permissoes, criptografia, IA Copilot, audit log e UI premium. <strong>O que falta:</strong> banco na nuvem, multi-tenant, billing e deploy.
+    </div>
+  </div>
+  <div class="snum">03 / 12</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 4 — COMO FUNCIONA (Analogia simples)
+     ═══════════════════════════════════════════════════ -->
+<section class="slide" id="s3" data-nav="Como Funciona">
+  <div class="grid-bg"></div>
+  <div class="glow" style="width:500px;height:500px;background:var(--purple);top:-100px;left:30%;animation-delay:2s;"></div>
+  <div class="slide-inner">
+    <div class="r" style="text-align:center;margin-bottom:40px;">
+      <p class="label">Arquitetura em linguagem simples</p>
+      <h2 class="big">Como a <span class="grad">maquina funciona</span> por dentro</h2>
+      <p class="mid" style="max-width:600px;margin:10px auto 0;">Pense no IGA como um predio de escritorios. Cada empresa tem sua propria sala trancada, mas compartilham o elevador, a portaria e a internet.</p>
+    </div>
+
+    <div class="arch r d1">
+      <!-- Camada 1 -->
+      <div class="arch-row">
+        <div class="node" style="min-width:280px;">
+          &#127760; <strong>Internet</strong>
+          <small>Funcionarios de todas as empresas acessam pelo navegador</small>
+        </div>
+      </div>
+      <div class="pipe"></div>
+
+      <!-- Camada 2 -->
+      <div class="arch-row">
+        <div class="node node-g">
+          &#128737; <strong>Portaria</strong> (Cloudflare)
+          <small>Protege contra invasores e acelera o acesso</small>
+        </div>
+      </div>
+      <div class="pipe"></div>
+
+      <!-- Camada 3 -->
+      <div class="arch-row">
+        <div class="node node-b">
+          &#9881; <strong>Servidor 1</strong>
+          <small>Atende os pedidos dos usuarios</small>
+        </div>
+        <div class="node node-b">
+          &#9881; <strong>Servidor 2</strong>
+          <small>Reserva — se o 1 cair, esse assume</small>
+        </div>
+        <div class="node node-p">
+          &#9889; <strong>Robo de Tarefas</strong>
+          <small>Faz trabalhos automaticos em segundo plano</small>
+        </div>
+      </div>
+      <div class="pipe"></div>
+
+      <!-- Camada 4 -->
+      <div class="arch-row">
+        <div class="node node-g">
+          &#128451; <strong>Cofre de Dados</strong> (PostgreSQL)
+          <small>Cada empresa so ve os proprios dados</small>
+        </div>
+        <div class="node node-o">
+          &#9889; <strong>Memoria Rapida</strong> (Redis)
+          <small>Guarda informacoes usadas com frequencia</small>
+        </div>
+      </div>
+      <div class="pipe"></div>
+
+      <!-- Camada 5 -->
+      <div class="arch-row">
+        <div class="node">SGBR BI</div>
+        <div class="node">Bling</div>
+        <div class="node">Tiny</div>
+        <div class="node">Omie</div>
+        <div class="node">CSV</div>
+      </div>
+      <p style="text-align:center;font-size:.75rem;color:var(--text-dim);margin-top:8px;">&#8593; ERPs dos clientes — o IGA puxa os dados de la automaticamente</p>
+    </div>
+
+    <div class="explain r d2" style="text-align:center;">
+      <strong>Seguranca:</strong> Os dados de cada empresa ficam isolados por uma "tranca digital" chamada <strong>Row Level Security</strong>. E <strong>impossivel</strong> uma empresa ver dados de outra.
+    </div>
+  </div>
+  <div class="snum">04 / 12</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 5 — CONNECTORS (Analogia: adaptadores de tomada)
+     ═══════════════════════════════════════════════════ -->
+<section class="slide" id="s4" data-nav="Conectores">
+  <div class="grid-bg"></div>
+  <div class="glow" style="width:450px;height:450px;background:var(--orange);top:20%;right:-100px;animation-delay:1s;"></div>
+  <div class="slide-inner">
+    <div class="r" style="text-align:center;margin-bottom:40px;">
+      <p class="label">Sistema de conectores</p>
+      <h2 class="big">Um <span class="grad">adaptador</span> para cada ERP</h2>
+      <p class="mid" style="max-width:620px;margin:10px auto 0;">Assim como voce usa um adaptador de tomada quando viaja, o IGA usa "conectores" para falar a lingua de cada ERP. O cliente escolhe o conector do ERP dele e pronto.</p>
+    </div>
+
+    <div class="g4 r d1">
+      <div class="card" style="text-align:center;padding:24px;">
+        <div style="font-size:2.2rem;margin-bottom:10px;">&#127981;</div>
+        <div style="font-weight:700;font-size:.9rem;margin-bottom:8px;">SGBR BI</div>
+        <span class="tag tag-g">Funcionando</span>
+        <p style="font-size:.72rem;color:var(--text-dim);margin-top:8px;">Espumas, colchoes, aglomerados</p>
+      </div>
+      <div class="card" style="text-align:center;padding:24px;">
+        <div style="font-size:2.2rem;margin-bottom:10px;">&#128230;</div>
+        <div style="font-weight:700;font-size:.9rem;margin-bottom:8px;">Bling</div>
+        <span class="tag tag-b">Planejado</span>
+        <p style="font-size:.72rem;color:var(--text-dim);margin-top:8px;">Comercio e industria em geral</p>
+      </div>
+      <div class="card" style="text-align:center;padding:24px;">
+        <div style="font-size:2.2rem;margin-bottom:10px;">&#128187;</div>
+        <div style="font-weight:700;font-size:.9rem;margin-bottom:8px;">Tiny ERP</div>
+        <span class="tag tag-b">Planejado</span>
+        <p style="font-size:.72rem;color:var(--text-dim);margin-top:8px;">Pequenas e medias industrias</p>
+      </div>
+      <div class="card" style="text-align:center;padding:24px;">
+        <div style="font-size:2.2rem;margin-bottom:10px;">&#128196;</div>
+        <div style="font-weight:700;font-size:.9rem;margin-bottom:8px;">CSV / Excel</div>
+        <span class="tag tag-o">Universal</span>
+        <p style="font-size:.72rem;color:var(--text-dim);margin-top:8px;">Para quem nao tem API</p>
+      </div>
+    </div>
+
+    <div class="explain r d2" style="text-align:center;">
+      <strong>Qualquer industria:</strong> Espumas, alimentos, metalurgia, limpeza, textil... O sistema se adapta ao segmento do cliente. Nao e mais exclusivo de um unico tipo de fabrica.
+    </div>
+  </div>
+  <div class="snum">05 / 12</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 6 — PLANOS E PRECOS
+     ═══════════════════════════════════════════════════ -->
+<section class="slide" id="s5" data-nav="Precos">
+  <div class="grid-bg"></div>
+  <div class="glow" style="width:500px;height:500px;background:var(--gold);bottom:-200px;left:30%;animation-delay:2s;"></div>
+  <div class="slide-inner">
+    <div class="r" style="text-align:center;margin-bottom:36px;">
+      <p class="label">Quanto custa</p>
+      <h2 class="big">Planos que cabem <span class="grad">na sua operacao</span></h2>
+      <p class="mid" style="margin:8px auto 0;">Trial de 14 dias do plano Pro, sem cartao. Se nao gostar, vira Free automaticamente.</p>
+    </div>
+
+    <div class="g4 r d1">
+      <div class="price-card">
+        <div class="price-name">Gratis</div>
+        <div class="price-val" style="color:var(--text-dim);">R$ 0</div>
+        <p style="font-size:.75rem;color:var(--text-dim);margin-bottom:14px;">Para sempre</p>
+        <ul class="price-list">
+          <li>1 usuario</li>
+          <li>1 fonte de dados</li>
+          <li>Dashboard + Vendas</li>
+        </ul>
+      </div>
+
+      <div class="price-card">
+        <div class="price-name">Starter</div>
+        <div class="price-val">197 <span>/mes</span></div>
+        <p style="font-size:.72rem;color:var(--green);margin-bottom:14px;">Lucro: 82% por cliente</p>
+        <ul class="price-list">
+          <li>3 usuarios</li>
+          <li>2 fontes de dados</li>
+          <li>+ Estoque + Compras</li>
+          <li>Suporte por email</li>
+        </ul>
+      </div>
+
+      <div class="price-card pop">
+        <div class="pop-tag">Mais vendido</div>
+        <div class="price-name">Pro</div>
+        <div class="price-val" style="color:var(--green-lt);">497 <span>/mes</span></div>
+        <p style="font-size:.72rem;color:var(--green);margin-bottom:14px;">Lucro: 84% por cliente</p>
+        <ul class="price-list">
+          <li>10 usuarios</li>
+          <li>5 fontes de dados</li>
+          <li>Todos os modulos</li>
+          <li>IA Copilot</li>
+          <li>Email + Chat</li>
+        </ul>
+      </div>
+
+      <div class="price-card">
+        <div class="price-name">Enterprise</div>
+        <div class="price-val">997 <span>/mes</span></div>
+        <p style="font-size:.72rem;color:var(--green);margin-bottom:14px;">Lucro: 82% por cliente</p>
+        <ul class="price-list">
+          <li>Usuarios ilimitados</li>
+          <li>Fontes ilimitadas</li>
+          <li>API + Webhooks</li>
+          <li>IA Premium</li>
+          <li>Suporte dedicado + SLA</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="explain r d2" style="text-align:center;">
+      <strong>Exemplo:</strong> com apenas <strong>3 clientes Starter</strong> (3 x R$ 197 = R$ 591), ja pagamos toda a infraestrutura da fase beta (R$ 440/mes). Margem de lucro acima de 80% em todos os planos.
+    </div>
+  </div>
+  <div class="snum">06 / 12</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 7 — CRONOGRAMA (Simples)
+     ═══════════════════════════════════════════════════ -->
+<section class="slide" id="s6" data-nav="Cronograma">
+  <div class="grid-bg"></div>
+  <div class="slide-inner">
+    <div class="r" style="text-align:center;margin-bottom:36px;">
+      <p class="label">Passo a passo</p>
+      <h2 class="big"><span class="grad">9 etapas</span> em 15 semanas</h2>
+      <p class="mid" style="margin:8px auto 0;">Cada etapa entrega algo funcional. Nada fica pela metade.</p>
+    </div>
+
+    <div class="g2">
+      <div class="r d1">
+        <div class="timeline">
+          <div class="tl-item">
+            <div class="tl-dot on"></div>
+            <div class="tl-dur">1 semana</div>
+            <div class="tl-name">&#9881; Preparar o terreno</div>
+            <div class="tl-desc">Montar ambiente de desenvolvimento, testes automaticos e deploy</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot on"></div>
+            <div class="tl-dur">2 semanas</div>
+            <div class="tl-name">&#128451; Trocar o banco de dados</div>
+            <div class="tl-desc">Sair do SQLite local para PostgreSQL + Redis na nuvem</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot"></div>
+            <div class="tl-dur">2 semanas</div>
+            <div class="tl-name">&#128274; Separar os clientes</div>
+            <div class="tl-desc">Cada empresa vira um "tenant" com dados 100% isolados</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot"></div>
+            <div class="tl-dur">3 semanas</div>
+            <div class="tl-name">&#128268; Desacoplar industria</div>
+            <div class="tl-desc">Criar adaptadores para qualquer ERP, nao so SGBR</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot"></div>
+            <div class="tl-dur">3 semanas</div>
+            <div class="tl-name">&#128100; Cadastro e login</div>
+            <div class="tl-desc">Empresa se cadastra sozinha, convida equipe, faz trial</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="r d2">
+        <div class="timeline">
+          <div class="tl-item">
+            <div class="tl-dot"></div>
+            <div class="tl-dur">2 semanas</div>
+            <div class="tl-name">&#128176; Cobranca automatica</div>
+            <div class="tl-desc">Pix, boleto, cartao via Asaas. Planos, trial, upgrade</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot"></div>
+            <div class="tl-dur">2 semanas &nbsp;&#127775;</div>
+            <div class="tl-name">&#9729; Colocar no ar</div>
+            <div class="tl-desc">Deploy na nuvem, SSL, monitoramento, backups automaticos</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot"></div>
+            <div class="tl-dur">2 semanas</div>
+            <div class="tl-name">&#128736; Painel do administrador</div>
+            <div class="tl-desc">Ver todos os clientes, receita, uso, suspender/ativar contas</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot"></div>
+            <div class="tl-dur">3 semanas</div>
+            <div class="tl-name">&#128230; Loja de conectores</div>
+            <div class="tl-desc">Marketplace: Bling, Tiny, Omie, CSV. Webhooks para Enterprise</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot"></div>
+            <div class="tl-dur">paralelo</div>
+            <div class="tl-name">&#127760; Landing page</div>
+            <div class="tl-desc">Site de vendas com SEO, formulario e trial. Roda junto com tudo</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="snum">07 / 12</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 8 — FASES DE LANCAMENTO
+     ═══════════════════════════════════════════════════ -->
+<section class="slide" id="s7" data-nav="Lancamento">
+  <div class="grid-bg"></div>
+  <div class="glow" style="width:500px;height:500px;background:var(--green);top:-100px;right:-150px;animation-delay:1s;"></div>
+  <div class="slide-inner">
+    <div class="r" style="text-align:center;margin-bottom:36px;">
+      <p class="label">Fases de lancamento</p>
+      <h2 class="big">Do laboratório ao <span class="grad">mercado</span></h2>
+      <p class="mid" style="margin:8px auto 0;">Lancamento gradual: primeiro testamos internamente, depois com poucos clientes, depois abrimos para todos.</p>
+    </div>
+
+    <div class="g4 r d1">
+      <div class="card phase-card" style="border-color:var(--text-dim);">
+        <span class="tag tag-b" style="margin-bottom:10px;">Semanas 1-10</span>
+        <h4 style="font-size:1.05rem;font-weight:700;margin-bottom:6px;">&#128300; Alpha</h4>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:14px;">Construimos tudo e testamos internamente. Nenhum cliente externo ainda.</p>
+        <div style="font-size:2rem;font-weight:800;color:var(--text-dim);">0</div>
+        <div style="font-size:.7rem;color:var(--text-dim);">clientes (so nos)</div>
+      </div>
+
+      <div class="card phase-card" style="border-color:var(--blue);">
+        <span class="tag tag-b" style="margin-bottom:10px;">Semanas 10-17</span>
+        <h4 style="font-size:1.05rem;font-weight:700;margin-bottom:6px;">&#128272; Beta Fechada</h4>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:14px;">Convidamos 5-10 empresas parceiras para testar com dados reais. Cobranca ja funciona.</p>
+        <div style="font-size:2rem;font-weight:800;color:var(--blue-lt);">5-10</div>
+        <div style="font-size:.7rem;color:var(--text-dim);">clientes convidados</div>
+      </div>
+
+      <div class="card phase-card" style="border-color:var(--purple);">
+        <span class="tag tag-p" style="margin-bottom:10px;">Semanas 17-22</span>
+        <h4 style="font-size:1.05rem;font-weight:700;margin-bottom:6px;">&#128587; Beta Aberta</h4>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:14px;">Abrimos para quem pedir via landing page. Ajustamos com feedback real.</p>
+        <div style="font-size:2rem;font-weight:800;color:var(--purple);">10-30</div>
+        <div style="font-size:.7rem;color:var(--text-dim);">clientes via landing</div>
+      </div>
+
+      <div class="card phase-card" style="border-color:var(--green);">
+        <span class="tag tag-g" style="margin-bottom:10px;">Semana 22+</span>
+        <h4 style="font-size:1.05rem;font-weight:700;margin-bottom:6px;">&#127775; Lancamento Geral</h4>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:14px;">Qualquer empresa pode se cadastrar e comecar a usar em minutos. Marketing ativo.</p>
+        <div style="font-size:2rem;font-weight:800;color:var(--green-lt);">50+</div>
+        <div style="font-size:.7rem;color:var(--text-dim);">meta em 6 meses</div>
+      </div>
+    </div>
+  </div>
+  <div class="snum">08 / 12</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 9 — NUMEROS QUE IMPORTAM
+     ═══════════════════════════════════════════════════ -->
+<section class="slide" id="s8" data-nav="Numeros">
+  <div class="grid-bg"></div>
+  <div class="glow" style="width:500px;height:500px;background:var(--green);bottom:-200px;left:-100px;animation-delay:2s;"></div>
+  <div class="slide-inner">
+    <div class="r" style="text-align:center;margin-bottom:36px;">
+      <p class="label">Metas para 6 meses apos o lancamento</p>
+      <h2 class="big">Os numeros que <span class="grad">buscamos</span></h2>
+    </div>
+
+    <div class="g4 r d1">
+      <div class="card metric">
+        <div class="metric-val grad count-up" data-target="50">0</div>
+        <div class="metric-lbl">Empresas usando</div>
+      </div>
+      <div class="card metric">
+        <div class="metric-val" style="color:var(--green-lt);">R$ <span class="count-up" data-target="20" data-suffix="k">0</span></div>
+        <div class="metric-lbl">Receita mensal recorrente</div>
+      </div>
+      <div class="card metric">
+        <div class="metric-val" style="color:var(--blue-lt);"><span class="count-up" data-target="99.5" data-decimals="1">0</span>%</div>
+        <div class="metric-lbl">Tempo no ar (uptime)</div>
+      </div>
+      <div class="card metric">
+        <div class="metric-val" style="color:var(--gold);"><span class="count-up" data-target="5" data-prefix="&lt;">0</span>%</div>
+        <div class="metric-lbl">Cancelamentos por mes</div>
+      </div>
+    </div>
+
+    <div class="g4 r d2" style="margin-top:16px;">
+      <div class="card metric">
+        <div class="metric-val" style="color:var(--purple);"><span class="count-up" data-target="5">0</span>+</div>
+        <div class="metric-lbl">Tipos de industria</div>
+      </div>
+      <div class="card metric">
+        <div class="metric-val" style="color:var(--orange);"><span class="count-up" data-target="5">0</span>+</div>
+        <div class="metric-lbl">ERPs conectados</div>
+      </div>
+      <div class="card metric">
+        <div class="metric-val grad"><span class="count-up" data-target="5">0</span> min</div>
+        <div class="metric-lbl">Para comecar a usar</div>
+      </div>
+      <div class="card metric">
+        <div class="metric-val" style="color:var(--green-lt);"><span class="count-up" data-target="50">0</span>+</div>
+        <div class="metric-lbl">Nota de satisfacao (NPS)</div>
+      </div>
+    </div>
+
+    <div class="card r d3" style="margin-top:24px;text-align:center;border-color:rgba(16,185,129,.18);background:rgba(16,185,129,.03);">
+      <p style="font-size:1.05rem;font-weight:700;">&#128200; Ponto de equilibrio: <span style="color:var(--green-lt);">3 clientes Starter</span> = R$ 591 &gt; Custo beta R$ 440</p>
+      <p style="font-size:.8rem;color:var(--text-dim);margin-top:6px;">Com 8 clientes Starter ou 3 Pro, ja cobrimos o custo da versao final completa.</p>
+    </div>
+  </div>
+  <div class="snum">09 / 12</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 10 — LANDING PAGE
+     ═══════════════════════════════════════════════════ -->
+<section class="slide" id="s9" data-nav="Site de Vendas">
+  <div class="grid-bg"></div>
+  <div class="glow" style="width:450px;height:450px;background:var(--blue);top:10%;left:-100px;animation-delay:3s;"></div>
+  <div class="slide-inner">
+    <div class="r" style="text-align:center;margin-bottom:36px;">
+      <p class="label">Site de vendas — igagestao.com.br</p>
+      <h2 class="big">De visitante a <span class="grad">cliente pagante</span></h2>
+      <p class="mid" style="margin:8px auto 0;">Uma pagina unica que explica o produto em 10 segundos e converte visitantes em trials.</p>
+    </div>
+
+    <div class="g3 r d1">
+      <div class="card">
+        <h4 style="font-weight:700;font-size:.95rem;margin-bottom:14px;">&#127912; O que a pagina mostra</h4>
+        <div style="font-size:.82rem;color:var(--text-dim);line-height:2.1;">
+          1. Titulo de impacto + botao "Testar gratis"<br>
+          2. O problema: planilhas vs ERP vs IGA<br>
+          3. 6 prints reais do sistema<br>
+          4. Como funciona em 3 passos<br>
+          5. ERPs que conectamos<br>
+          6. Seguranca e LGPD<br>
+          7. Planos e precos<br>
+          8. Depoimentos de clientes<br>
+          9. Perguntas frequentes<br>
+          10. Botao final + WhatsApp
+        </div>
+      </div>
+
+      <div class="card">
+        <h4 style="font-weight:700;font-size:.95rem;margin-bottom:14px;">&#127919; Metas em 6 meses</h4>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:4px;">
+              <span>Visitantes/mes</span><span style="color:var(--green);">5.000</span>
+            </div>
+            <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden;">
+              <div style="width:100%;height:100%;background:var(--green);border-radius:3px;"></div>
+            </div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:4px;">
+              <span>Viram leads</span><span style="color:var(--blue-lt);">7% (350)</span>
+            </div>
+            <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden;">
+              <div style="width:70%;height:100%;background:var(--blue);border-radius:3px;"></div>
+            </div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:4px;">
+              <span>Comecam trial</span><span style="color:var(--purple);">100</span>
+            </div>
+            <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden;">
+              <div style="width:50%;height:100%;background:var(--purple);border-radius:3px;"></div>
+            </div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:4px;">
+              <span>Viram pagantes</span><span style="color:var(--gold);">30 (30%)</span>
+            </div>
+            <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden;">
+              <div style="width:30%;height:100%;background:var(--gold);border-radius:3px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4 style="font-weight:700;font-size:.95rem;margin-bottom:14px;">&#128161; Tecnologia e SEO</h4>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
+          <span class="tag tag-b">Next.js</span>
+          <span class="tag tag-p">Tailwind</span>
+          <span class="tag tag-g">Animacoes</span>
+          <span class="tag tag-o">Analytics</span>
+          <span class="tag tag-k">Vercel</span>
+        </div>
+        <h5 style="font-size:.72rem;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:.1em;">Palavras-chave do Google</h5>
+        <div style="font-size:.8rem;color:var(--text-dim);line-height:1.9;">
+          sistema de gestao industrial<br>
+          dashboard de producao<br>
+          BI industrial<br>
+          controle de producao online<br>
+          alternativa a planilhas industriais
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="snum">10 / 12</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 11 — O FUTURO (Roadmap simplificado)
+     ═══════════════════════════════════════════════════ -->
+<section class="slide" id="s10" data-nav="O Futuro">
+  <div class="grid-bg"></div>
+  <div class="glow" style="width:500px;height:500px;background:var(--purple);bottom:-100px;right:-100px;animation-delay:1s;"></div>
+  <div class="slide-inner">
+    <div class="r" style="text-align:center;margin-bottom:36px;">
+      <p class="label">Apos o lancamento — 6 meses de evolucao</p>
+      <h2 class="big">O que vem <span class="grad">depois</span></h2>
+      <p class="mid" style="margin:8px auto 0;">15 novas funcionalidades que fazem o IGA passar de "dashboard bonito" para "plataforma indispensavel".</p>
+    </div>
+
+    <div class="g3 r d1">
+      <div class="card">
+        <span class="tag tag-g" style="margin-bottom:10px;">Meses 1-2</span>
+        <h4 style="font-size:.95rem;font-weight:700;margin-bottom:12px;">Retencao + Valor</h4>
+        <div class="feat-row"><div class="icon-circle ic-g">&#129302;</div><div><div class="feat-name">IA preve a demanda</div><div class="feat-desc">Saber o que vai vender nos proximos 3-6 meses</div></div></div>
+        <div class="feat-row"><div class="icon-circle ic-b">&#128100;</div><div><div class="feat-name">Portal do cliente</div><div class="feat-desc">Seu cliente consulta pedidos e NFs sozinho</div></div></div>
+        <div class="feat-row"><div class="icon-circle ic-k">&#128176;</div><div><div class="feat-name">Custo real por produto</div><div class="feat-desc">Material + mao de obra + overhead = lucro real</div></div></div>
+        <div class="feat-row"><div class="icon-circle ic-p">&#128202;</div><div><div class="feat-name">Controle de qualidade</div><div class="feat-desc">Graficos de defeitos, limites de controle</div></div></div>
+      </div>
+
+      <div class="card">
+        <span class="tag tag-b" style="margin-bottom:10px;">Meses 3-4</span>
+        <h4 style="font-size:.95rem;font-weight:700;margin-bottom:12px;">Automacao + Supply Chain</h4>
+        <div class="feat-row"><div class="icon-circle ic-o">&#128722;</div><div><div class="feat-name">Portal de fornecedores</div><div class="feat-desc">Fornecedor envia NF e acompanha pagamentos</div></div></div>
+        <div class="feat-row"><div class="icon-circle ic-g">&#128269;</div><div><div class="feat-name">Rastreabilidade de lotes</div><div class="feat-desc">Da materia-prima ao produto final</div></div></div>
+        <div class="feat-row"><div class="icon-circle ic-p">&#129302;</div><div><div class="feat-name">Robos que trabalham sozinhos</div><div class="feat-desc">Aprovam pedidos, sugerem recompras, conciliam</div></div></div>
+        <div class="feat-row"><div class="icon-circle ic-b">&#128209;</div><div><div class="feat-name">Estrutura de produto (BOM)</div><div class="feat-desc">Receita do produto com versionamento</div></div></div>
+      </div>
+
+      <div class="card">
+        <span class="tag tag-p" style="margin-bottom:10px;">Meses 5-6</span>
+        <h4 style="font-size:.95rem;font-weight:700;margin-bottom:12px;">Premium + Enterprise</h4>
+        <div class="feat-row"><div class="icon-circle ic-o">&#128268;</div><div><div class="feat-name">Sensores de maquina (IoT)</div><div class="feat-desc">Prever falhas 2-4 semanas antes</div></div></div>
+        <div class="feat-row"><div class="icon-circle ic-g">&#127758;</div><div><div class="feat-name">Sustentabilidade (ESG)</div><div class="feat-desc">CO2, residuos, energia por produto</div></div></div>
+        <div class="feat-row"><div class="icon-circle ic-pk">&#128736;</div><div><div class="feat-name">Construtor de fluxos</div><div class="feat-desc">Arrastar e soltar para criar regras de negocio</div></div></div>
+        <div class="feat-row"><div class="icon-circle ic-k">&#128200;</div><div><div class="feat-name">Otimizador de producao</div><div class="feat-desc">IA organiza maquinas para produzir mais</div></div></div>
+      </div>
+    </div>
+
+    <div class="explain r d2" style="text-align:center;">
+      <strong>Impacto no faturamento:</strong> com essas features, os precos sobem (Pro: R$ 497 &#8594; R$ 797, Enterprise: R$ 997 &#8594; R$ 1.997). Projecao: <strong>R$ 35.000-50.000/mes</strong> com 50 clientes.
+    </div>
+  </div>
+  <div class="snum">11 / 12</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 12 — CONCLUSAO / CTA
+     ═══════════════════════════════════════════════════ -->
+<section class="slide" id="s11" data-nav="Proximo Passo">
+  <div class="glow" style="width:600px;height:600px;background:var(--green);top:-200px;right:-200px;"></div>
+  <div class="glow" style="width:500px;height:500px;background:var(--blue);bottom:-200px;left:-200px;animation-delay:2s;"></div>
+  <div class="glow" style="width:400px;height:400px;background:var(--purple);top:50%;left:50%;transform:translate(-50%,-50%);animation-delay:4s;"></div>
+  <div class="grid-bg"></div>
+
+  <div class="slide-inner" style="text-align:center;">
+    <div class="r">
+      <p class="label">Resumo final</p>
+      <h2 class="huge" style="margin-bottom:14px;">
+        De programa local para<br>
+        <span class="grad">plataforma nacional.</span>
+      </h2>
+      <div class="divider" style="margin:14px auto;"></div>
+    </div>
+
+    <div class="r d1" style="max-width:700px;margin:0 auto 36px;">
+      <p class="mid" style="color:var(--text);font-size:1.1rem;line-height:1.7;">
+        &#10003; <strong>15 semanas</strong> do inicio ao lancamento<br>
+        &#10003; Qualquer industria, qualquer ERP<br>
+        &#10003; IA que responde perguntas sobre seus dados<br>
+        &#10003; Margem de lucro <strong style="color:var(--green-lt);">acima de 80%</strong><br>
+        &#10003; Break-even com <strong style="color:var(--green-lt);">3 clientes</strong><br>
+        &#10003; Meta: <strong style="color:var(--green-lt);">R$ 20.000/mes</strong> em 6 meses
+      </p>
+    </div>
+
+    <div class="r d2" style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+      <div class="pulse-ring">
+        <a class="btn btn-g" href="#s0">&#128640; Vamos comecar</a>
+      </div>
+      <a class="btn btn-o" href="#s6">&#128197; Ver cronograma</a>
+    </div>
+
+    <div class="r d3" style="margin-top:50px;">
+      <div class="g3" style="max-width:500px;margin:0 auto;">
+        <div style="text-align:center;">
+          <div style="font-size:2rem;font-weight:800;color:var(--green-lt);">15</div>
+          <div style="font-size:.72rem;color:var(--text-dim);">semanas</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:2rem;font-weight:800;color:var(--blue-lt);">9</div>
+          <div style="font-size:.72rem;color:var(--text-dim);">etapas</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:2rem;font-weight:800;color:var(--purple);">50+</div>
+          <div style="font-size:.72rem;color:var(--text-dim);">empresas em 6 meses</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="r d4" style="margin-top:40px;">
+      <p style="font-size:.72rem;color:var(--text-dim);">IGA Automacao & Tecnologia &nbsp;&#183;&nbsp; igagestao.com.br</p>
+    </div>
+  </div>
+  <div class="snum">12 / 12</div>
+</section>
+
+<script>
+// Particles
+const pEl = document.getElementById('particles');
+for (let i = 0; i < 25; i++) {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  p.style.left = Math.random()*100+'%';
+  p.style.animationDelay = Math.random()*8+'s';
+  p.style.animationDuration = (6+Math.random()*6)+'s';
+  const c = ['#10B981','#1a7ab5','#8b5cf6','#F59E0B'];
+  p.style.background = c[Math.floor(Math.random()*c.length)];
+  const s = 2+Math.random()*4;
+  p.style.width = p.style.height = s+'px';
+  pEl.appendChild(p);
+}
+
+// Nav dots
+const slides = document.querySelectorAll('.slide');
+const nav = document.getElementById('nav');
+slides.forEach((sl,i) => {
+  const d = document.createElement('button');
+  d.className = 'dot'+(i===0?' on':'');
+  d.setAttribute('aria-label', sl.dataset.nav||'Slide '+(i+1));
+  const t = document.createElement('span');
+  t.className = 'tip';
+  t.textContent = sl.dataset.nav||'Slide '+(i+1);
+  d.appendChild(t);
+  d.onclick = () => sl.scrollIntoView({behavior:'smooth'});
+  nav.appendChild(d);
+});
+
+// Reveal + nav sync + progress
+const prog = document.getElementById('prog');
+const dots = document.querySelectorAll('.dot');
+
+new IntersectionObserver(es => {
+  es.forEach(e => { if (e.isIntersecting) e.target.classList.add('v'); });
+}, {threshold:.12}).observe(document.querySelectorAll('.r').forEach(el => el) || document.body);
+// fix: observe each
+document.querySelectorAll('.r').forEach(el => {
+  new IntersectionObserver(es => {
+    es.forEach(e => { if (e.isIntersecting) e.target.classList.add('v'); });
+  }, {threshold:.12}).observe(el);
+});
+
+new IntersectionObserver(es => {
+  es.forEach(e => {
+    if (e.isIntersecting) {
+      const i = [...slides].indexOf(e.target);
+      dots.forEach((d,j) => d.classList.toggle('on', j===i));
+      prog.style.transform = `scaleX(${(i+1)/slides.length})`;
+      currentSlide = i;
+    }
+  });
+}, {threshold:.5}).observe(document.querySelectorAll('.slide').forEach(s => s) || document.body);
+// fix: observe each slide
+slides.forEach(s => {
+  new IntersectionObserver(es => {
+    es.forEach(e => {
+      if (e.isIntersecting) {
+        const i = [...slides].indexOf(e.target);
+        dots.forEach((d,j) => d.classList.toggle('on', j===i));
+        prog.style.transform = `scaleX(${(i+1)/slides.length})`;
+        currentSlide = i;
+      }
+    });
+  }, {threshold:.5}).observe(s);
+});
+
+// Counters
+document.querySelectorAll('.count-up').forEach(el => {
+  new IntersectionObserver(es => {
+    es.forEach(e => {
+      if (!e.isIntersecting || e.target.dataset.done) return;
+      e.target.dataset.done = '1';
+      const tgt = parseFloat(e.target.dataset.target);
+      const dec = parseInt(e.target.dataset.decimals||'0');
+      const suf = e.target.dataset.suffix||'';
+      const pre = e.target.dataset.prefix||'';
+      const t0 = performance.now();
+      (function step(now) {
+        const p = Math.min((now-t0)/1500, 1);
+        const v = (1-Math.pow(1-p,3)) * tgt;
+        e.target.textContent = pre + v.toFixed(dec) + suf;
+        if (p<1) requestAnimationFrame(step);
+      })(t0);
+    });
+  }, {threshold:.5}).observe(el);
+});
+
+// Keyboard nav
+let currentSlide = 0;
+document.addEventListener('keydown', e => {
+  if (e.key==='ArrowDown'||e.key===' '||e.key==='PageDown') {
+    e.preventDefault();
+    currentSlide = Math.min(currentSlide+1, slides.length-1);
+    slides[currentSlide].scrollIntoView({behavior:'smooth'});
+  } else if (e.key==='ArrowUp'||e.key==='PageUp') {
+    e.preventDefault();
+    currentSlide = Math.max(currentSlide-1, 0);
+    slides[currentSlide].scrollIntoView({behavior:'smooth'});
+  }
+});
+</script>
+</body>
+</html>
