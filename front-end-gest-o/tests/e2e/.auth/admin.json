@@ -1,0 +1,14 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://127.0.0.1:4173",
+      "localStorage": [
+        {
+          "name": "app.auth.session",
+          "value": "{\"token\":\"mock-jwt-token:admin\",\"user\":{\"id\":\"usr_admin\",\"name\":\"Administrador\",\"email\":\"admin@admin.com\",\"role\":\"admin\"},\"permissions\":[\"dashboard:view\",\"reports:view\",\"reports:export\",\"audit:view\",\"audit:export\",\"users:view\",\"users:write\"]}"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://127.0.0.1:4173",
+      "localStorage": [
+        {
+          "name": "app.auth.session",
+          "value": "{\"token\":\"mock-jwt-token:viewer\",\"user\":{\"id\":\"usr_viewer\",\"name\":\"Visualizador\",\"email\":\"viewer@admin.com\",\"role\":\"viewer\"},\"permissions\":[\"dashboard:view\",\"reports:view\"]}"
+        }
+      ]
+    }
+  ]
+}

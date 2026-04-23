@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="IGA">
+  <defs>
+    <linearGradient id="f" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0095d9"/>
+      <stop offset="100%" stop-color="#0070b0"/>
+    </linearGradient>
+  </defs>
+  <!-- Moldura arredondada + sombra leve (mesma linguagem do logo) -->
+  <rect x="1.5" y="2" width="29" height="28" rx="4.5" fill="#fff" stroke="url(#f)" stroke-width="2.2"/>
+  <rect x="2.2" y="2.7" width="29" height="28" rx="4.5" fill="none" stroke="#006aa3" stroke-width="0.35" opacity="0.35" transform="translate(0.35 0.35)"/>
+  <!-- “IGFI” estilizado como barras (versão simplificada para ícone 16–32px) -->
+  <g fill="#0081C3">
+    <rect x="6.2" y="9" width="1.35" height="13.5" rx="0.25"/>
+    <rect x="8.35" y="9" width="0.9" height="13.5" rx="0.2"/>
+    <rect x="10.15" y="9" width="1.6" height="13.5" rx="0.25"/>
+    <rect x="12.55" y="9" width="0.75" height="13.5" rx="0.2"/>
+    <rect x="14.1" y="9" width="1.35" height="13.5" rx="0.25"/>
+    <rect x="16.25" y="9" width="1.0" height="13.5" rx="0.2"/>
+    <rect x="17.95" y="9" width="0.85" height="13.5" rx="0.2"/>
+    <rect x="19.45" y="10.2" width="1.5" height="11.2" rx="0.25"/>
+    <rect x="21.55" y="9" width="0.95" height="13.5" rx="0.2"/>
+    <rect x="23.2" y="9" width="1.45" height="13.5" rx="0.25"/>
+    <rect x="25.35" y="9" width="0.85" height="13.5" rx="0.2"/>
+  </g>
+</svg>
