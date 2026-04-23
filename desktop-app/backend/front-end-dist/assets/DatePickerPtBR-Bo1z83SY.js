@@ -1,1 +1,0 @@
-import{t as e,w as t}from"./vendor-antd-wgqOkBeM.js";import{c as n}from"./vendor-query-DJVs_TgU.js";var r=n(),i=e.DatePicker;function a(e){return(0,r.jsx)(t.RangePicker,{locale:i,...e})}export{a as t};

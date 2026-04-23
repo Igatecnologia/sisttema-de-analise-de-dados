@@ -1,19 +1,29 @@
+# Dependências
 node_modules/
+
+# Build
 dist/
 dist-windows/
+
+# Ambiente
 .env
 .env.*
 !.env.example
+
+# Sistema
 *.log
 *.rar
 *.zip
 .DS_Store
 Thumbs.db
 
-# Electron release binaries (muito pesados)
-desktop-app/release/
-installer/runtime/node/
-
-# Build artifacts
+# Ignorar tudo que não seja backend e frontend
+desktop-app/
+installer/
+docs/
+.claude/
+.github/
+*.bat
 *.exe
 *.msi
+*.html

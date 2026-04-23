@@ -1,1 +1,0 @@
-import{c as e}from"./vendor-query-DJVs_TgU.js";import{g as t}from"./vendor-charts-CvSeOzbM.js";var n=e();function r({height:e=260,children:r}){return(0,n.jsx)(`div`,{style:{width:`100%`,minWidth:0,height:e},children:(0,n.jsx)(t,{width:`100%`,height:e,minWidth:0,children:r})})}export{r as t};

@@ -1,1 +1,0 @@
-function e(e){return e.toLocaleString(`pt-BR`,{style:`currency`,currency:`BRL`})}function t(t){return e(t)}export{t as n,e as t};

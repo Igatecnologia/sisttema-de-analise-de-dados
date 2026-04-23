@@ -1,1 +1,0 @@
-import{o as e}from"./rolldown-runtime-Bhmf7a9N.js";import{ct as t}from"./vendor-antd-wgqOkBeM.js";var n=e(t(),1),r=(0,n.createContext)(null);function i(){let e=(0,n.useContext)(r);if(!e)throw Error(`useAuth must be used within AuthProvider`);return e}export{i as n,r as t};
