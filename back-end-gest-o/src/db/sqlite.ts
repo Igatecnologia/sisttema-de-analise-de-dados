@@ -54,13 +54,15 @@ db.pragma('foreign_keys = ON')
 db.exec(`
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL DEFAULT 'default',
   name TEXT NOT NULL,
-  email TEXT NOT NULL UNIQUE,
+  email TEXT NOT NULL,
   role TEXT NOT NULL,
   status TEXT NOT NULL,
   permissions_json TEXT NULL,
   password_hash TEXT NOT NULL,
   must_change_password INTEGER NOT NULL DEFAULT 0,
+  email_verified_at TEXT NULL,
   preferences_json TEXT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -85,6 +87,22 @@ CREATE TABLE IF NOT EXISTS datasources (
   password_mode TEXT NULL,
   login_field_user TEXT NULL,
   login_field_password TEXT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tenants (
+  id TEXT PRIMARY KEY,
+  slug TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  subtitle TEXT NOT NULL DEFAULT 'Automacao & Tecnologia',
+  logo_url TEXT NULL,
+  primary_color TEXT NULL,
+  enabled_modules_json TEXT NOT NULL DEFAULT '[]',
+  connector_id TEXT NOT NULL DEFAULT 'sgbr-espuma',
+  plan TEXT NOT NULL DEFAULT 'trial',
+  trial_ends_at TEXT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -148,19 +166,92 @@ CREATE TABLE IF NOT EXISTS app_settings (
   updated_by TEXT NULL
 );
 
+CREATE TABLE IF NOT EXISTS auth_action_tokens (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  user_id TEXT NULL,
+  email TEXT NOT NULL,
+  type TEXT NOT NULL,
+  token_hash TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  used_at TEXT NULL,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tenant_onboarding (
+  tenant_id TEXT PRIMARY KEY,
+  status TEXT NOT NULL DEFAULT 'pending',
+  company_profile_json TEXT NOT NULL DEFAULT '{}',
+  data_setup_json TEXT NOT NULL DEFAULT '{}',
+  team_invites_json TEXT NOT NULL DEFAULT '[]',
+  import_status TEXT NOT NULL DEFAULT 'idle',
+  import_progress INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_tenants_slug ON tenants(slug);
 CREATE INDEX IF NOT EXISTS idx_datasources_tenant ON datasources(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_alerts_tenant_created ON alerts(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_copilot_user_created ON copilot_messages(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_scheduled_reports_active ON scheduled_reports(active, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_user_created ON audit_log(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_auth_action_tokens_lookup ON auth_action_tokens(type, token_hash, expires_at);
 `)
 
 // Migração v2: tenant_id na sessão (idempotente)
 try { db.exec("ALTER TABLE sessions ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'") } catch { /* já existe */ }
 
 // Migração v3: colunas de configuração de paginação por datasource (idempotente)
+try { db.exec("ALTER TABLE users ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'") } catch { /* ja existe */ }
+try { db.exec("ALTER TABLE users ADD COLUMN email_verified_at TEXT NULL") } catch { /* ja existe */ }
+try { db.exec("ALTER TABLE copilot_messages ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'") } catch { /* ja existe */ }
+try { db.exec("ALTER TABLE scheduled_reports ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'") } catch { /* ja existe */ }
+try { db.exec("ALTER TABLE audit_log ADD COLUMN tenant_id TEXT NULL") } catch { /* ja existe */ }
+try { db.exec("ALTER TABLE tenants ADD COLUMN connector_id TEXT NOT NULL DEFAULT 'sgbr-espuma'") } catch { /* ja existe */ }
+try { db.exec("ALTER TABLE tenants ADD COLUMN plan TEXT NOT NULL DEFAULT 'trial'") } catch { /* ja existe */ }
+try { db.exec("ALTER TABLE tenants ADD COLUMN trial_ends_at TEXT NULL") } catch { /* ja existe */ }
+try { db.exec("CREATE TABLE IF NOT EXISTS tenant_onboarding (tenant_id TEXT PRIMARY KEY, status TEXT NOT NULL DEFAULT 'pending', company_profile_json TEXT NOT NULL DEFAULT '{}', data_setup_json TEXT NOT NULL DEFAULT '{}', team_invites_json TEXT NOT NULL DEFAULT '[]', import_status TEXT NOT NULL DEFAULT 'idle', import_progress INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)") } catch { /* ja existe */ }
+db.exec('CREATE INDEX IF NOT EXISTS idx_users_tenant_email ON users(tenant_id, email)')
+db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tenant_email_unique ON users(tenant_id, lower(email))')
+
+db.prepare(`
+  INSERT OR IGNORE INTO tenants (
+    id, slug, name, subtitle, logo_url, primary_color, enabled_modules_json, connector_id, plan, trial_ends_at, status, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`).run(
+  'default',
+  'default',
+  'IGA',
+  'Automacao & Tecnologia',
+  null,
+  null,
+  JSON.stringify([
+    'dashboard',
+    'financeiro',
+    'relatorios',
+    'usuarios',
+    'auditoria',
+    'producao',
+    'ficha_tecnica',
+    'comercial',
+    'compras',
+    'estoque',
+    'alertas',
+    'suporte',
+    'datasources',
+    'operations',
+  ]),
+  'sgbr-espuma',
+  'trial',
+  null,
+  'active',
+  new Date().toISOString(),
+  new Date().toISOString(),
+)
+
 const paginationColumns = [
   'pagination_style TEXT NULL',
   'page_param TEXT NULL',

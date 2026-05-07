@@ -2,6 +2,7 @@ import type { DataSource } from '../storage.js'
 import { hashPassword } from './passwordHasher.js'
 import { extractDataArray } from '../utils/extractDataArray.js'
 import { joinApiUrl } from '../utils/joinApiUrl.js'
+import { fetch as uFetch } from 'undici'
 
 type TestResult = {
   success: boolean
@@ -16,10 +17,10 @@ type TestResult = {
   apiReportedTotal?: number
 }
 
-const LOGIN_TIMEOUT_MS = 20_000
-/** Deve ser ≤ timeout HTTP do frontend (axios) e suficiente para SGBR em intervalos grandes */
-const DATA_TIMEOUT_MS = 120_000
-const SERVER_TIMEOUT_MS = 15_000
+const LOGIN_TIMEOUT_MS = 15_000
+/** Teste de conexão: 60s é suficiente para 7 dias de dados. No app real o proxy tem 300s. */
+const DATA_TIMEOUT_MS = 60_000
+const SERVER_TIMEOUT_MS = 10_000
 
 function describeTimeout(err: unknown, context: string): string | null {
   if (!(err instanceof Error)) return null
@@ -133,7 +134,7 @@ export async function testConnection(ds: DataSource): Promise<TestResult> {
         [fieldPass]: testPass,
       }
 
-      const loginRes = await fetch(loginUrl, {
+      const loginRes = await uFetch(loginUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(loginBody),
@@ -181,13 +182,9 @@ export async function testConnection(ds: DataSource): Promise<TestResult> {
       if (!ds.dataEndpoint.includes('dt_de') && !ds.dataEndpoint.includes('start') && !ds.dataEndpoint.includes('desde')) {
         const now = new Date()
         const inicio = new Date(now)
-        /** Endpoints financeiros (contas a pagar/receber) podem trazer payload enorme: janela curta no teste. */
-        const isHeavyEndpoint = /contas[/_-]?(pag|receber)/i.test(ds.dataEndpoint)
-        if (isHeavyEndpoint) {
-          inicio.setDate(inicio.getDate() - 30)
-        } else {
-          inicio.setMonth(inicio.getMonth() - 3)
-        }
+        /** Teste de conexão usa janela curta (7 dias) — só precisa validar
+         *  conectividade e formato dos dados, não puxar o histórico inteiro. */
+        inicio.setDate(inicio.getDate() - 7)
 
         const fmtDot = (d: Date) =>
           `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
@@ -196,9 +193,22 @@ export async function testConnection(ds: DataSource): Promise<TestResult> {
 
         const sep = ds.dataEndpoint.includes('?') ? '&' : '?'
 
-        if (ds.type === 'sgbr_bi') {
-          /** `tamanho=100` limita o payload no teste — valida conectividade sem puxar base inteira. */
-          dataUrl = `${dataUrl}${sep}dt_de=${fmtDot(inicio)}&dt_ate=${fmtDot(now)}&tamanho=100`
+        /** Endpoints de snapshot (estoque) não aceitam filtro de data nem paginação.
+         *  SGBR retorna 2.9MB inteiro (~25-40s). No teste, validamos só o login
+         *  e marcamos como conectado — os dados reais são carregados pelo proxy com cache. */
+        const isSnapshot = /estoque/i.test(ds.dataEndpoint ?? '')
+
+        if (isSnapshot && ds.type === 'sgbr_bi') {
+          const latencyMs = Math.round(performance.now() - start)
+          return {
+            success: true,
+            latencyMs,
+            message: `Login OK (${latencyMs}ms) — estoque carrega via proxy com cache (snapshot completo ~25s na 1ª vez, depois instantâneo)`,
+            sampleFields: [],
+            totalRows: 0,
+          }
+        } else if (ds.type === 'sgbr_bi') {
+          dataUrl = `${dataUrl}${sep}dt_de=${fmtDot(inicio)}&dt_ate=${fmtDot(now)}&tamanho=50`
         } else {
           dataUrl = `${dataUrl}${sep}dt_de=${fmtDot(inicio)}&dt_ate=${fmtDot(now)}&start_date=${fmtDash(inicio)}&end_date=${fmtDash(now)}`
         }
@@ -215,7 +225,7 @@ export async function testConnection(ds: DataSource): Promise<TestResult> {
         headers.Authorization = `Basic ${Buffer.from(ds.authCredentials).toString('base64')}`
       }
 
-      const dataRes = await fetch(dataUrl, {
+      const dataRes = await uFetch(dataUrl, {
         method: 'GET',
         headers,
         signal: AbortSignal.timeout(DATA_TIMEOUT_MS),
@@ -295,7 +305,7 @@ export async function testConnection(ds: DataSource): Promise<TestResult> {
 
   // ── Sem dataEndpoint — testa so o servidor ──
   try {
-    const res = await fetch(baseUrl, {
+    const res = await uFetch(baseUrl, {
       method: 'HEAD',
       signal: AbortSignal.timeout(SERVER_TIMEOUT_MS),
     })

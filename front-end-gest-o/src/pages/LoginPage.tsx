@@ -1,7 +1,7 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons'
 import { Alert, Button, Card, Checkbox, Form, Input, Space } from 'antd'
 import { useEffect, useState } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { PageHeaderCard } from '../components/PageHeaderCard'
 import { useAuth } from '../auth/AuthContext'
 import { useTenant } from '../tenant/TenantContext'
@@ -181,6 +181,10 @@ export function LoginPage() {
               <Button type="primary" htmlType="submit" loading={submitting} block>
                 Entrar
               </Button>
+              <Space style={{ justifyContent: 'space-between', width: '100%' }}>
+                <Link to="/forgot-password">Esqueci minha senha</Link>
+                <Link to="/register">Criar trial</Link>
+              </Space>
             </Space>
           </Form>
         </Card>

@@ -17,6 +17,28 @@ export type TenantConfig = {
   subtitle: string
   /** Cor primária em hex (ex: "#1A7AB5") — sobrescreve o tema padrão */
   primaryColor?: string
+  /** Modulos habilitados para o tenant atual */
+  enabledModules: string[]
+  connector?: {
+    id: string
+    name: string
+    labels: {
+      product: string
+      productPlural: string
+      rawMaterial: string
+      finishedProduct: string
+      production: string
+      stock: string
+      sales: string
+    }
+    productTypes: string[]
+    demoData?: {
+      stockRows: Record<string, unknown>[]
+      salesRows: Record<string, unknown>[]
+    }
+  }
+  plan?: 'trial' | 'starter' | 'pro' | 'enterprise'
+  trialEndsAt?: string | null
 }
 
 export type TenantContextValue = {
@@ -29,6 +51,38 @@ export const DEFAULT_TENANT: TenantConfig = {
   companyName: 'IGA',
   logoUrl: defaultBrandLogoUrl(),
   subtitle: 'Automação & Tecnologia',
+  enabledModules: [
+    'dashboard',
+    'financeiro',
+    'relatorios',
+    'usuarios',
+    'auditoria',
+    'producao',
+    'ficha_tecnica',
+    'comercial',
+    'compras',
+    'estoque',
+    'alertas',
+    'suporte',
+    'datasources',
+    'operations',
+  ],
+  connector: {
+    id: 'sgbr-espuma',
+    name: 'SGBR Espuma',
+    labels: {
+      product: 'Espuma',
+      productPlural: 'Espumas',
+      rawMaterial: 'Materia-prima',
+      finishedProduct: 'Produto final',
+      production: 'Producao de espuma',
+      stock: 'Estoque de espuma',
+      sales: 'Vendas SGBR',
+    },
+    productTypes: ['materia-prima', 'espuma', 'aglomerado', 'produto-final', 'outro'],
+  },
+  plan: 'trial',
+  trialEndsAt: null,
 }
 
 export const TenantContext = createContext<TenantContextValue | null>(null)

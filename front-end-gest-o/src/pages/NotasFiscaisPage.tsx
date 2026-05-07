@@ -22,7 +22,7 @@ import { MetricCard } from '../components/MetricCard'
 import { PageHeaderCard } from '../components/PageHeaderCard'
 import { RangePickerBR } from '../components/DatePickerPtBR'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
-import { getFaturamentos, getDefaultFaturamentoDateRange } from '../services/erpService'
+import { getFaturamentos } from '../services/erpService'
 import { queryKeys } from '../query/queryKeys'
 import { getErrorMessage } from '../api/httpError'
 import { formatBRL } from '../utils/formatters'
@@ -31,7 +31,7 @@ import type { Faturamento } from '../types/models'
 
 export function NotasFiscaisPage() {
   const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>(() => [
-    dayjs().subtract(30, 'day'),
+    dayjs().subtract(15, 'day'),
     dayjs(),
   ])
   const [search, setSearch] = useState('')

@@ -1,5 +1,5 @@
 import type { Faturamento, FormaPagamento, TipoDocumentoFiscal } from '../types/models'
-import { normalizeVendaAnaliticaRow, pickRaw, toNum, toStr } from './sgbrVendaAnaliticoNormalize'
+import { normalizeVendaAnaliticaRow, pickRaw, toNum, toStr } from './connectorVendaAnaliticoNormalize'
 
 function mapFormaPagamento(v: unknown): FormaPagamento {
   const s = toStr(v, '').toLowerCase()

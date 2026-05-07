@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { vendasAnaliticoResponseSchema, vendasAnaliticoRawResponseSchema } from './schemas'
-import { normalizeVendaAnaliticaRow } from '../utils/sgbrVendaAnaliticoNormalize'
+import { normalizeVendaAnaliticaRow } from '../utils/connectorVendaAnaliticoNormalize'
 
 describe('vendas analitico contract', () => {
   it('aceita payload minimo compativel com SGBR', () => {

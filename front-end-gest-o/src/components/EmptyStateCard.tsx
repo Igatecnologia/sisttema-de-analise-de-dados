@@ -25,9 +25,16 @@ type Props = {
  * Usa Empty do AntD + Card para manter consistência visual com o resto do app.
  */
 export function EmptyStateCard({ title, description, icon, action, secondaryAction, bare }: Props) {
+  const defaultEducationalIcon = (
+    <svg width="96" height="72" viewBox="0 0 96 72" role="img" aria-hidden="true">
+      <rect x="12" y="12" width="72" height="48" rx="8" fill="var(--qc-primary)" opacity="0.12" />
+      <path d="M26 48h44M26 36h22M26 26h34" stroke="var(--qc-primary)" strokeWidth="5" strokeLinecap="round" />
+      <circle cx="70" cy="26" r="7" fill="var(--qc-primary)" opacity="0.75" />
+    </svg>
+  )
   const content = (
     <Empty
-      image={icon ?? Empty.PRESENTED_IMAGE_SIMPLE}
+      image={icon ?? defaultEducationalIcon}
       description={
         <Space direction="vertical" size={4} style={{ maxWidth: 420 }}>
           <Typography.Text strong style={{ fontSize: 15 }}>

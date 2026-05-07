@@ -14,7 +14,6 @@ import {
   Button,
   Card,
   Col,
-  DatePicker,
   Empty,
   Input,
   Row,
@@ -89,7 +88,7 @@ type PedidoAgrupado = {
 
 function defaultRange(): { start: string; end: string } {
   const end = nowBr()
-  const start = end.subtract(30, 'day')
+  const start = end.subtract(15, 'day')
   return { start: start.format('YYYY-MM-DD'), end: end.format('YYYY-MM-DD') }
 }
 

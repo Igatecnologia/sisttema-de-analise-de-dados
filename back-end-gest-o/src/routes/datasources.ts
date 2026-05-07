@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { readAll, writeAll, genId, runWithDatasourcesLock, type DataSource } from '../storage.js'
+import { readAllAsync, writeAllAsync, genId, runWithDatasourcesLock, type DataSource } from '../storage.js'
 import { testConnection } from '../services/connectionTester.js'
 import { requireAuth } from '../middleware/auth.js'
 import { resolveTenantId } from '../utils/tenant.js'
@@ -28,7 +28,7 @@ const dataSourceBodySchema = z
     name: z.string().min(1, 'Nome obrigatorio').max(120),
     type: z.string().min(1).max(40).optional(),
     apiUrl: z.string().min(1, 'URL obrigatoria').max(500),
-    authMethod: z.enum(['none', 'bearer_token', 'api_key', 'basic_auth']).optional(),
+    authMethod: z.enum(['none', 'bearer_token', 'api_key', 'basic_auth', 'jwt']).optional(),
     authCredentials: z.string().max(500).optional(),
     apiLogin: z.string().max(200).optional(),
     apiPassword: z.string().max(500).optional(),
@@ -219,9 +219,9 @@ function sanitize(body: DataSourceBody) {
 }
 
 // GET / — lista todas
-dataSourceRouter.get('/', (_req, res) => {
+dataSourceRouter.get('/', async (_req, res) => {
   const tenantId = resolveTenantId(_req)
-  const all = readAll()
+  const all = (await readAllAsync())
     .filter((ds) => ds.tenantId === tenantId)
     .map((ds) => toPublicDataSource(ds))
   res.json(all)
@@ -244,9 +244,9 @@ dataSourceRouter.post('/test', async (req, res) => {
 })
 
 // GET /:id
-dataSourceRouter.get('/:id', (req, res) => {
+dataSourceRouter.get('/:id', async (req, res) => {
   const tenantId = resolveTenantId(req)
-  const ds = readAll().find((d) => d.id === req.params.id && d.tenantId === tenantId)
+  const ds = (await readAllAsync()).find((d) => d.id === req.params.id && d.tenantId === tenantId)
   if (!ds) return res.status(404).json({ message: 'Nao encontrada' })
   res.json(toPublicDataSource(ds))
 })
@@ -296,8 +296,8 @@ dataSourceRouter.post('/', async (req, res) => {
     updatedAt: now,
   }
   await runWithDatasourcesLock(async () => {
-    const all = readAll()
-    writeAll([...all, ds])
+    const all = await readAllAsync()
+    await writeAllAsync([...all, ds])
   })
   res.status(201).json(toPublicDataSource(ds))
 })
@@ -318,7 +318,7 @@ dataSourceRouter.put('/:id', async (req, res) => {
 
   let updated: DataSource | null = null
   await runWithDatasourcesLock(async () => {
-    const all = readAll()
+    const all = await readAllAsync()
     const idx = all.findIndex((d) => d.id === req.params.id && d.tenantId === tenantId)
     if (idx < 0) return
 
@@ -348,7 +348,7 @@ dataSourceRouter.put('/:id', async (req, res) => {
       updatedAt: new Date().toISOString(),
     }
     updated = all[idx]
-    writeAll(all)
+    await writeAllAsync(all)
   })
 
   if (!updated) return res.status(404).json({ message: 'Nao encontrada' })
@@ -359,7 +359,7 @@ dataSourceRouter.put('/:id', async (req, res) => {
 dataSourceRouter.delete('/:id', async (req, res) => {
   const tenantId = resolveTenantId(req)
   await runWithDatasourcesLock(async () => {
-    writeAll(readAll().filter((d) => !(d.id === req.params.id && d.tenantId === tenantId)))
+    await writeAllAsync((await readAllAsync()).filter((d) => !(d.id === req.params.id && d.tenantId === tenantId)))
   })
   res.json({ ok: true })
 })
@@ -367,7 +367,7 @@ dataSourceRouter.delete('/:id', async (req, res) => {
 // POST /:id/test — testa fonte salva
 dataSourceRouter.post('/:id/test', dataSourceTestLimiter, async (req, res) => {
   const tenantId = resolveTenantId(req)
-  const ds = readAll().find((d) => d.id === req.params.id && d.tenantId === tenantId)
+  const ds = (await readAllAsync()).find((d) => d.id === req.params.id && d.tenantId === tenantId)
   if (!ds) {
     return res.status(404).json({
       message: 'Nao encontrada',
@@ -379,7 +379,7 @@ dataSourceRouter.post('/:id/test', dataSourceTestLimiter, async (req, res) => {
   const result = await testConnection(ds)
 
   await runWithDatasourcesLock(async () => {
-    const list = readAll()
+    const list = await readAllAsync()
     const idx = list.findIndex((d) => d.id === ds.id && d.tenantId === tenantId)
     if (idx < 0) return
     list[idx] = {
@@ -388,7 +388,7 @@ dataSourceRouter.post('/:id/test', dataSourceTestLimiter, async (req, res) => {
       lastCheckedAt: new Date().toISOString(),
       lastError: result.success ? null : result.message,
     }
-    writeAll(list)
+    await writeAllAsync(list)
   })
 
   res.json(result)

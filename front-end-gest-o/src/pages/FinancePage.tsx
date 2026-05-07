@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   Col,
-  DatePicker,
   Input,
   Row,
   Select,
@@ -17,7 +16,6 @@ import {
 import {
   CreditCardOutlined,
   CrownFilled,
-  DollarOutlined,
   FundOutlined,
   RiseOutlined,
 } from '@ant-design/icons'
@@ -82,6 +80,7 @@ function VisaoGeralTab() {
       1000 * 60 * 60 * 24 * 7,
     )
     if (!persisted) return
+    /* eslint-disable react-hooks/set-state-in-effect */
     try {
       const parsed = JSON.parse(persisted) as {
         search?: string
@@ -96,6 +95,7 @@ function VisaoGeralTab() {
     } catch {
       // Ignora payload inválido e segue com filtros padrão.
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [session])
 
   useEffect(() => {

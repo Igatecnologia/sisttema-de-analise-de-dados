@@ -22,6 +22,7 @@ env.e2e
 # Test / E2E artifacts
 test-results
 playwright-report
+tests/e2e/.auth/
 
 # Editor directories and files
 .vscode/*

@@ -1,5 +1,5 @@
 import { RangePickerBR } from '../../components/DatePickerPtBR'
-import { Alert, Card, Col, DatePicker, Row, Skeleton, Space, Tag, Typography } from 'antd'
+import { Alert, Card, Col, Row, Skeleton, Space, Tag, Typography } from 'antd'
 import { useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 import { useQuery } from '@tanstack/react-query'

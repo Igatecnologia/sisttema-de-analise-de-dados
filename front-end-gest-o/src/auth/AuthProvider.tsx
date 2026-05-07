@@ -5,6 +5,7 @@ import { getStoredSession, setStoredSession, type AuthSession } from './authStor
 import { signIn as signInService } from '../services/authService'
 import { onAuthSignOut } from './authEvents'
 import { useSessionTimeout } from './useSessionTimeout'
+import { usePrefetchAfterLogin } from '../hooks/usePrefetchAfterLogin'
 import { http } from '../services/http'
 import { tenantStorage } from '../tenant/tenantStorage'
 import { queryClient } from '../query/queryClient'
@@ -18,6 +19,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     typeof window !== 'undefined' ? getStoredSession() : null,
   )
   const startupValidatedRef = useRef(false)
+  usePrefetchAfterLogin(session !== null)
 
   const signOut = useCallback(async () => {
     // Tenta invalidar sessão no backend (fire-and-forget)

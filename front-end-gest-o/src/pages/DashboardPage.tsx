@@ -6,14 +6,12 @@ import {
   ReloadOutlined,
   RiseOutlined,
   ShoppingCartOutlined,
-  TeamOutlined,
 } from '@ant-design/icons'
 import {
   Alert,
   Button,
   Card,
   Col,
-  Empty,
   Row,
   Segmented,
   Select,
@@ -98,7 +96,7 @@ export function DashboardPage() {
   const [sgbrInfoVisible, setSgbrInfoVisible] = useState(
     () => typeof window !== 'undefined' && localStorage.getItem(SGBR_PERMS_INFO_KEY) !== '1',
   )
-  const period = (searchParams.get('p') ?? '30d') as '7d' | '30d' | '90d'
+  const period = (searchParams.get('p') ?? '7d') as '7d' | '30d' | '90d'
   const startDate = searchParams.get('start') ?? ''
   const endDate = searchParams.get('end') ?? ''
   const pollMs = Number(searchParams.get('pollMs') ?? 0)
@@ -312,6 +310,15 @@ export function DashboardPage() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       {header}
+
+      <Card className="app-card no-hover" variant="borderless">
+        <Space direction="vertical" size={6}>
+          <Typography.Title level={4} style={{ margin: 0 }}>Bem-vindo ao painel</Typography.Title>
+          <Typography.Text type="secondary">
+            Dados de {sourceLabel}. Atualizacao mais recente: {dashboardQuery.dataUpdatedAt ? dayjs(dashboardQuery.dataUpdatedAt).format('DD/MM/YYYY HH:mm:ss') : 'aguardando primeira carga'}.
+          </Typography.Text>
+        </Space>
+      </Card>
 
       {hasAnySources() && sgbrInfoVisible ? (
         <Alert

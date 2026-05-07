@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { getDb } from '../db/sqlite.js'
+import { getPostgresPool, hasPostgresConfig } from '../db/postgres.js'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js'
 
 const preferencesSchema = z.object({
@@ -19,16 +20,43 @@ export const userPreferencesRouter = Router()
 userPreferencesRouter.use(requireAuth)
 const db = getDb()
 
-userPreferencesRouter.get('/me/preferences', (req, res) => {
-  const authReq = req as AuthenticatedRequest
+function usePostgresStorage(): boolean {
+  return process.env.IGA_STORAGE_DRIVER === 'postgres' && hasPostgresConfig()
+}
+
+async function readPreferencesJson(userId: string): Promise<string | null> {
+  if (usePostgresStorage()) {
+    const result = await getPostgresPool().query<{ preferences_json: string | null }>(
+      'SELECT preferences_json FROM users WHERE id = $1 LIMIT 1',
+      [userId],
+    )
+    return result.rows[0]?.preferences_json ?? null
+  }
   const row = db
     .prepare('SELECT preferences_json FROM users WHERE id = ? LIMIT 1')
-    .get(authReq.userId) as { preferences_json: string | null } | undefined
-  const parsed = row?.preferences_json ? JSON.parse(row.preferences_json) : {}
+    .get(userId) as { preferences_json: string | null } | undefined
+  return row?.preferences_json ?? null
+}
+
+async function writePreferencesJson(userId: string, json: string, updatedAt: string) {
+  if (usePostgresStorage()) {
+    await getPostgresPool().query(
+      'UPDATE users SET preferences_json = $1, updated_at = $2 WHERE id = $3',
+      [json, updatedAt, userId],
+    )
+    return
+  }
+  db.prepare('UPDATE users SET preferences_json = ?, updated_at = ? WHERE id = ?').run(json, updatedAt, userId)
+}
+
+userPreferencesRouter.get('/me/preferences', async (req, res) => {
+  const authReq = req as AuthenticatedRequest
+  const raw = await readPreferencesJson(authReq.userId)
+  const parsed = raw ? JSON.parse(raw) : {}
   res.json(parsed)
 })
 
-userPreferencesRouter.put('/me/preferences', (req, res) => {
+userPreferencesRouter.put('/me/preferences', async (req, res) => {
   const authReq = req as AuthenticatedRequest
   const parsed = preferencesSchema.safeParse(req.body)
   if (!parsed.success) {
@@ -36,10 +64,8 @@ userPreferencesRouter.put('/me/preferences', (req, res) => {
   }
   // Faz MERGE com as preferências existentes (patch parcial) — antes sobrescrevia
   // tudo e perdia theme/favoriteReports/etc ao salvar só layout.
-  const row = db
-    .prepare('SELECT preferences_json FROM users WHERE id = ? LIMIT 1')
-    .get(authReq.userId) as { preferences_json: string | null } | undefined
-  const current = row?.preferences_json ? (JSON.parse(row.preferences_json) as Record<string, unknown>) : {}
+  const raw = await readPreferencesJson(authReq.userId)
+  const current = raw ? (JSON.parse(raw) as Record<string, unknown>) : {}
   const merged = {
     ...current,
     ...parsed.data,
@@ -48,10 +74,6 @@ userPreferencesRouter.put('/me/preferences', (req, res) => {
       ...(parsed.data.pageLayouts ?? {}),
     },
   }
-  db.prepare('UPDATE users SET preferences_json = ?, updated_at = ? WHERE id = ?').run(
-    JSON.stringify(merged),
-    new Date().toISOString(),
-    authReq.userId,
-  )
+  await writePreferencesJson(authReq.userId, JSON.stringify(merged), new Date().toISOString())
   res.json(merged)
 })

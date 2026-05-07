@@ -3,7 +3,7 @@ import { notasFiscaisRawResponseSchema } from '../api/schemas'
 import { http } from './http'
 import { normalizeDataEndpointPath } from './dataSourceService'
 import { toSgbrBiDateParam } from './vendasAnaliticoService'
-import { faturamentoFromVendaAnaliticaRow, normalizeNotaFiscalRow } from '../utils/sgbrNotasFiscaisNormalize'
+import { faturamentoFromVendaAnaliticaRow, normalizeNotaFiscalRow } from '../utils/connectorNotasFiscaisNormalize'
 import type { Faturamento } from '../types/models'
 
 /**

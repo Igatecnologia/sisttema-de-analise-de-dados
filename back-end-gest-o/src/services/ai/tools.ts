@@ -1,7 +1,241 @@
 import { getDb } from '../../db/sqlite.js'
+import { getPostgresPool, hasPostgresConfig } from '../../db/postgres.js'
 import { readAll as readAllDataSources, type DataSource } from '../../storage.js'
 import { fetchProxyDataForTool, getProxyOperationalSnapshot } from '../../routes/proxy.js'
 import type { ToolDefinition } from './types.js'
+
+function usePostgresStorage(): boolean {
+  return process.env.IGA_STORAGE_DRIVER === 'postgres' && hasPostgresConfig()
+}
+
+async function countUsersTotal(): Promise<number> {
+  if (usePostgresStorage()) {
+    const result = await getPostgresPool().query<{ t: string }>('SELECT COUNT(*)::text AS t FROM users')
+    return Number(result.rows[0]?.t ?? 0)
+  }
+  const db = getDb()
+  return Number((db.prepare('SELECT COUNT(*) as t FROM users').get() as { t: number }).t ?? 0)
+}
+
+async function countUsersActive(): Promise<number> {
+  if (usePostgresStorage()) {
+    const result = await getPostgresPool().query<{ t: string }>(
+      "SELECT COUNT(*)::text AS t FROM users WHERE status = 'active'",
+    )
+    return Number(result.rows[0]?.t ?? 0)
+  }
+  const db = getDb()
+  return Number((db.prepare("SELECT COUNT(*) as t FROM users WHERE status = 'active'").get() as { t: number }).t ?? 0)
+}
+
+async function countAlertsTotal(tenantId: string): Promise<number> {
+  if (usePostgresStorage()) {
+    const result = await getPostgresPool().query<{ t: string }>(
+      'SELECT COUNT(*)::text AS t FROM alerts WHERE tenant_id = $1',
+      [tenantId],
+    )
+    return Number(result.rows[0]?.t ?? 0)
+  }
+  const db = getDb()
+  return Number(
+    (db.prepare('SELECT COUNT(*) as t FROM alerts WHERE tenant_id = ?').get(tenantId) as { t: number }).t ?? 0,
+  )
+}
+
+async function countAlertsUnread(tenantId: string): Promise<number> {
+  if (usePostgresStorage()) {
+    const result = await getPostgresPool().query<{ t: string }>(
+      'SELECT COUNT(*)::text AS t FROM alerts WHERE tenant_id = $1 AND read_at IS NULL',
+      [tenantId],
+    )
+    return Number(result.rows[0]?.t ?? 0)
+  }
+  const db = getDb()
+  return Number(
+    (
+      db
+        .prepare('SELECT COUNT(*) as t FROM alerts WHERE tenant_id = ? AND read_at IS NULL')
+        .get(tenantId) as { t: number }
+    ).t ?? 0,
+  )
+}
+
+async function readUserPreferencesJson(userId: string): Promise<string | null> {
+  if (usePostgresStorage()) {
+    const result = await getPostgresPool().query<{ preferences_json: string | null }>(
+      'SELECT preferences_json FROM users WHERE id = $1 LIMIT 1',
+      [userId],
+    )
+    return result.rows[0]?.preferences_json ?? null
+  }
+  const db = getDb()
+  const row = db
+    .prepare('SELECT preferences_json FROM users WHERE id = ? LIMIT 1')
+    .get(userId) as { preferences_json: string | null } | undefined
+  return row?.preferences_json ?? null
+}
+
+async function writeUserPreferencesJson(userId: string, json: string, updatedAt: string) {
+  if (usePostgresStorage()) {
+    await getPostgresPool().query(
+      'UPDATE users SET preferences_json = $1, updated_at = $2 WHERE id = $3',
+      [json, updatedAt, userId],
+    )
+    return
+  }
+  const db = getDb()
+  db.prepare('UPDATE users SET preferences_json = ?, updated_at = ? WHERE id = ?').run(json, updatedAt, userId)
+}
+
+async function listUsersBasic(onlyActive: boolean, limit: number): Promise<Array<{ name: string; email: string; role: string; status: string }>> {
+  if (usePostgresStorage()) {
+    const where = onlyActive ? "WHERE status = 'active'" : ''
+    const result = await getPostgresPool().query<{ name: string; email: string; role: string; status: string }>(
+      `SELECT name, email, role, status FROM users ${where} ORDER BY created_at DESC LIMIT $1`,
+      [limit],
+    )
+    return result.rows
+  }
+  const db = getDb()
+  const where = onlyActive ? "WHERE status = 'active'" : ''
+  return db
+    .prepare(`SELECT name, email, role, status FROM users ${where} ORDER BY created_at DESC LIMIT ?`)
+    .all(limit) as Array<{ name: string; email: string; role: string; status: string }>
+}
+
+async function listAlertsFiltered(
+  tenantId: string,
+  onlyUnread: boolean,
+  severity: string | null,
+  limit: number,
+): Promise<Array<{ title: string; severity: string; created_at: string; read_at: string | null }>> {
+  if (usePostgresStorage()) {
+    const clauses: string[] = ['tenant_id = $1']
+    const params: unknown[] = [tenantId]
+    if (onlyUnread) clauses.push('read_at IS NULL')
+    if (severity) {
+      params.push(severity)
+      clauses.push(`severity = $${params.length}`)
+    }
+    params.push(limit)
+    const where = `WHERE ${clauses.join(' AND ')}`
+    const result = await getPostgresPool().query<{ title: string; severity: string; created_at: string; read_at: string | null }>(
+      `SELECT title, severity, created_at, read_at FROM alerts ${where} ORDER BY created_at DESC LIMIT $${params.length}`,
+      params,
+    )
+    return result.rows
+  }
+  const db = getDb()
+  const clauses: string[] = ['tenant_id = ?']
+  const params: unknown[] = [tenantId]
+  if (onlyUnread) clauses.push('read_at IS NULL')
+  if (severity) {
+    clauses.push('severity = ?')
+    params.push(severity)
+  }
+  params.push(limit)
+  const where = `WHERE ${clauses.join(' AND ')}`
+  return db
+    .prepare(`SELECT title, severity, created_at, read_at FROM alerts ${where} ORDER BY created_at DESC LIMIT ?`)
+    .all(...params) as Array<{ title: string; severity: string; created_at: string; read_at: string | null }>
+}
+
+async function searchUsersByName(likeTerm: string): Promise<Array<{ name: string; role: string }>> {
+  if (usePostgresStorage()) {
+    const result = await getPostgresPool().query<{ name: string; role: string }>(
+      "SELECT name, role FROM users WHERE name ILIKE $1 OR email ILIKE $1 LIMIT 5",
+      [likeTerm],
+    )
+    return result.rows
+  }
+  const db = getDb()
+  return db
+    .prepare("SELECT name, role FROM users WHERE name LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\' LIMIT 5")
+    .all(likeTerm, likeTerm) as Array<{ name: string; role: string }>
+}
+
+async function searchAlertsByTitle(tenantId: string, likeTerm: string): Promise<Array<{ title: string; severity: string }>> {
+  if (usePostgresStorage()) {
+    const result = await getPostgresPool().query<{ title: string; severity: string }>(
+      'SELECT title, severity FROM alerts WHERE tenant_id = $1 AND title ILIKE $2 LIMIT 5',
+      [tenantId, likeTerm],
+    )
+    return result.rows
+  }
+  const db = getDb()
+  return db
+    .prepare("SELECT title, severity FROM alerts WHERE tenant_id = ? AND title LIKE ? ESCAPE '\\' LIMIT 5")
+    .all(tenantId, likeTerm) as Array<{ title: string; severity: string }>
+}
+
+async function listScheduledReportsForUser(userId: string, onlyActive: boolean, limit: number): Promise<Record<string, unknown>[]> {
+  if (usePostgresStorage()) {
+    const params: unknown[] = [userId]
+    let where = 'WHERE user_id = $1'
+    if (onlyActive) where += ' AND active = TRUE'
+    params.push(limit)
+    const result = await getPostgresPool().query(
+      `SELECT id, name, report_type, frequency, cron_expr, format, active, last_sent_at, created_at, updated_at
+       FROM scheduled_reports ${where} ORDER BY updated_at DESC LIMIT $${params.length}`,
+      params,
+    )
+    return result.rows as Record<string, unknown>[]
+  }
+  const db = getDb()
+  const clauses: string[] = ['user_id = ?']
+  const params: unknown[] = [userId]
+  if (onlyActive) clauses.push('active = 1')
+  params.push(limit)
+  const where = `WHERE ${clauses.join(' AND ')}`
+  return db
+    .prepare(
+      `SELECT id, name, report_type, frequency, cron_expr, format, active, last_sent_at, created_at, updated_at
+       FROM scheduled_reports ${where} ORDER BY updated_at DESC LIMIT ?`,
+    )
+    .all(...params) as Record<string, unknown>[]
+}
+
+async function listAuditLogFiltered(action: string | null, resource: string | null, limit: number): Promise<Record<string, unknown>[]> {
+  if (usePostgresStorage()) {
+    const clauses: string[] = []
+    const params: unknown[] = []
+    if (action) {
+      params.push(action)
+      clauses.push(`action = $${params.length}`)
+    }
+    if (resource) {
+      params.push(resource)
+      clauses.push(`resource = $${params.length}`)
+    }
+    params.push(limit)
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+    const result = await getPostgresPool().query(
+      `SELECT id, user_id, action, resource, metadata_json, created_at
+       FROM audit_log ${where} ORDER BY created_at DESC LIMIT $${params.length}`,
+      params,
+    )
+    return result.rows as Record<string, unknown>[]
+  }
+  const db = getDb()
+  const clauses: string[] = []
+  const params: unknown[] = []
+  if (action) {
+    clauses.push('action = ?')
+    params.push(action)
+  }
+  if (resource) {
+    clauses.push('resource = ?')
+    params.push(resource)
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+  params.push(limit)
+  return db
+    .prepare(
+      `SELECT id, user_id, action, resource, metadata_json, created_at
+       FROM audit_log ${where} ORDER BY created_at DESC LIMIT ?`,
+    )
+    .all(...params) as Record<string, unknown>[]
+}
 
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
@@ -443,25 +677,14 @@ export async function executeTool(
   args: Record<string, unknown>,
   ctx: ToolContext,
 ): Promise<ToolResult> {
-  const db = getDb()
   switch (name) {
     case 'get_overview': {
-      const usersTotal = Number((db.prepare('SELECT COUNT(*) as t FROM users').get() as { t: number }).t ?? 0)
-      const usersActive = Number(
-        (db.prepare("SELECT COUNT(*) as t FROM users WHERE status = 'active'").get() as { t: number }).t ?? 0,
-      )
-      const alertsTotal = Number(
-        (
-          db.prepare('SELECT COUNT(*) as t FROM alerts WHERE tenant_id = ?').get(ctx.tenantId) as { t: number }
-        ).t ?? 0,
-      )
-      const alertsUnread = Number(
-        (
-          db
-            .prepare('SELECT COUNT(*) as t FROM alerts WHERE tenant_id = ? AND read_at IS NULL')
-            .get(ctx.tenantId) as { t: number }
-        ).t ?? 0,
-      )
+      const [usersTotal, usersActive, alertsTotal, alertsUnread] = await Promise.all([
+        countUsersTotal(),
+        countUsersActive(),
+        countAlertsTotal(ctx.tenantId),
+        countAlertsUnread(ctx.tenantId),
+      ])
       const dataSources = byTenant(readAllDataSources(), ctx.tenantId)
       const dsByStatus: Record<string, number> = {}
       for (const d of dataSources) dsByStatus[d.status] = (dsByStatus[d.status] ?? 0) + 1
@@ -478,10 +701,7 @@ export async function executeTool(
         return { error: 'Acesso restrito: listagem de usuários é apenas para administradores.' }
       }
       const limit = clamp(args.limit, 1, 50, 10)
-      const where = truthy(args.onlyActive) ? "WHERE status = 'active'" : ''
-      const rows = db
-        .prepare(`SELECT name, email, role, status FROM users ${where} ORDER BY created_at DESC LIMIT ?`)
-        .all(limit) as Array<{ name: string; email: string; role: string; status: string }>
+      const rows = await listUsersBasic(truthy(args.onlyActive), limit)
       const masked = rows.map((r) => ({
         name: r.name,
         email: r.email.replace(/^[^@]+/, '***'),
@@ -507,20 +727,8 @@ export async function executeTool(
 
     case 'get_alerts': {
       const limit = clamp(args.limit, 1, 50, 10)
-      const clauses: string[] = []
-      const params: unknown[] = []
-      clauses.push('tenant_id = ?')
-      params.push(ctx.tenantId)
-      if (truthy(args.onlyUnread)) clauses.push('read_at IS NULL')
-      if (typeof args.severity === 'string') {
-        clauses.push('severity = ?')
-        params.push(args.severity)
-      }
-      const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
-      params.push(limit)
-      const rows = db
-        .prepare(`SELECT title, severity, created_at, read_at FROM alerts ${where} ORDER BY created_at DESC LIMIT ?`)
-        .all(...params) as Array<{ title: string; severity: string; created_at: string; read_at: string | null }>
+      const severity = typeof args.severity === 'string' ? args.severity : null
+      const rows = await listAlertsFiltered(ctx.tenantId, truthy(args.onlyUnread), severity, limit)
       return { alerts: rows, returned: rows.length, tenantId: ctx.tenantId }
     }
 
@@ -529,18 +737,12 @@ export async function executeTool(
       if (rawQuery.length < 2) return { error: 'Query deve ter pelo menos 2 caracteres.', results: [] }
       const safe = rawQuery.replace(/[_%]/g, '\\$&')
       const likeTerm = `%${safe}%`
-      const users = isAdmin(ctx)
-        ? (db
-            .prepare("SELECT name, role FROM users WHERE name LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\' LIMIT 5")
-            .all(likeTerm, likeTerm) as Array<{ name: string; role: string }>)
-        : []
+      const users = isAdmin(ctx) ? await searchUsersByName(likeTerm) : []
       const ds = byTenant(readAllDataSources(), ctx.tenantId)
         .filter((d) => d.name.toLowerCase().includes(rawQuery.toLowerCase()))
         .slice(0, 5)
         .map((d) => ({ name: d.name, status: d.status }))
-      const alerts = db
-        .prepare("SELECT title, severity FROM alerts WHERE tenant_id = ? AND title LIKE ? ESCAPE '\\' LIMIT 5")
-        .all(ctx.tenantId, likeTerm) as Array<{ title: string; severity: string }>
+      const alerts = await searchAlertsByTitle(ctx.tenantId, likeTerm)
       return { query: rawQuery, users, datasources: ds, alerts, tenantId: ctx.tenantId }
     }
 
@@ -549,18 +751,7 @@ export async function executeTool(
       const onlyActive = truthy(args.onlyActive)
       const requestedUserId = typeof args.userId === 'string' ? args.userId.trim() : ''
       const userId = isAdmin(ctx) && requestedUserId ? requestedUserId : ctx.userId
-
-      const clauses: string[] = ['user_id = ?']
-      const params: unknown[] = [userId]
-      if (onlyActive) clauses.push('active = 1')
-      params.push(limit)
-      const where = `WHERE ${clauses.join(' AND ')}`
-      const rows = db
-        .prepare(
-          `SELECT id, name, report_type, frequency, cron_expr, format, active, last_sent_at, created_at, updated_at
-           FROM scheduled_reports ${where} ORDER BY updated_at DESC LIMIT ?`,
-        )
-        .all(...params) as Array<Record<string, unknown>>
+      const rows = await listScheduledReportsForUser(userId, onlyActive, limit)
       return { scheduledReports: rows, returned: rows.length, forUserId: userId }
     }
 
@@ -569,24 +760,9 @@ export async function executeTool(
         return { error: 'Acesso restrito: auditoria é apenas para administradores.' }
       }
       const limit = clamp(args.limit, 1, 50, 20)
-      const clauses: string[] = []
-      const params: unknown[] = []
-      if (typeof args.action === 'string' && args.action.trim()) {
-        clauses.push('action = ?')
-        params.push(args.action.trim())
-      }
-      if (typeof args.resource === 'string' && args.resource.trim()) {
-        clauses.push('resource = ?')
-        params.push(args.resource.trim())
-      }
-      const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
-      params.push(limit)
-      const rows = db
-        .prepare(
-          `SELECT id, user_id, action, resource, metadata_json, created_at
-           FROM audit_log ${where} ORDER BY created_at DESC LIMIT ?`,
-        )
-        .all(...params) as Array<Record<string, unknown>>
+      const action = typeof args.action === 'string' && args.action.trim() ? args.action.trim() : null
+      const resource = typeof args.resource === 'string' && args.resource.trim() ? args.resource.trim() : null
+      const rows = await listAuditLogFiltered(action, resource, limit)
       // metadata_json pode conter info sensível; retornamos só tamanho + preview pequeno
       const slim = rows.map((r) => {
         const raw = typeof r.metadata_json === 'string' ? r.metadata_json : null
@@ -712,8 +888,8 @@ export async function executeTool(
             hits = summary.hits
             field = summary.usedField
           }
-        } catch (e) {
-          status = 0
+        } catch {
+          // Mantem status 0 para indicar falha de chamada desta fonte.
         }
 
         if (field) usedField = usedField ?? field
@@ -782,7 +958,7 @@ export async function executeTool(
             sum = sumMoneyFromRows(rows).sum
           }
         } catch {
-          status = 0
+          // Mantem status 0 para indicar falha de chamada desta fonte.
         }
         if (truncated) anyTruncated = true
         total += sum
@@ -828,10 +1004,8 @@ export async function executeTool(
       const prevTotal = typeof prevRes.total === 'number' ? prevRes.total : 0
       const delta = curTotal - prevTotal
       const deltaPct = prevTotal > 0 ? (delta / prevTotal) * 100 : null
-      const prefRow = db
-        .prepare('SELECT preferences_json FROM users WHERE id = ? LIMIT 1')
-        .get(ctx.userId) as { preferences_json: string | null } | undefined
-      const parsedPrefs = prefRow?.preferences_json ? JSON.parse(prefRow.preferences_json) : null
+      const prefRaw = await readUserPreferencesJson(ctx.userId)
+      const parsedPrefs = prefRaw ? JSON.parse(prefRaw) : null
       const monthlyGoal = extractMonthlyRevenueGoal(parsedPrefs)
       const goalDelta = monthlyGoal != null ? curTotal - monthlyGoal : null
       const goalPct = monthlyGoal != null && monthlyGoal > 0 ? (curTotal / monthlyGoal) * 100 : null
@@ -854,18 +1028,10 @@ export async function executeTool(
         return { ok: false, error: 'Valor de meta inválido. Informe um número maior ou igual a zero.' }
       }
       const rounded = Math.round(value * 100) / 100
-      const prefRow = db
-        .prepare('SELECT preferences_json FROM users WHERE id = ? LIMIT 1')
-        .get(ctx.userId) as { preferences_json: string | null } | undefined
-      const current = prefRow?.preferences_json
-        ? (JSON.parse(prefRow.preferences_json) as Record<string, unknown>)
-        : {}
+      const prefRaw = await readUserPreferencesJson(ctx.userId)
+      const current = prefRaw ? (JSON.parse(prefRaw) as Record<string, unknown>) : {}
       const merged = { ...current, monthlyRevenueGoal: rounded }
-      db.prepare('UPDATE users SET preferences_json = ?, updated_at = ? WHERE id = ?').run(
-        JSON.stringify(merged),
-        new Date().toISOString(),
-        ctx.userId,
-      )
+      await writeUserPreferencesJson(ctx.userId, JSON.stringify(merged), new Date().toISOString())
       return {
         ok: true,
         monthlyRevenueGoal: rounded,
@@ -873,19 +1039,11 @@ export async function executeTool(
     }
 
     case 'clear_monthly_revenue_goal': {
-      const prefRow = db
-        .prepare('SELECT preferences_json FROM users WHERE id = ? LIMIT 1')
-        .get(ctx.userId) as { preferences_json: string | null } | undefined
-      const current = prefRow?.preferences_json
-        ? (JSON.parse(prefRow.preferences_json) as Record<string, unknown>)
-        : {}
+      const prefRaw = await readUserPreferencesJson(ctx.userId)
+      const current = prefRaw ? (JSON.parse(prefRaw) as Record<string, unknown>) : {}
       const merged = { ...current }
       delete merged.monthlyRevenueGoal
-      db.prepare('UPDATE users SET preferences_json = ?, updated_at = ? WHERE id = ?').run(
-        JSON.stringify(merged),
-        new Date().toISOString(),
-        ctx.userId,
-      )
+      await writeUserPreferencesJson(ctx.userId, JSON.stringify(merged), new Date().toISOString())
       return {
         ok: true,
         monthlyRevenueGoal: null,

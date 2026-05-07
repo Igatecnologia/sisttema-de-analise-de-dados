@@ -1,4 +1,5 @@
 import { http } from './http'
+import { API_BASE_URL } from '../api/apiEnv'
 
 export type AppAlert = {
   id: string
@@ -21,7 +22,7 @@ export async function markAlertAsRead(id: string) {
 }
 
 export function subscribeAlerts(onAlert: (alert: AppAlert) => void) {
-  const source = new EventSource('/api/v1/alerts/stream', { withCredentials: true })
+  const source = new EventSource(`${API_BASE_URL}/api/v1/alerts/stream`, { withCredentials: true })
   const listener = (event: MessageEvent<string>) => {
     try {
       const parsed = JSON.parse(event.data) as AppAlert

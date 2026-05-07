@@ -1,3 +1,4 @@
+import type { JSX } from 'react'
 import { Descriptions, Drawer, Space, Tag, Typography } from 'antd'
 import dayjs from 'dayjs'
 

@@ -1,7 +1,6 @@
 import {
   AlertOutlined,
   AppstoreOutlined,
-  BarChartOutlined,
   CloudOutlined,
   CloudServerOutlined,
   CustomerServiceOutlined,

@@ -78,13 +78,12 @@ function normalizeToolCall(call: { id: string; name: string; argsJson: string })
       argsJson = stuffed
     }
   }
-  let args: Record<string, unknown> = {}
   try {
-    args = argsJson ? (JSON.parse(argsJson) as Record<string, unknown>) : {}
+    const args = argsJson ? (JSON.parse(argsJson) as Record<string, unknown>) : {}
+    return { id: call.id, name, args }
   } catch {
-    args = {}
+    return { id: call.id, name, args: {} }
   }
-  return { id: call.id, name, args }
 }
 
 function describeGroqError(status: number): string {
@@ -288,7 +287,7 @@ export class GroqProvider implements AiProvider {
             const braceIdx = rawName.indexOf('{')
             const cleanName = (braceIdx > 0 ? rawName.slice(0, braceIdx) : rawName).trim()
             const stuffedArgs = braceIdx > 0 ? rawName.slice(braceIdx) : '{}'
-            let args: Record<string, unknown> = {}
+            let args: Record<string, unknown>
             try {
               args = JSON.parse(stuffedArgs) as Record<string, unknown>
             } catch {

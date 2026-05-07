@@ -1,10 +1,11 @@
 import { getDb } from '../../db/sqlite.js'
+import { getPostgresPool, hasPostgresConfig } from '../../db/postgres.js'
 import { decryptSecret, encryptSecret, isEncryptedPayload } from '../crypto.js'
 
 /**
- * Config do copiloto persistida em SQLite (tabela app_settings).
- * Permite que cada instalação desktop configure sua própria chave Groq
- * sem expô-la no .exe. Chaves criptografadas com AES-256-GCM.
+ * Config do copiloto persistida em SQLite/PostgreSQL (tabela app_settings).
+ * Permite que cada instalação configure sua própria chave Groq sem expô-la
+ * no .exe. Chaves criptografadas com AES-256-GCM.
  */
 
 export type CopilotProviderChoice = 'auto' | 'groq' | 'local'
@@ -34,21 +35,58 @@ type StoredShape = {
   groqModel: string | null
 }
 
+function usePostgresStorage(): boolean {
+  return process.env.IGA_STORAGE_DRIVER === 'postgres' && hasPostgresConfig()
+}
+
 function maskKey(key: string): string {
   if (key.length <= 8) return '••••'
   return `${key.slice(0, 4)}••••${key.slice(-4)}`
 }
 
-export function getCopilotConfig(): CopilotConfig {
+async function readStoredJson(): Promise<string | null> {
+  if (usePostgresStorage()) {
+    const result = await getPostgresPool().query<{ value_json: string }>(
+      'SELECT value_json FROM app_settings WHERE key = $1',
+      [KEY],
+    )
+    return result.rows[0]?.value_json ?? null
+  }
   const db = getDb()
   const row = db.prepare('SELECT value_json FROM app_settings WHERE key = ?').get(KEY) as
     | { value_json: string }
     | undefined
-  if (!row) return { ...DEFAULT_CONFIG }
+  return row?.value_json ?? null
+}
+
+async function writeStoredJson(json: string, updatedBy: string, now: string) {
+  if (usePostgresStorage()) {
+    await getPostgresPool().query(
+      `INSERT INTO app_settings (key, value_json, is_secret, updated_at, updated_by)
+       VALUES ($1, $2, TRUE, $3, $4)
+       ON CONFLICT (key) DO UPDATE SET
+         value_json = EXCLUDED.value_json,
+         updated_at = EXCLUDED.updated_at,
+         updated_by = EXCLUDED.updated_by`,
+      [KEY, json, now, updatedBy],
+    )
+    return
+  }
+  const db = getDb()
+  db.prepare(`
+    INSERT INTO app_settings (key, value_json, is_secret, updated_at, updated_by)
+    VALUES (?, ?, 1, ?, ?)
+    ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at, updated_by = excluded.updated_by
+  `).run(KEY, json, now, updatedBy)
+}
+
+export async function getCopilotConfig(): Promise<CopilotConfig> {
+  const raw = await readStoredJson()
+  if (!raw) return { ...DEFAULT_CONFIG }
 
   let parsed: StoredShape
   try {
-    parsed = JSON.parse(row.value_json) as StoredShape
+    parsed = JSON.parse(raw) as StoredShape
   } catch {
     return { ...DEFAULT_CONFIG }
   }
@@ -69,8 +107,8 @@ export function getCopilotConfig(): CopilotConfig {
   }
 }
 
-export function getCopilotConfigPublic(): CopilotConfigPublic {
-  const cfg = getCopilotConfig()
+export async function getCopilotConfigPublic(): Promise<CopilotConfigPublic> {
+  const cfg = await getCopilotConfig()
   return {
     provider: cfg.provider,
     groqApiKeySet: Boolean(cfg.groqApiKey),
@@ -92,8 +130,11 @@ function resolveSecret(input: string | null | undefined, current: string | null)
   return input.trim()
 }
 
-export function updateCopilotConfig(input: UpdateCopilotConfigInput, updatedBy: string): CopilotConfigPublic {
-  const current = getCopilotConfig()
+export async function updateCopilotConfig(
+  input: UpdateCopilotConfigInput,
+  updatedBy: string,
+): Promise<CopilotConfigPublic> {
+  const current = await getCopilotConfig()
   const next: CopilotConfig = {
     provider: input.provider ?? current.provider,
     groqApiKey: resolveSecret(input.groqApiKey, current.groqApiKey),
@@ -106,13 +147,8 @@ export function updateCopilotConfig(input: UpdateCopilotConfigInput, updatedBy: 
     groqModel: next.groqModel,
   }
 
-  const db = getDb()
   const now = new Date().toISOString()
-  db.prepare(`
-    INSERT INTO app_settings (key, value_json, is_secret, updated_at, updated_by)
-    VALUES (?, ?, 1, ?, ?)
-    ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at, updated_by = excluded.updated_by
-  `).run(KEY, JSON.stringify(stored), now, updatedBy)
+  await writeStoredJson(JSON.stringify(stored), updatedBy, now)
 
   return getCopilotConfigPublic()
 }

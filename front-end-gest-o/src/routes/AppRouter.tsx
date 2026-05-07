@@ -1,5 +1,5 @@
 import { Spin } from 'antd'
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, type ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { useAuth } from '../auth/AuthContext'
@@ -9,6 +9,7 @@ import { RequireAuth } from './RequireAuth'
 import { RequirePermission } from './RequirePermission'
 import { PageTransition } from '../components/PageTransition'
 import { PageErrorBoundary } from '../components/PageErrorBoundary'
+import { useTenant } from '../tenant/TenantContext'
 
 const GestaoExecutivaPage = lazy(() =>
   import('../pages/GestaoExecutivaPage').then((m) => ({ default: m.GestaoExecutivaPage })),
@@ -35,6 +36,27 @@ const NotFoundPage = lazy(() =>
 )
 const LoginPage = lazy(() =>
   import('../pages/LoginPage').then((m) => ({ default: m.LoginPage })),
+)
+const RegisterPage = lazy(() =>
+  import('../pages/RegisterPage').then((m) => ({ default: m.RegisterPage })),
+)
+const ForgotPasswordPage = lazy(() =>
+  import('../pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })),
+)
+const ResetPasswordPage = lazy(() =>
+  import('../pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })),
+)
+const AcceptInvitePage = lazy(() =>
+  import('../pages/AcceptInvitePage').then((m) => ({ default: m.AcceptInvitePage })),
+)
+const VerifyEmailPage = lazy(() =>
+  import('../pages/VerifyEmailPage').then((m) => ({ default: m.VerifyEmailPage })),
+)
+const OnboardingPage = lazy(() =>
+  import('../pages/OnboardingPage').then((m) => ({ default: m.OnboardingPage })),
+)
+const ImportingDataPage = lazy(() =>
+  import('../pages/ImportingDataPage').then((m) => ({ default: m.ImportingDataPage })),
 )
 const UsersPage = lazy(() =>
   import('../pages/UsersPage').then((m) => ({ default: m.UsersPage })),
@@ -87,6 +109,29 @@ function HomeRedirect() {
   return <Navigate to={nextPath} replace />
 }
 
+function moduleForPath(path: string): string {
+  if (path.startsWith('/financeiro')) return 'financeiro'
+  if (path.startsWith('/relatorios')) return 'relatorios'
+  if (path.startsWith('/usuarios')) return 'usuarios'
+  if (path.startsWith('/auditoria')) return 'auditoria'
+  if (path.startsWith('/producao')) return 'producao'
+  if (path.startsWith('/ficha-tecnica')) return 'ficha_tecnica'
+  if (path.startsWith('/notas-fiscais')) return 'comercial'
+  if (path.startsWith('/compras')) return 'compras'
+  if (path.startsWith('/estoque')) return 'estoque'
+  if (path.startsWith('/alertas')) return 'alertas'
+  if (path.startsWith('/fontes-de-dados')) return 'datasources'
+  if (path.startsWith('/admin/operacao')) return 'operations'
+  if (path.startsWith('/suporte') || path.startsWith('/tokens')) return 'suporte'
+  return 'dashboard'
+}
+
+function RequireTenantModule({ path, children }: { path: string; children: ReactNode }) {
+  const tenant = useTenant()
+  if (!tenant.enabledModules.includes(moduleForPath(path))) return <Navigate to="/" replace />
+  return children
+}
+
 export function AppRouter() {
   return (
     <AnimatePresence mode="wait">
@@ -107,6 +152,13 @@ export function AppRouter() {
         >
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/accept-invite" element={<AcceptInvitePage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/onboarding" element={<RequireAuth><OnboardingPage /></RequireAuth>} />
+            <Route path="/importando-dados" element={<RequireAuth><ImportingDataPage /></RequireAuth>} />
             <Route
               element={
                 <RequireAuth>
@@ -119,7 +171,7 @@ export function AppRouter() {
             path="/gestao"
             element={
               <RequirePermission permission="dashboard:view">
-                <PageErrorBoundary><GestaoExecutivaPage /></PageErrorBoundary>
+                <RequireTenantModule path="/gestao"><PageErrorBoundary><GestaoExecutivaPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -127,7 +179,7 @@ export function AppRouter() {
             path="/dashboard"
             element={
               <RequirePermission permission="dashboard:view">
-                <PageErrorBoundary><DashboardPage /></PageErrorBoundary>
+                <RequireTenantModule path="/dashboard"><PageErrorBoundary><DashboardPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -135,7 +187,7 @@ export function AppRouter() {
             path="/dashboard/analises"
             element={
               <RequirePermission permission="dashboard:view">
-                <PageErrorBoundary><DashboardInsightsPage /></PageErrorBoundary>
+                <RequireTenantModule path="/dashboard/analises"><PageErrorBoundary><DashboardInsightsPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -147,7 +199,7 @@ export function AppRouter() {
             path="/dashboard/vendas-analitico"
             element={
               <RequirePermission permission="dashboard:view">
-                <PageErrorBoundary><VendasAnaliticoPage /></PageErrorBoundary>
+                <RequireTenantModule path="/dashboard/vendas-analitico"><PageErrorBoundary><VendasAnaliticoPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -155,7 +207,7 @@ export function AppRouter() {
             path="/financeiro"
             element={
               <RequirePermission permission="reports:view">
-                <PageErrorBoundary><FinancePage /></PageErrorBoundary>
+                <RequireTenantModule path="/financeiro"><PageErrorBoundary><FinancePage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -163,7 +215,7 @@ export function AppRouter() {
             path="/relatorios"
             element={
               <RequirePermission permission="reports:view">
-                <PageErrorBoundary><ReportsPage /></PageErrorBoundary>
+                <RequireTenantModule path="/relatorios"><PageErrorBoundary><ReportsPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -171,7 +223,7 @@ export function AppRouter() {
             path="/usuarios"
             element={
               <RequirePermission permission="users:view">
-                <PageErrorBoundary><UsersPage /></PageErrorBoundary>
+                <RequireTenantModule path="/usuarios"><PageErrorBoundary><UsersPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -179,7 +231,7 @@ export function AppRouter() {
             path="/auditoria"
             element={
               <RequirePermission permission="audit:view">
-                <PageErrorBoundary><AuditPage /></PageErrorBoundary>
+                <RequireTenantModule path="/auditoria"><PageErrorBoundary><AuditPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -187,7 +239,7 @@ export function AppRouter() {
             path="/producao"
             element={
               <RequirePermission permission="producao:view">
-                <PageErrorBoundary><ProducaoPage /></PageErrorBoundary>
+                <RequireTenantModule path="/producao"><PageErrorBoundary><ProducaoPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -195,7 +247,7 @@ export function AppRouter() {
             path="/ficha-tecnica"
             element={
               <RequirePermission permission="fichatecnica:view">
-                <PageErrorBoundary><FichaTecnicaPage /></PageErrorBoundary>
+                <RequireTenantModule path="/ficha-tecnica"><PageErrorBoundary><FichaTecnicaPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -203,7 +255,7 @@ export function AppRouter() {
             path="/notas-fiscais"
             element={
               <RequirePermission permission="comercial:view">
-                <PageErrorBoundary><NotasFiscaisPage /></PageErrorBoundary>
+                <RequireTenantModule path="/notas-fiscais"><PageErrorBoundary><NotasFiscaisPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -211,7 +263,7 @@ export function AppRouter() {
             path="/compras"
             element={
               <RequirePermission permission="producao:view">
-                <PageErrorBoundary><ComprasPage /></PageErrorBoundary>
+                <RequireTenantModule path="/compras"><PageErrorBoundary><ComprasPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -219,7 +271,7 @@ export function AppRouter() {
             path="/estoque"
             element={
               <RequirePermission permission="estoque:view">
-                <PageErrorBoundary><EstoquePage /></PageErrorBoundary>
+                <RequireTenantModule path="/estoque"><PageErrorBoundary><EstoquePage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -228,7 +280,7 @@ export function AppRouter() {
             path="/alertas"
             element={
               <RequirePermission permission="alertas:view">
-                <PageErrorBoundary><AlertasPage /></PageErrorBoundary>
+                <RequireTenantModule path="/alertas"><PageErrorBoundary><AlertasPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -237,7 +289,7 @@ export function AppRouter() {
             path="/tokens"
             element={
               <RequirePermission permission="support:view">
-                <PageErrorBoundary><DesignTokensPage /></PageErrorBoundary>
+                <RequireTenantModule path="/tokens"><PageErrorBoundary><DesignTokensPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -245,7 +297,7 @@ export function AppRouter() {
             path="/suporte"
             element={
               <RequirePermission permission="support:view">
-                <PageErrorBoundary><SuporteTecnicoPage /></PageErrorBoundary>
+                <RequireTenantModule path="/suporte"><PageErrorBoundary><SuporteTecnicoPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -253,7 +305,7 @@ export function AppRouter() {
             path="/fontes-de-dados"
             element={
               <RequirePermission permission="datasources:view">
-                <PageErrorBoundary><DataSourceConfigPage /></PageErrorBoundary>
+                <RequireTenantModule path="/fontes-de-dados"><PageErrorBoundary><DataSourceConfigPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />
@@ -261,7 +313,7 @@ export function AppRouter() {
             path="/admin/operacao"
             element={
               <RequirePermission permission="operations:view">
-                <PageErrorBoundary><OpsStatusPage /></PageErrorBoundary>
+                <RequireTenantModule path="/admin/operacao"><PageErrorBoundary><OpsStatusPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
           />

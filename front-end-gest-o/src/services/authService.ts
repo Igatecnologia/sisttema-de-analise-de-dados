@@ -6,6 +6,19 @@ import { http } from './http'
 import { getAuthDataSource } from './dataSourceService'
 
 type SignInInput = { email: string; password: string }
+export type RegisterInput = {
+  companyName: string
+  slug: string
+  name: string
+  email: string
+  password: string
+  connectorId?: string
+}
+export type AcceptInviteInput = {
+  token: string
+  name?: string
+  password: string
+}
 
 function resolvePermissionsByRole(role: 'admin' | 'manager' | 'viewer'): AuthSession['permissions'] {
   return defaultPermissionsForRole(role)
@@ -83,4 +96,33 @@ export async function signIn(input: SignInInput): Promise<AuthSession> {
 
     throw new Error(INVALID_CREDENTIALS_MSG)
   }
+}
+
+export async function registerSelfService(input: RegisterInput) {
+  const { data } = await http.post('/api/v1/auth/register', {
+    ...input,
+    connectorId: input.connectorId ?? 'sgbr-espuma',
+  })
+  return data as {
+    tenant: { id: string; slug: string; companyName: string; trialEndsAt: string | null }
+    user: { id: string; name: string; email: string; role: 'admin' }
+    verification?: { token?: string }
+  }
+}
+
+export async function requestPasswordReset(email: string) {
+  const { data } = await http.post('/api/v1/auth/forgot-password', { email })
+  return data as { ok: true; token?: string }
+}
+
+export async function resetPassword(token: string, password: string) {
+  await http.post('/api/v1/auth/reset-password', { token, password })
+}
+
+export async function verifyEmail(token: string) {
+  await http.post('/api/v1/auth/verify-email', { token })
+}
+
+export async function acceptInvite(input: AcceptInviteInput) {
+  await http.post('/api/v1/auth/accept-invite', input)
 }

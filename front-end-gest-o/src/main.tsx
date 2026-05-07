@@ -18,17 +18,10 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './query/queryClient'
 import { publicAssetUrl } from './utils/publicAssetUrl'
 import { setCurrentTenantId } from './tenant/tenantStorage'
+import { resolveTenantIdFromLocation } from './tenant/resolveTenant'
 
 /** Resolve tenantId cedo — antes de qualquer read de localStorage */
-function resolveEarlyTenantId(): string {
-  const envTenant = import.meta.env.VITE_TENANT_ID?.toString().trim()
-  if (envTenant) return envTenant
-  const host = window.location.hostname
-  const parts = host.split('.')
-  if (parts.length >= 3 && parts[0] !== 'www') return parts[0]
-  return 'default'
-}
-setCurrentTenantId(resolveEarlyTenantId())
+setCurrentTenantId(resolveTenantIdFromLocation(window.location))
 
 /** Fundo da tela de login (CSS não resolve import.meta.env.BASE_URL sozinho). */
 document.documentElement.style.setProperty(

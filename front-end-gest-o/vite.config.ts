@@ -33,6 +33,26 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       proxy: {
+        '/api': {
+          target: env.VITE_API_BASE_URL || 'http://localhost:3001',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/dashboard': {
+          target: env.VITE_API_BASE_URL || 'http://localhost:3001',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/reports': {
+          target: env.VITE_API_BASE_URL || 'http://localhost:3001',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/health': {
+          target: env.VITE_API_BASE_URL || 'http://localhost:3001',
+          changeOrigin: true,
+          secure: false,
+        },
         '/sgbrbi': {
           target: sgbrProxyTarget,
           changeOrigin: true,

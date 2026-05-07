@@ -13,6 +13,7 @@ import {
   FileTextOutlined,
   HomeOutlined,
   InboxOutlined,
+  LockOutlined,
   StarOutlined,
   MenuOutlined,
   MenuFoldOutlined,
@@ -37,7 +38,7 @@ import {
   theme,
 } from 'antd'
 import { Grid } from 'antd'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { ForcePasswordChangeModal } from '../auth/ForcePasswordChangeModal'
@@ -57,6 +58,8 @@ import { CommandPalette } from '../components/CommandPalette'
 import { CopilotDrawer } from '../components/CopilotDrawer'
 import { OpenTabsBar } from '../components/OpenTabsBar'
 import { useOpenTabs } from '../hooks/useOpenTabs'
+import { GuidedTour } from '../components/GuidedTour'
+import { shouldAutoOpenTour } from '../components/guidedTourStorage'
 /**
  * Picker de fonte de vendas foi removido — o sistema lê automaticamente TODAS as
  * fontes compatíveis em paralelo. Ver `services/vendasAnaliticoSourceSelection.ts`.
@@ -132,10 +135,53 @@ function useOpenSubMenuKeys(selectedKey: string) {
   }, [selectedKey])
 }
 
-/** Menu lateral: prefetch desabilitado — causava spike de queryFn e download de
- *  chunks em hover, competindo com a página ativa. Chunks são carregados on-demand. */
+function hasTenantModule(enabledModules: string[], moduleId: string): boolean {
+  return enabledModules.includes(moduleId)
+}
+
+/**
+ * Menu lateral: prefetch leve no hover — carrega apenas o chunk JS da página
+ * (não dispara queryFn/dados). Delay de 300ms evita spike ao passar o mouse rápido.
+ */
+const chunkPrefetchMap: Record<string, () => Promise<unknown>> = {
+  '/gestao': () => import('../pages/DashboardPage'),
+  '/gestao/vendas': () => import('../pages/VendasAnaliticoPage'),
+  '/gestao/producao': () => import('../pages/ProducaoPage'),
+  '/gestao/financeiro': () => import('../pages/FinancePage'),
+  '/gestao/notas-fiscais': () => import('../pages/NotasFiscaisPage'),
+  '/gestao/compras': () => import('../pages/ComprasPage'),
+  '/gestao/estoque': () => import('../pages/EstoquePage'),
+  '/gestao/relatorios': () => import('../pages/ReportsPage'),
+  '/gestao/usuarios': () => import('../pages/UsersPage'),
+  '/gestao/auditoria': () => import('../pages/AuditPage'),
+}
+
 function SidebarLink({ to, children }: { to: string; children: React.ReactNode }) {
-  return <Link to={to}>{children}</Link>
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const handleMouseEnter = () => {
+    const loader = chunkPrefetchMap[to]
+    if (!loader) return
+    timerRef.current = setTimeout(() => { loader().catch(() => {}) }, 300)
+  }
+  const handleMouseLeave = () => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
+  }
+  return (
+    <Link to={to} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+      {children}
+    </Link>
+  )
+}
+
+function LockedModuleLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Tooltip title="Modulo bloqueado no plano atual">
+      <Space size={6}>
+        <LockOutlined />
+        <span>{children}</span>
+      </Space>
+    </Tooltip>
+  )
 }
 
 export function AppLayout() {
@@ -152,6 +198,7 @@ export function AppLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [copilotOpen, setCopilotOpen] = useState(false)
+  const [tourOpen, setTourOpen] = useState(() => typeof window !== 'undefined' && shouldAutoOpenTour())
   const { mode, toggle } = useAppTheme()
   const { session, signOut } = useAuth()
   const { token } = theme.useToken()
@@ -174,7 +221,7 @@ export function AppLayout() {
   const navItems = useMemo(() => {
     const items: NonNullable<React.ComponentProps<typeof Menu>['items']> = []
 
-    if (hasPermission(session, 'dashboard:view')) {
+    if (hasPermission(session, 'dashboard:view') && hasTenantModule(tenant.enabledModules, 'dashboard')) {
       items.push({
         key: 'sub-dashboard',
         icon: <BarChartOutlined />,
@@ -191,19 +238,25 @@ export function AppLayout() {
 
     {
       const erpChildren: NonNullable<React.ComponentProps<typeof Menu>['items']> = []
-      if (hasPermission(session, 'producao:view')) {
+      if (hasPermission(session, 'producao:view') && hasTenantModule(tenant.enabledModules, 'producao')) {
         erpChildren.push({ key: 'producao', icon: <ExperimentOutlined />, label: <SidebarLink to="/producao">Produção</SidebarLink> })
       }
-      if (hasPermission(session, 'fichatecnica:view')) {
+      if (hasPermission(session, 'producao:view') && !hasTenantModule(tenant.enabledModules, 'producao')) {
+        erpChildren.push({ key: 'producao-locked', disabled: true, icon: <LockOutlined />, label: <LockedModuleLabel>ProduÃ§Ã£o</LockedModuleLabel> })
+      }
+      if (hasPermission(session, 'fichatecnica:view') && hasTenantModule(tenant.enabledModules, 'ficha_tecnica')) {
         erpChildren.push({ key: 'ficha-tecnica', icon: <ProfileOutlined />, label: <SidebarLink to="/ficha-tecnica">Ficha Técnica</SidebarLink> })
       }
-      if (hasPermission(session, 'producao:view')) {
+      if (hasPermission(session, 'fichatecnica:view') && !hasTenantModule(tenant.enabledModules, 'ficha_tecnica')) {
+        erpChildren.push({ key: 'ficha-tecnica-locked', disabled: true, icon: <LockOutlined />, label: <LockedModuleLabel>Ficha TÃ©cnica</LockedModuleLabel> })
+      }
+      if (hasPermission(session, 'producao:view') && hasTenantModule(tenant.enabledModules, 'compras')) {
         erpChildren.push({ key: 'compras', icon: <ShoppingCartOutlined />, label: <SidebarLink to="/compras">Compras</SidebarLink> })
       }
-      if (hasPermission(session, 'comercial:view')) {
+      if (hasPermission(session, 'comercial:view') && hasTenantModule(tenant.enabledModules, 'comercial')) {
         erpChildren.push({ key: 'notas-fiscais', icon: <FileTextOutlined />, label: <SidebarLink to="/notas-fiscais">Notas Fiscais</SidebarLink> })
       }
-      if (hasPermission(session, 'estoque:view')) {
+      if (hasPermission(session, 'estoque:view') && hasTenantModule(tenant.enabledModules, 'estoque')) {
         erpChildren.push({ key: 'estoque', icon: <InboxOutlined />, label: <SidebarLink to="/estoque">Estoque</SidebarLink> })
       }
       if (erpChildren.length) {
@@ -216,7 +269,7 @@ export function AppLayout() {
       }
     }
 
-    if (hasPermission(session, 'reports:view')) {
+    if (hasPermission(session, 'reports:view') && (hasTenantModule(tenant.enabledModules, 'financeiro') || hasTenantModule(tenant.enabledModules, 'relatorios'))) {
       items.push({
         key: 'sub-analytics',
         icon: <DollarOutlined />,
@@ -229,10 +282,10 @@ export function AppLayout() {
     }
 
     const adminChildren: NonNullable<React.ComponentProps<typeof Menu>['items']> = []
-    if (hasPermission(session, 'users:view')) {
+    if (hasPermission(session, 'users:view') && hasTenantModule(tenant.enabledModules, 'usuarios')) {
       adminChildren.push({ key: 'usuarios', icon: <TeamOutlined />, label: <SidebarLink to="/usuarios">Funcionários</SidebarLink> })
     }
-    if (hasPermission(session, 'audit:view')) {
+    if (hasPermission(session, 'audit:view') && hasTenantModule(tenant.enabledModules, 'auditoria')) {
       adminChildren.push({ key: 'auditoria', icon: <FileSearchOutlined />, label: <SidebarLink to="/auditoria">Auditoria</SidebarLink> })
     }
     if (adminChildren.length) {
@@ -252,7 +305,7 @@ export function AppLayout() {
           label: <SidebarLink to="/suporte/fale-conosco">Fale conosco</SidebarLink>,
         },
       ]
-      if (hasPermission(session, 'support:view')) {
+      if (hasPermission(session, 'support:view') && hasTenantModule(tenant.enabledModules, 'suporte')) {
         suporteChildren.push({
           key: 'suporte',
           icon: <CustomerServiceOutlined />,
@@ -264,14 +317,14 @@ export function AppLayout() {
           label: <SidebarLink to="/tokens">Design Tokens</SidebarLink>,
         })
       }
-      if (hasPermission(session, 'datasources:view')) {
+      if (hasPermission(session, 'datasources:view') && hasTenantModule(tenant.enabledModules, 'datasources')) {
         suporteChildren.push({
           key: 'fontes-de-dados',
           icon: <DatabaseOutlined />,
           label: <SidebarLink to="/fontes-de-dados">Fontes de dados</SidebarLink>,
         })
       }
-      if (hasPermission(session, 'operations:view')) {
+      if (hasPermission(session, 'operations:view') && hasTenantModule(tenant.enabledModules, 'operations')) {
         suporteChildren.push({
           key: 'admin-operacao',
           icon: <CloudServerOutlined />,
@@ -287,7 +340,7 @@ export function AppLayout() {
     }
 
     return items
-  }, [session])
+  }, [session, tenant.enabledModules])
 
   const currentPageTitle = useMemo(
     () => getTitleByMenuKey(selectedKey),
@@ -523,6 +576,9 @@ export function AppLayout() {
               <Button type="text" aria-label="Abrir copiloto" onClick={() => setCopilotOpen(true)}>
                 IA
               </Button>
+              <Button type="text" aria-label="Abrir tour guiado" onClick={() => setTourOpen(true)}>
+                Tour
+              </Button>
               <AlertsBell />
               {screens.xs ? (
                 <Button
@@ -584,6 +640,7 @@ export function AppLayout() {
         />
         <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
         <CopilotDrawer open={copilotOpen} onClose={() => setCopilotOpen(false)} />
+        <GuidedTour open={tourOpen} onClose={() => setTourOpen(false)} />
         <Modal open={shortcutsOpen} onCancel={closeShortcuts} footer={null} title="Atalhos de teclado">
           <Space direction="vertical" style={{ width: '100%' }}>
             <Typography.Text><kbd>Ctrl/Cmd</kbd> + <kbd>K</kbd> abrir busca</Typography.Text>
@@ -608,6 +665,31 @@ export function AppLayout() {
               <Outlet />
             </div>
           </div>
+          {screens.xs ? (
+            <nav
+              aria-label="Navegacao inferior"
+              style={{
+                position: 'fixed',
+                left: 12,
+                right: 12,
+                bottom: 12,
+                zIndex: 120,
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: 6,
+                padding: 8,
+                borderRadius: 16,
+                background: token.colorBgElevated,
+                border: `1px solid ${token.colorBorderSecondary}`,
+                boxShadow: token.boxShadowSecondary,
+              }}
+            >
+              <Button type="text" icon={<CompassOutlined />} onClick={() => navigate('/gestao')} aria-label="Gestao" />
+              <Button type="text" icon={<DollarOutlined />} onClick={() => navigate('/financeiro')} aria-label="Financeiro" />
+              <Button type="text" icon={<DatabaseOutlined />} onClick={() => navigate('/fontes-de-dados')} aria-label="Fontes" />
+              <Button type="text" icon={<MenuOutlined />} onClick={() => setMobileNavOpen(true)} aria-label="Menu" />
+            </nav>
+          ) : null}
         </Content>
 
       </Layout>

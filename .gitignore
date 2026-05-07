@@ -4,11 +4,24 @@ node_modules/
 # Build
 dist/
 dist-windows/
+coverage/
 
 # Ambiente
 .env
 .env.*
 !.env.example
+!.env.production
+
+# Dados runtime (SQLite, secrets gerados, credenciais iniciais)
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+.session-jwt-secret
+FIRST_LOGIN.txt
 
 # Sistema
 *.log
@@ -17,13 +30,14 @@ dist-windows/
 .DS_Store
 Thumbs.db
 
-# Ignorar tudo que não seja backend e frontend
+# Artefatos desktop/installer
 desktop-app/
 installer/
-docs/
-.claude/
-.github/
 *.bat
 *.exe
 *.msi
+
+# Docs/config não necessários na raiz
+docs/
+.claude/
 *.html

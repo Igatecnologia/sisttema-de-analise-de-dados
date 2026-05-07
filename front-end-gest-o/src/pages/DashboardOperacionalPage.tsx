@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   Col,
-  DatePicker,
   Empty,
   Progress,
   Row,
@@ -52,11 +51,12 @@ function margemColor(pct: number): string {
   return '#52c41a'
 }
 
-function severityColor(s: 'alta' | 'media' | 'baixa') {
-  if (s === 'alta') return 'red'
-  if (s === 'media') return 'orange'
-  return 'blue'
-}
+// severityColor kept for future use
+// function severityColor(s: 'alta' | 'media' | 'baixa') {
+//   if (s === 'alta') return 'red'
+//   if (s === 'media') return 'orange'
+//   return 'blue'
+// }
 
 function statusColor(s: string) {
   switch (s) {

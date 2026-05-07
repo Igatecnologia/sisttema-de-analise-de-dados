@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: back-end-gest-o
+    env:
+      NODE_ENV: test
+      IGA_DATA_DIR: ${{ runner.temp }}/iga-backend-data
+      ADMIN_DEFAULT_EMAIL: admin@iga.com
+      ADMIN_DEFAULT_PASSWORD: IgaGestao@2026!
+      FRONTEND_URL: http://127.0.0.1:4173
+      PROXY_CACHE_TTL_MS: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: back-end-gest-o/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run test
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: front-end-gest-o
+    env:
+      VITE_API_BASE_URL: http://127.0.0.1:3000
+      VITE_HTTP_TIMEOUT_MS: "180000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: front-end-gest-o/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - run: npm run test:unit
+
+  docker:
+    name: Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker build --target production -t iga-gestao:${{ github.sha }} .

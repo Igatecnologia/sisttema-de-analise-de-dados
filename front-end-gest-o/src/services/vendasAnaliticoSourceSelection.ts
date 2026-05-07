@@ -27,7 +27,8 @@ export function getVendasAnaliticoSelectionStored(): 'all' {
 }
 
 /** @deprecated no-op; a seleção foi removida do produto. */
-export function setVendasAnaliticoSelection(_selection: 'all' | string): void {
+export function setVendasAnaliticoSelection(selection: 'all' | string): void {
+  void selection
   /* intencionalmente vazio — seleção sempre 'all'. */
 }
 

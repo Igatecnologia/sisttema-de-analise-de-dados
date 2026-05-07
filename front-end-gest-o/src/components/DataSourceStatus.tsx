@@ -1,13 +1,14 @@
 import { Badge, Space, Tooltip, Typography } from 'antd'
 
 type DataSourceStatusProps = {
-  status: 'connected' | 'error' | 'pending' | 'disabled'
+  status: 'connected' | 'error' | 'pending' | 'disabled' | 'active'
   lastCheckedAt?: string | null
   lastError?: string | null
   compact?: boolean
 }
 
 const STATUS_MAP: Record<string, { badge: 'success' | 'error' | 'processing' | 'default'; label: string }> = {
+  active: { badge: 'success', label: 'Ativo' },
   connected: { badge: 'success', label: 'Conectado' },
   error: { badge: 'error', label: 'Erro' },
   pending: { badge: 'processing', label: 'Pendente' },

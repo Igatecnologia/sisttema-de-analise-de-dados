@@ -1,0 +1,17 @@
+{
+  "name": "iga-gestao-workspace",
+  "private": true,
+  "version": "1.2.0",
+  "scripts": {
+    "dev": "docker compose up",
+    "dev:build": "docker compose up --build",
+    "dev:down": "docker compose down",
+    "logs": "docker compose logs -f",
+    "check": "npm --prefix back-end-gest-o run lint && npm --prefix front-end-gest-o run check",
+    "test": "npm --prefix back-end-gest-o run test && npm --prefix front-end-gest-o run test:unit",
+    "build": "npm --prefix back-end-gest-o run build && npm --prefix front-end-gest-o run build",
+    "db:migrate:pg": "npm --prefix back-end-gest-o run db:migrate:pg",
+    "db:copy:pg": "npm --prefix back-end-gest-o run db:copy:pg",
+    "deploy": "node -e \"console.log('Deploy automatizado entra na Sprint 6. Use render.yaml enquanto o deploy atual for Render.')\""
+  }
+}

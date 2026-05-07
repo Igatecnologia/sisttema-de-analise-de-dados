@@ -5,7 +5,7 @@ import { contaPagarSchema } from '../api/schemas'
 import { http } from './http'
 import { getContasPagarSgbrDataSource } from './dataSourceService'
 import { toSgbrBiDateParam } from './vendasAnaliticoService'
-import { mapSgbrContasPagasRows } from '../utils/sgbrContasPagasMap'
+import { mapSgbrContasPagasRows } from '../utils/connectorContasPagasMap'
 import type { ContaPagar } from '../types/models'
 
 /** @deprecated use CONTAS_PAGAR_SGBR_ENDPOINT_HINTS[0] — mantido para imports antigos */

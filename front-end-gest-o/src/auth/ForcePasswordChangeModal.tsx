@@ -88,7 +88,7 @@ export function ForcePasswordChangeModal() {
           label="Senha atual"
           rules={[{ required: true, message: 'Informe a senha atual' }]}
         >
-          <Input.Password autoFocus autoComplete="current-password" />
+          <Input.Password autoComplete="current-password" />
         </Form.Item>
         <Form.Item
           name="newPassword"

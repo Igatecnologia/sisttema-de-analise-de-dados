@@ -1,15 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { TenantContext, DEFAULT_TENANT, defaultBrandLogoUrl, type TenantConfig } from './TenantContext'
 import { setCurrentTenantId } from './tenantStorage'
-
-function resolveTenantId(): string {
-  const envTenant = import.meta.env.VITE_TENANT_ID?.toString().trim()
-  if (envTenant) return envTenant
-  const host = window.location.hostname
-  const parts = host.split('.')
-  if (parts.length >= 3 && parts[0] !== 'www') return parts[0]
-  return 'default'
-}
+import { resolveTenantIdFromLocation } from './resolveTenant'
 
 function loadTenantFromEnv(tenantId: string): TenantConfig {
   const companyName = import.meta.env.VITE_COMPANY_NAME?.toString().trim() || DEFAULT_TENANT.companyName
@@ -21,6 +13,7 @@ function loadTenantFromEnv(tenantId: string): TenantConfig {
     logoUrl: explicitLogoUrl || defaultBrandLogoUrl(),
     subtitle: import.meta.env.VITE_COMPANY_SUBTITLE?.toString().trim() || DEFAULT_TENANT.subtitle,
     primaryColor: import.meta.env.VITE_PRIMARY_COLOR?.toString().trim() || undefined,
+    enabledModules: DEFAULT_TENANT.enabledModules,
   }
 }
 
@@ -39,11 +32,15 @@ async function fetchTenantConfig(tenantId: string): Promise<TenantConfig | null>
     const data = await res.json()
     const companyName = data.companyName ?? DEFAULT_TENANT.companyName
     return {
-      tenantId,
+      tenantId: data.tenantId ?? tenantId,
       companyName,
       logoUrl: data.logoUrl || defaultBrandLogoUrl(),
       subtitle: data.subtitle ?? DEFAULT_TENANT.subtitle,
       primaryColor: data.primaryColor ?? undefined,
+      enabledModules: Array.isArray(data.enabledModules) ? data.enabledModules : DEFAULT_TENANT.enabledModules,
+      connector: data.connector ?? DEFAULT_TENANT.connector,
+      plan: data.plan ?? DEFAULT_TENANT.plan,
+      trialEndsAt: data.trialEndsAt ?? null,
     }
   } catch {
     return null
@@ -64,7 +61,7 @@ function applyTenantColors(config: TenantConfig) {
 }
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
-  const tenantId = useMemo(() => resolveTenantId(), [])
+  const tenantId = useMemo(() => resolveTenantIdFromLocation(window.location), [])
   const envConfig = useMemo(() => loadTenantFromEnv(tenantId), [tenantId])
   const [tenant, setTenant] = useState<TenantConfig>(envConfig)
 

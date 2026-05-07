@@ -1,5 +1,5 @@
 import { RangePickerBR } from '../components/DatePickerPtBR'
-import { Alert, Card, DatePicker, Segmented, Skeleton, Space, Tag } from 'antd'
+import { Alert, Card, Segmented, Skeleton, Space, Tag } from 'antd'
 import dayjs from 'dayjs'
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'

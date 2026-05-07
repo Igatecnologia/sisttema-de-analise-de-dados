@@ -1,0 +1,121 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: iga
+      POSTGRES_PASSWORD: iga_dev_password
+      POSTGRES_DB: iga_gestao
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iga -d iga_gestao"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-dev
+    environment:
+      NODE_ENV: development
+      PORT: "3000"
+      FRONTEND_URL: http://localhost:5173
+      IGA_DATA_DIR: /app/back-end-gest-o/data
+      ADMIN_DEFAULT_EMAIL: admin@iga.com
+      ADMIN_DEFAULT_PASSWORD: IgaGestao@2026!
+      DATABASE_URL: postgresql://iga:iga_dev_password@postgres:5432/iga_gestao
+      REDIS_URL: redis://redis:6379
+      PROXY_CACHE_TTL_MS: "300000"
+      ALLOW_PRIVATE_HOSTS: localhost,127.0.0.1,host.docker.internal
+      IGA_PROCESS_ROLE: web
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./back-end-gest-o:/app/back-end-gest-o
+      - backend_node_modules:/app/back-end-gest-o/node_modules
+      - backend_data:/app/back-end-gest-o/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend-dev
+    working_dir: /app/front-end-gest-o
+    environment:
+      VITE_API_BASE_URL: http://localhost:3000
+      VITE_HTTP_TIMEOUT_MS: "180000"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./front-end-gest-o:/app/front-end-gest-o
+      - frontend_node_modules:/app/front-end-gest-o/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:5173').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-dev
+    command: ["npm", "run", "worker"]
+    environment:
+      NODE_ENV: development
+      IGA_PROCESS_ROLE: worker
+      IGA_DATA_DIR: /app/back-end-gest-o/data
+      ADMIN_DEFAULT_EMAIL: admin@iga.com
+      ADMIN_DEFAULT_PASSWORD: IgaGestao@2026!
+      DATABASE_URL: postgresql://iga:iga_dev_password@postgres:5432/iga_gestao
+      REDIS_URL: redis://redis:6379
+      PROXY_CACHE_TTL_MS: "300000"
+      ALLOW_PRIVATE_HOSTS: localhost,127.0.0.1,host.docker.internal
+    volumes:
+      - ./back-end-gest-o:/app/back-end-gest-o
+      - backend_node_modules:/app/back-end-gest-o/node_modules
+      - backend_data:/app/back-end-gest-o/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_node_modules:
+  backend_data:
+  frontend_node_modules:

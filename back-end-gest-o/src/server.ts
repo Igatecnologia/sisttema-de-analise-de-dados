@@ -1,7 +1,9 @@
 import 'dotenv/config'
 import { createApp } from './app.js'
 
-const app = createApp()
+const startSchedulers =
+  process.env.IGA_PROCESS_ROLE !== 'web' && process.env.START_SCHEDULERS !== '0'
+const app = createApp({ startSchedulers })
 const PREFERRED_PORT = Number(process.env.PORT ?? 3000)
 const MAX_PORT = Number(process.env.PORT_MAX ?? PREFERRED_PORT + 20)
 

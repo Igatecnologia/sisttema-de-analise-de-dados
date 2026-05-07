@@ -22,17 +22,14 @@ import {
   EyeOutlined,
   FilterOutlined,
   NumberOutlined,
-  PercentageOutlined,
   ReloadOutlined,
   ShoppingCartOutlined,
   TeamOutlined,
-  UnorderedListOutlined,
 } from '@ant-design/icons'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { useMemo, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { MetricCard } from '../components/MetricCard'
 import { PageHeaderCard } from '../components/PageHeaderCard'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { http } from '../services/http'
@@ -238,7 +235,7 @@ function CompraDetailDrawer({ open, onClose, row }: { open: boolean; onClose: ()
         {/* ── Seções curadas ── */}
         {DRAWER_SECTIONS.map((section) => {
           const items = section.fields
-            .map((f) => ({ label: f.label, value: getVal(f.keys, f.fmt, 'extra' in f ? f.extra : undefined) }))
+            .map((f) => ({ label: f.label, value: getVal(f.keys, 'fmt' in f ? f.fmt : undefined, 'extra' in f ? f.extra : undefined) }))
             .filter((item) => item.value != null)
           if (items.length === 0) return null
           return (
@@ -423,11 +420,11 @@ export function ComprasPage() {
       {/* ── KPIs — Linha 1 ── */}
       <Row gutter={[12, 12]}>
         {([
-          { title: 'Total de Compras', value: `R$ ${money(metrics.valorTotal)}`, color: metricColors.cost, sub: `${metrics.total} registros`, icon: <DollarOutlined />, hero: true, tip: 'Soma de todos os custos no período selecionado' },
-          { title: 'Ticket Médio', value: `R$ ${money(metrics.ticketMedio)}`, color: metricColors.ticket, sub: `por compra`, icon: <ShoppingCartOutlined />, tip: 'Valor médio por registro de compra' },
-          { title: 'Quantidade Total', value: metrics.qtdTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 }), color: metricColors.quantity, sub: `itens comprados`, icon: <NumberOutlined /> },
-          { title: 'Fornecedores', value: String(metrics.fornecedores), color: metricColors.clients, sub: `${metrics.materiais} materiais`, icon: <TeamOutlined /> },
-        ] as const).map((kpi) => (
+          { title: 'Total de Compras' as const, value: `R$ ${money(metrics.valorTotal)}`, color: metricColors.cost, sub: `${metrics.total} registros`, icon: <DollarOutlined />, hero: true, tip: 'Soma de todos os custos no período selecionado' },
+          { title: 'Ticket Médio' as const, value: `R$ ${money(metrics.ticketMedio)}`, color: metricColors.ticket, sub: `por compra`, icon: <ShoppingCartOutlined />, hero: false, tip: 'Valor médio por registro de compra' },
+          { title: 'Quantidade Total' as const, value: metrics.qtdTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 }), color: metricColors.quantity, sub: `itens comprados`, icon: <NumberOutlined />, hero: false, tip: '' },
+          { title: 'Fornecedores' as const, value: String(metrics.fornecedores), color: metricColors.clients, sub: `${metrics.materiais} materiais`, icon: <TeamOutlined />, hero: false, tip: '' },
+        ]).map((kpi) => (
           <Col xs={12} sm={6} key={kpi.title}>
             <Tooltip title={kpi.tip ?? ''}>
               <div className={`metric-card${kpi.hero ? ' metric-card--hero' : ''}`}>

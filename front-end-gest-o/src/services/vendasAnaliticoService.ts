@@ -3,7 +3,7 @@ import { vendasAnaliticoRawResponseSchema } from '../api/schemas'
 import type { VendaAnaliticaRow } from '../api/schemas'
 import { ApiContractError } from '../api/validatedHttp'
 import type { AnaliticoFetchMeta } from '../types/models'
-import { normalizeVendaAnaliticaRow } from '../utils/sgbrVendaAnaliticoNormalize'
+import { normalizeVendaAnaliticaRow } from '../utils/connectorVendaAnaliticoNormalize'
 import { http } from './http'
 import { resolveVendasAnaliticoDataSourceIds } from './vendasAnaliticoSourceSelection'
 

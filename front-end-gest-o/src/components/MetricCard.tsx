@@ -1,6 +1,29 @@
 import { ArrowDownOutlined, ArrowUpOutlined, MinusOutlined } from '@ant-design/icons'
 import { Skeleton, Tag, Tooltip } from 'antd'
+import { useEffect, useRef, useState } from 'react'
 import { deltaColor } from '../theme/colors'
+
+function AnimatedNumber({ value }: { value: number }) {
+  const [display, setDisplay] = useState(value)
+  const displayRef = useRef(value)
+  useEffect(() => {
+    if (!Number.isFinite(value)) return
+    const start = displayRef.current
+    const delta = value - start
+    const startedAt = performance.now()
+    let raf = 0
+    const tick = (now: number) => {
+      const progress = Math.min((now - startedAt) / 500, 1)
+      const next = start + delta * (1 - Math.pow(1 - progress, 3))
+      displayRef.current = next
+      setDisplay(next)
+      if (progress < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [value])
+  return <>{Math.round(display).toLocaleString('pt-BR')}</>
+}
 
 export function MetricCard({
   title,
@@ -45,7 +68,7 @@ export function MetricCard({
       <div className="metric-card__content">
         <span className="metric-card__title">{title}</span>
         <span className={`metric-card__value${hero ? ' metric-card__value--hero' : ''}`}>
-          {value}
+          {typeof value === 'number' ? <AnimatedNumber value={value} /> : value}
         </span>
         {subtitle && (
           <span className="metric-card__prev">{subtitle}</span>

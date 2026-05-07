@@ -34,6 +34,7 @@ export function useOpenTabs(getTitle: (path: string) => string) {
   // Sincroniza: toda vez que a URL muda, garante que existe aba pra ela
   useEffect(() => {
     if (activePath === '/login') return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTabs((current) => {
       const existing = current.find((t) => t.path === activePath)
       const title = getTitle(activePath)

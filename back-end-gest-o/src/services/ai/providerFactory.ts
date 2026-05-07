@@ -10,7 +10,7 @@ type ProviderName = 'groq' | 'local' | 'auto'
  * Ordem em modo "auto": groq (se chave) → local (sempre).
  */
 export async function resolveProvider(): Promise<AiProvider> {
-  const dbConfig = getCopilotConfig()
+  const dbConfig = await getCopilotConfig()
 
   const configured = (process.env.COPILOT_PROVIDER ?? dbConfig.provider ?? 'auto').toLowerCase() as ProviderName
   const groqKey = (process.env.GROQ_API_KEY?.trim() || dbConfig.groqApiKey) ?? null

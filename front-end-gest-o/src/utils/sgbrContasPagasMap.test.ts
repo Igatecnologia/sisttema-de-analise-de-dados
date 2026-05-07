@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mapSgbrContasPagasRow } from './sgbrContasPagasMap'
+import { mapSgbrContasPagasRow } from './connectorContasPagasMap'
 
 describe('mapSgbrContasPagasRow', () => {
   it('mapeia nomes comuns do BI', () => {

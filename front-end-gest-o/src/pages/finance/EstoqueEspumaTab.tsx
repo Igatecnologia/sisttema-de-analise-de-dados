@@ -2,7 +2,7 @@ import { Button, Card, Col, Dropdown, Empty, Input, Row, Select, Space, Table, T
 import { DownloadOutlined, EyeOutlined, FileExcelOutlined, FilePdfOutlined, WarningOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import { Suspense, lazy, useMemo, useState } from 'react'
+import { Suspense, lazy, useMemo, useState, type JSX } from 'react'
 import { Skeleton } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { MetricCard } from '../../components/MetricCard'
@@ -12,6 +12,7 @@ import type { EstoqueEspuma } from '../../types/models'
 import { getEstoqueEspuma } from '../../services/financeReportsService'
 import { queryKeys } from '../../query/queryKeys'
 import { exportExcel, exportPdf, estoqueEspumaCols } from '../../utils/financeExport'
+import { useTenant } from '../../tenant/TenantContext'
 
 const EstoqueStatusChart = lazy(() =>
   import('../charts/EstoqueStatusChart').then((m) => ({ default: m.EstoqueStatusChart })),
@@ -41,14 +42,25 @@ function qtdeTag(v: number): JSX.Element {
 
 const statusColor: Record<EstoqueEspuma['status'], string> = { Normal: 'green', Baixo: 'orange', 'Crítico': 'red' }
 
+const typeTagColors = ['purple', 'cyan', 'blue', 'geekblue', 'magenta']
+
 export function EstoqueEspumaTab() {
+  const tenant = useTenant()
+  const stockLabel = tenant.connector?.labels.stock ?? 'Estoque de produto base'
+  const productLabel = tenant.connector?.labels.product ?? 'Produto'
+  const productPluralLabel = tenant.connector?.labels.productPlural ?? 'Produtos'
   const [search, setSearch] = useState('')
   const [tipoFilter, setTipoFilter] = useState<'all' | EstoqueEspuma['tipo']>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | EstoqueEspuma['status']>('all')
   const [detailRow, setDetailRow] = useState<EstoqueEspuma | null>(null)
 
   const debouncedSearch = useDebouncedValue(search)
-  const { data: rows = [], isLoading } = useQuery({ queryKey: queryKeys.estoqueEspuma(), queryFn: getEstoqueEspuma })
+  const { data: rows = [], isLoading } = useQuery({ queryKey: queryKeys.estoqueEspuma(), queryFn: getEstoqueEspuma, staleTime: 1000 * 60 * 30 })
+
+  const typeOptions = useMemo(
+    () => [...new Set(rows.map((r) => r.tipo).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    [rows],
+  )
 
   const filtered = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase()
@@ -112,8 +124,8 @@ export function EstoqueEspumaTab() {
       dataIndex: 'tipo',
       key: 'tipo',
       width: 110,
-      render: (v: string) => <Tag color={v === 'Espuma' ? 'purple' : 'cyan'}>{v}</Tag>,
-      filters: [{ text: 'Espuma', value: 'Espuma' }, { text: 'Aglomerado', value: 'Aglomerado' }],
+      render: (v: EstoqueEspuma['tipo']) => <Tag color={typeTagColors[Math.max(typeOptions.indexOf(v), 0) % typeTagColors.length]}>{v}</Tag>,
+      filters: typeOptions.map((tipo) => ({ text: tipo, value: tipo })),
       onFilter: (v, r) => r.tipo === v,
     },
     {
@@ -185,21 +197,21 @@ export function EstoqueEspumaTab() {
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}><MetricCard title="Valor em estoque" value={formatBRL(totals.custoTotal)} hero /></Col>
-        <Col xs={24} sm={12} lg={6}><MetricCard title="Total de itens" value={String(totals.itensTotal)} /></Col>
+        <Col xs={24} sm={12} lg={6}><MetricCard title={`Total de ${productPluralLabel.toLowerCase()}`} value={String(totals.itensTotal)} /></Col>
         <Col xs={24} sm={12} lg={6}><MetricCard title="Com estoque" value={String(totals.comEstoque)} /></Col>
         <Col xs={24} sm={12} lg={6}><MetricCard title="Sem estoque / Negativos" value={String(totals.semEstoque)} /></Col>
       </Row>
 
       <Card className="app-card no-hover" variant="borderless" title="Distribuição por status">
         <Suspense fallback={<Skeleton active paragraph={{ rows: 4 }} />}>
-          <EstoqueStatusChart data={chartData} label="Produto base por status" />
+          <EstoqueStatusChart data={chartData} label={`${productLabel} por status`} />
         </Suspense>
       </Card>
 
-      <Card className="app-card no-hover" variant="borderless" title="Filtros"
+      <Card className="app-card no-hover" variant="borderless" title={`Filtros - ${stockLabel}`}
         extra={
           <Dropdown menu={{ items: [
-            { key: 'excel', icon: <FileExcelOutlined />, label: 'Excel', onClick: () => exportExcel(filtered, estoqueEspumaCols, 'Produto Base', 'estoque_base') },
+            { key: 'excel', icon: <FileExcelOutlined />, label: 'Excel', onClick: () => exportExcel(filtered, estoqueEspumaCols, productLabel, 'estoque_base') },
             { key: 'pdf', icon: <FilePdfOutlined />, label: 'PDF', onClick: () => exportPdf(filtered, estoqueEspumaCols, 'Relatório — Estoque Produto Base', 'estoque_base') },
           ] }}>
             <Button icon={<DownloadOutlined />}>Exportar</Button>

@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import {
-  readAllUsers,
-  writeAllUsers,
+  readAllUsersAsync,
+  writeAllUsersAsync,
   genUserId,
   hashUserPassword,
   type UserRecord,
@@ -53,27 +53,31 @@ function sanitize(u: UserRecord) {
 }
 
 // GET /
-usersRouter.get('/', (_req, res) => {
-  res.json(readAllUsers().map(sanitize))
+usersRouter.get('/', async (req, res) => {
+  const authReq = req as unknown as AuthenticatedRequest
+  res.json((await readAllUsersAsync()).filter((u) => u.tenantId === authReq.tenantId).map(sanitize))
 })
 
 // POST /
-usersRouter.post('/', createUserLimiter, (req, res) => {
+usersRouter.post('/', createUserLimiter, async (req, res) => {
   const parsed = createUserSchema.safeParse(req.body)
   if (!parsed.success) {
     return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
   }
 
   const { name, email, password, role, status, permissions } = parsed.data
-  const all = readAllUsers()
+  const authReq = req as unknown as AuthenticatedRequest
+  const all = await readAllUsersAsync()
+  const tenantUsers = all.filter((u) => u.tenantId === authReq.tenantId)
 
-  if (all.some((u) => u.email.toLowerCase() === email.trim().toLowerCase())) {
+  if (tenantUsers.some((u) => u.email.toLowerCase() === email.trim().toLowerCase())) {
     return res.status(409).json({ message: 'Ja existe um usuario com este email' })
   }
 
   const now = new Date().toISOString()
   const user: UserRecord = {
     id: genUserId(),
+    tenantId: authReq.tenantId,
     name: name.trim(),
     email: email.trim().toLowerCase(),
     role,
@@ -86,26 +90,27 @@ usersRouter.post('/', createUserLimiter, (req, res) => {
     }),
   }
 
-  writeAllUsers([...all, user])
+  await writeAllUsersAsync([...all, user])
   res.status(201).json(sanitize(user))
 })
 
 // PUT /:id
-usersRouter.put('/:id', (req, res) => {
+usersRouter.put('/:id', async (req, res) => {
   const parsed = updateUserSchema.safeParse(req.body)
   if (!parsed.success) {
     return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
   }
 
-  const all = readAllUsers()
-  const idx = all.findIndex((u) => u.id === req.params.id)
+  const authReq = req as unknown as AuthenticatedRequest
+  const all = await readAllUsersAsync()
+  const idx = all.findIndex((u) => u.id === req.params.id && u.tenantId === authReq.tenantId)
   if (idx < 0) return res.status(404).json({ message: 'Usuario nao encontrado' })
 
   const { name, email, password, role, status, permissions } = parsed.data
 
   if (email) {
     const duplicate = all.find(
-      (u, i) => i !== idx && u.email.toLowerCase() === email.trim().toLowerCase(),
+      (u, i) => i !== idx && u.tenantId === authReq.tenantId && u.email.toLowerCase() === email.trim().toLowerCase(),
     )
     if (duplicate) {
       return res.status(409).json({ message: 'Ja existe um usuario com este email' })
@@ -133,12 +138,12 @@ usersRouter.put('/:id', (req, res) => {
 
   all[idx] = next
 
-  writeAllUsers(all)
+  await writeAllUsersAsync(all)
   res.json(sanitize(all[idx]))
 })
 
 // DELETE /:id
-usersRouter.delete('/:id', (req, res) => {
+usersRouter.delete('/:id', async (req, res) => {
   const authReq = req as unknown as AuthenticatedRequest
 
   // Impedir admin de deletar a si mesmo
@@ -146,21 +151,21 @@ usersRouter.delete('/:id', (req, res) => {
     return res.status(400).json({ message: 'Voce nao pode excluir sua propria conta' })
   }
 
-  const all = readAllUsers()
-  const filtered = all.filter((u) => u.id !== req.params.id)
+  const all = await readAllUsersAsync()
+  const target = all.find((u) => u.id === req.params.id && u.tenantId === authReq.tenantId)
+  const filtered = target ? all.filter((u) => u.id !== req.params.id) : all
   if (filtered.length === all.length) {
     return res.status(404).json({ message: 'Usuario nao encontrado' })
   }
 
   // Impedir exclusão do último admin
-  const target = all.find((u) => u.id === req.params.id)
   if (target?.role === 'admin') {
-    const remainingAdmins = filtered.filter((u) => u.role === 'admin' && u.status === 'active')
+    const remainingAdmins = filtered.filter((u) => u.tenantId === authReq.tenantId && u.role === 'admin' && u.status === 'active')
     if (remainingAdmins.length === 0) {
       return res.status(400).json({ message: 'Nao e possivel excluir o ultimo administrador ativo' })
     }
   }
 
-  writeAllUsers(filtered)
+  await writeAllUsersAsync(filtered)
   res.json({ ok: true })
 })
