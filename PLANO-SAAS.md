@@ -1,5 +1,30 @@
 # IGA Gestao — Plano de Transformacao SaaS v3
 
+> **Status do plano (atualizado 2026-05-07)**
+>
+> | Bloco | % done | Comentario |
+> |---|---|---|
+> | S0 Ambiente | 100% | Docker, Makefile, CI |
+> | S1 Postgres + Redis | 100% | Drizzle, BullMQ, sharedCache |
+> | S2 Multi-tenant + RLS | 100% | RLS + 5 cenarios automatizados |
+> | S3 Desacoplar SGBR | 100% | ConnectorRegistry, area hints, warm targets |
+> | S4 Auth SaaS + Onboarding | 100% | Register/invite/forgot/verify + wizard |
+> | **S5 Billing** | 50% | Backend 95% (Stripe + webhook + gate); falta UI (T5-T8 + LGPD export) |
+> | S6 Deploy Cloud | 0% | Operacional; Cloudflare, SSL, Sentry, backup pendentes |
+> | S7 Super Admin | 0% | — |
+> | S8 Connectors marketplace | 0% | so SGBR + Generico hoje |
+> | S9 Landing page | 0% | Next.js separado |
+> | **SEC-1 Foundation** | 100% | 1.1, 1.2 (argon2id), 1.3 (hash chain), 1.5, 1.6, 1.8. 1.4 (Doppler) e 1.7 (file upload) nao-aplicaveis |
+> | **SEC-2 Identity** | 90% | MFA, captcha, HIBP, lockout, session binding, refresh rotation, history, timing-safe, login alerts. So falta SSO Enterprise (2.7) |
+> | SEC-3 DevSecOps | 0% | bloqueia Beta Aberta |
+> | SEC-4 Compliance + Pentest | 0% | bloqueia GA |
+> | INT-1 a INT-7 | 0% | pos-GA |
+> | OPS-1 a OPS-4 | 0% | paralelo |
+>
+> **Caminho minimo para 1o pagante (~5 sem + R$ 8-25k pentest)**: S5 frontend (3d) -> S6 deploy (2sem) -> SEC-4 essencial (1.5sem) -> pentest -> Beta Fechado.
+>
+> **Caminho para GA (+~4 sem alem do minimo)**: SEC-3 + S7 super-admin + OPS-3 (a11y) + OPS-4 (analytics).
+
 ## Visao Geral
 
 Transformar o IGA Gestao de um aplicativo desktop single-tenant (focado em industria de espuma + SGBR BI) em um **SaaS multi-tenant premium** que atende qualquer segmento industrial — com experiencia de produto de classe mundial, onboarding self-service, billing automatico e design system coeso.
@@ -1573,13 +1598,13 @@ Migrar AI para Python e **investimento que paga em features**:
 **Objetivo**: Cobranca automatica, planos, limites, upgrade/downgrade.
 
 **Backend**:
-- [ ] Integracao Asaas (boleto + pix + cartao) OU Stripe
-- [ ] Tabela `subscriptions`
-- [ ] Webhooks de pagamento (confirmed, failed, cancelled)
-- [ ] Middleware de feature gating (402/403 para modulos/limites)
-- [ ] Limites enforced no backend por plano
-- [ ] Grace period 7 dias
-- [ ] Endpoints: billing/status, billing/checkout, billing/portal, billing/change-plan
+- [x] Integracao Stripe (Checkout + Portal + webhook signature)
+- [x] Tabela `subscriptions` (SQLite + Postgres com FK + RLS)
+- [x] Webhooks de pagamento (`checkout.session.completed`, `customer.subscription.created/updated/deleted`, `invoice.payment_failed`)
+- [x] Middleware de feature gating (`subscriptionGate` 402 com allowlist /auth, /billing, /onboarding, /tenants/:slug/config)
+- [ ] Limites enforced no backend por plano (quantidade de users/datasources/copilot calls)
+- [x] Grace period 7 dias (status `grace` + `grace_until` em invoice.payment_failed)
+- [x] Endpoints: `GET /billing/status`, `POST /billing/checkout-session`, `POST /billing/portal-link` (change-plan via portal)
 - [ ] Export LGPD: `GET /api/v1/tenants/:id/export`
 
 **Frontend — Novas Telas**:
@@ -1717,81 +1742,76 @@ GATES:    [SEC-1 done = libera S3/S4]   [SEC-2 done = libera Beta Fechada]   [SE
 **Paralelo a**: S1 (PostgreSQL+Redis) e S2 (Multi-tenant)
 **Gate**: nada que processe credenciais ou faca proxy para APIs externas vai pra prod sem SEC-1 done
 
-#### 1.1 SSRF protection no proxy (CRITICA)
+#### 1.1 SSRF protection no proxy (CRITICA) — DONE
 
-- [ ] Validar `apiUrl` de datasources em `routes/datasources.ts` no momento do CRUD:
-  - [ ] Bloquear `http://` em prod (so HTTPS)
-  - [ ] Resolver DNS e bloquear se IP resolvido for RFC1918 (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), loopback (`127.0.0.0/8`), link-local (`169.254.0.0/16`), metadata (`169.254.169.254`, `metadata.google.internal`, `metadata.azure.com`)
-  - [ ] Allowlist de hostnames por tenant em `tenants.config.proxy_allowlist` (regex ou domain match)
-- [ ] No fetch (`proxy.ts:330`, `connectionTester.ts:109`):
-  - [ ] Configurar `UndiciAgent` com `connect: { lookup }` que valida IP resolvido contra denylist
-  - [ ] Desabilitar redirects automaticos (`redirect: 'manual'`) ou validar `Location` header
-  - [ ] Timeout agressivo (10s connect, 30s total) por host nao-cached
-- [ ] Auditoria: log `proxy_blocked_ssrf` quando deny
+- [x] Validar `apiUrl` de datasources em `routes/datasources.ts` no momento do CRUD:
+  - [x] Bloquear schemes nao-http(s) (`utils/urlSafety.ts:validateExternalApiUrl`)
+  - [x] Bloquear IPv4 RFC1918, loopback, link-local, CGNAT 100.64/10
+  - [x] Bloquear IPv6 privado/loopback (`::1`, `fe80::`, `fc00::/7`, IPv4-mapped)
+  - [x] Bloquear hostnames sentinela (`localhost`, `metadata.google.internal`)
+  - [x] Allowlist override via env `ALLOW_PRIVATE_HOSTS` (CSV)
+- [x] No fetch (proxy + connectionTester):
+  - [x] Wrapper `safeUFetch` em `routes/proxy.ts` valida URL antes de cada uFetch externo (8 sites cobertos)
+  - [x] `selectDataSource` rejeita datasource com URL ruim (defense-in-depth)
+  - [ ] Disable redirects automaticos / validar `Location` (futuro — undici default segue 20 redirects)
+- [x] Auditoria: erro registrado em `markProxyError` + log estruturado
 
-#### 1.2 Hash de senha — migrar scrypt fraco para argon2id
+#### 1.2 Hash de senha — argon2id — DONE
 
-- [ ] Instalar `argon2` (ou `@node-rs/argon2`)
-- [ ] Novo `hashUserPassword` usa argon2id com params: `memoryCost=64MB`, `timeCost=3`, `parallelism=4`
-- [ ] `verifyUserPassword` detecta formato do hash (`argon2id$...` vs `salt:hash`) — verifica scrypt antigo, **rehash automatico para argon2id no proximo login bem-sucedido** (graceful migration)
-- [ ] Deprecar scrypt apos 90 dias (forcar reset de senha em users que ainda nao migraram)
+- [x] `argon2` instalado (binario nativo, suporta Windows)
+- [x] `hashUserPasswordAsync` usa argon2id com `memoryCost=65536, timeCost=3, parallelism=4`
+- [x] `verifyUserPasswordAsync` detecta formato (`$argon2`, `scrypt$2$`, `salt:hash`); legado scrypt v1/v2 mantido
+- [x] Rehash automatico no proximo login bem-sucedido (`isLegacyPasswordHash` -> `hashUserPasswordAsync`)
+- [ ] Forcar reset apos 90 dias para hashes ainda legados (futuro — job de retencao)
 
-#### 1.3 Audit log integrity (append-only + hash chain)
+#### 1.3 Audit log integrity (hash chain) — DONE
 
-- [ ] Adicionar coluna `audit_log.prev_hash` e `audit_log.row_hash` (SHA-256 de `prev_hash || JSON(row sem row_hash)`)
-- [ ] PostgreSQL: `REVOKE UPDATE, DELETE` da role da aplicacao na tabela `audit_log`. So `INSERT` permitido. (Apenas role `iga_audit_admin`, manual, pode purgar conforme retencao.)
-- [ ] Endpoint `GET /api/v1/admin/audit/verify` que recalcula a chain e detecta tampering
-- [ ] Job mensal: snapshot do ultimo `row_hash` enviado para storage write-once (S3 Object Lock)
+- [x] Colunas `prev_hash` + `row_hash` (SHA-256 de canonical row com `prev_hash` incluido)
+- [x] Insercao atomica: SQLite via `db.transaction`; Postgres via `pg_advisory_xact_lock('iga_audit_chain')`
+- [x] Postgres: `REVOKE UPDATE, DELETE` em `audit_log` para `iga_app` (migration 006)
+- [x] `GET /audit/verify` recalcula chain ASC; retorna 409 com `brokenAt` em mismatch
+- [ ] Job mensal: snapshot ultimo `row_hash` para S3 Object Lock (operacional)
 
-#### 1.4 Secrets management
+#### 1.4 Secrets management — pendente (operacional)
 
 - [ ] Decisao: **Doppler** (mais simples, R$ 0 ate 10 users) OU **AWS Secrets Manager** (R$ 0,40/secret/mes)
-- [ ] Migrar `.env` -> Doppler/SM: `DB_*`, `REDIS_*`, `IGA_CRYPTO_KEY`, `JWT_SECRET`, `SGBR_CREDENTIALS`, `GROQ_API_KEY`, `RESEND_API_KEY`, `ASAAS_API_KEY`
+- [ ] Migrar `.env` -> Doppler/SM: `DB_*`, `REDIS_*`, `IGA_SECRETS_KEY`, `IGA_SESSION_JWT_SECRET`, `STRIPE_*`, `GROQ_API_KEY`, `TURNSTILE_SECRET`
 - [ ] Backend boota lendo do Doppler CLI (dev) ou SM SDK (prod)
-- [ ] Rotacao automatica de `IGA_CRYPTO_KEY`: envelope encryption — DEK por tenant, KEK rotacionada anualmente
+- [ ] Rotacao automatica de `IGA_SECRETS_KEY`: envelope encryption — DEK por tenant, KEK rotacionada anualmente
 
-#### 1.5 PII redaction em logs
+#### 1.5 PII redaction em logs — DONE
 
-- [ ] Substituir `requestLog.ts` por **pino** com redact paths:
-  - `req.headers.cookie`, `req.headers.authorization`
-  - `req.body.password`, `req.body.currentPassword`, `req.body.newPassword`
-  - `req.body.email` -> mascarar como `j***@a***.com`
-  - `res.body.token`, `res.body.passwordHash`
-- [ ] Audit log salva email **hash + last 3 chars** (`hash_a1b2c3` + `bom`) em vez de plain
-- [ ] Logs centralizados em Datadog/Loki com retencao 90 dias e RBAC
+- [x] `utils/redactSecrets`: redaction recursiva de `password|token|authorization|cookie|secret|apiKey|jwt|x-csrf|set-cookie`
+- [x] `services/structuredLog`: `logInfo/logWarn/logError` com redaction automatica antes de `console.log`
+- [x] Aplicado em `routes/proxy.ts` (`proxy.data` event); `requestLog.ts` ja era seguro
+- [x] `utils/piiMask` mascara CPF/CNPJ/email/telefone/cartao em strings (combina com redactSecrets)
+- [ ] Logs centralizados em Datadog/Loki com retencao 90 dias e RBAC (operacional)
 
-#### 1.6 Input sanitization e validacao centralizada
+#### 1.6 Input sanitization e validacao centralizada — DONE
 
-- [ ] Helper `safeParse` global que aplica trim/lowercase em emails antes da validacao
-- [ ] Bloquear keys perigosas (`__proto__`, `constructor`, `prototype`) em `req.body` (prototype pollution)
-- [ ] Limite de tamanho por endpoint:
-  - login/register: 4KB
-  - copilot: 32KB
-  - upload (logo, CSV): handler dedicado
-- [ ] Content-Type strict: `application/json` so onde nao tem upload
+- [x] Bloqueio de keys perigosas (`__proto__`, `constructor`, `prototype`) em `req.body`: `middleware/blockPrototypePollution`
+- [x] Limite por rota:
+  - [x] auth (`/login`, `/register`, etc): `maxBodySize(4*1024)`
+  - [x] copilot: `maxBodySize(32*1024)`
+  - [x] global JSON parser: `1mb`
+- [ ] Content-Type strict (futuro)
+- [ ] Helper `safeParse` global com trim/lowercase de email (cada endpoint faz inline hoje)
 
-#### 1.7 File upload security (preparacao para Sprint 4 e 8)
+#### 1.7 File upload security — N/A no momento
 
-- [ ] Multer com `limits: { fileSize: 2*1024*1024 }` para logo, `50*1024*1024` para CSV
-- [ ] Validar **magic bytes** (file-type lib) — nao confiar em extensao nem `Content-Type`
-- [ ] Logo: aceitar so `image/png`, `image/svg+xml`, `image/jpeg`, `image/webp` — sanitizar SVG (DOMPurify server-side ou rejeitar SVG na duvida)
-- [ ] CSV: parser streaming (`csv-parse`) com `max_record_size`, sem eval de formulas (`=cmd|...`), prefixar celulas que iniciam com `=+@-` com `'`
-- [ ] Storage de uploads: S3/R2 com bucket separado, links assinados (TTL 5min), antivirus opcional via ClamAV
+- [ ] Multer + magic bytes + sanitize SVG + storage S3 — sera necessario quando feature de upload de logo/CSV chegar (Sprint 4 ja tem branding mas sem upload, Sprint 8 connector CSV)
 
-#### 1.8 Rate limiting com Redis store
+#### 1.8 Rate limiting com Redis store — DONE
 
-- [ ] Trocar `express-rate-limit` memory store por `rate-limit-redis` (Sprint 6 sobe 2 app servers; memory store nao compartilha contadores)
-- [ ] Limites granulares por endpoint:
-  - `/auth/login`: 5/min/IP + 15/15min/IP
-  - `/auth/register`: 3/h/IP + 1/min/IP
-  - `/auth/forgot-password`: 3/h/email + 5/h/IP
-  - `/api/v1/*`: 100/min/tenant
-  - `/api/v1/copilot`: 20/min/tenant (Pro), 60/min (Enterprise)
+- [x] `middleware/redisRateLimit` factory: usa `rate-limit-redis` quando `REDIS_URL` setado, fallback `memory`
+- [x] Migrado: auth login, change-password, copilot, datasources test, proxy, users:create
+- [x] `tenantRateLimit` ja era Redis-backed
+- [ ] Limites granulares finos (`/auth/login`: 5/min/IP + 15/15min/IP por email — fino-tuning futuro)
 
 **Entrega SEC-1**:
-- [ ] Pentest interno (OWASP ZAP automated scan) sem highs/criticals em endpoints publicos
-- [ ] Documento `SECURITY-BASELINE.md` na raiz do repo
-- [ ] CI bloqueia merge se SAST encontrar high (ja fica configurado em SEC-3)
+- [ ] Pentest interno (OWASP ZAP automated scan) sem highs/criticals em endpoints publicos (parte de SEC-4)
+- [ ] Documento `SECURITY-BASELINE.md` na raiz do repo (futuro)
+- [ ] CI bloqueia merge se SAST encontrar high (SEC-3)
 
 ---
 
@@ -1803,85 +1823,96 @@ GATES:    [SEC-1 done = libera S3/S4]   [SEC-2 done = libera Beta Fechada]   [SE
 **Paralelo a**: S4 (Auth + Onboarding)
 **Gate**: nao abre Beta Fechada sem SEC-2 done
 
-#### 2.1 MFA / TOTP
+#### 2.1 MFA / TOTP — DONE
 
-- [ ] `speakeasy` ou `otplib` para gerar segredos TOTP (RFC 6238)
-- [ ] Telas:
-  - [ ] Setup: QR code + secret + 6-digit confirmation + 10 backup codes (one-time)
-  - [ ] Verificacao no login: prompt apos senha
-  - [ ] Reset MFA: requer email + senha + backup code OU contato com admin do tenant
-- [ ] Politica:
-  - [ ] **Obrigatorio para `admin` e `super_admin`** (forcado no S7)
-  - [ ] **Opcional para `manager`/`viewer`**, mas oferecido no onboarding
-- [ ] Backup codes: armazenar hash (argon2id) + flag `used_at`
-- [ ] Audit: `mfa_enabled`, `mfa_disabled`, `mfa_failed`, `backup_code_used`
+- [x] `otplib` para gerar segredos TOTP (RFC 6238); window=1 step para clock skew
+- [x] Backend endpoints: `/auth/mfa/status`, `/auth/mfa/setup-init`, `/auth/mfa/setup-confirm`, `/auth/mfa/disable`, `/auth/mfa/backup-codes/regenerate`
+- [x] Login flow: `/auth/login` aceita `totp` opcional; sem ele em conta com MFA -> 200 `{mfaRequired:true}`
+- [x] Frontend (consome endpoints):
+  - [x] `MfaSetupModal` — 3 steps: QR (api.qrserver.com) + confirmar TOTP + backup codes
+  - [x] `SecurityPage` (rota `/seguranca`) com status + ativar/desativar/regerar
+  - [x] `LoginPage` mostra input TOTP quando backend retorna `mfaRequired`
+- [x] Secret cifrado at-rest com AES-256-GCM (`services/crypto.encryptSecret`)
+- [x] 10 backup codes (8 hex chars cada) hasheados com SHA-256 + timing-safe compare; consumidos one-time
+- [ ] Politica obrigatoria para admin/super_admin (forcar via middleware no S7)
+- [x] Audit: `mfa_enabled`, `mfa_disabled`, `mfa_failed`, `mfa_success`, `mfa_backup_code_used`, `mfa_backup_codes_regenerated`
 
-#### 2.2 Captcha em endpoints publicos
+#### 2.2 Captcha em endpoints publicos — DONE
 
-- [ ] **Cloudflare Turnstile** (gratis, sem dark patterns, melhor UX que reCAPTCHA)
-- [ ] Aplicar em: `/login`, `/register`, `/forgot-password`, `/auth/verify-email` (resend)
-- [ ] Server-side: validar token contra `https://challenges.cloudflare.com/turnstile/v0/siteverify`
-- [ ] Adaptive: so exigir captcha apos 3 falhas no IP (UX melhor)
+- [x] **Cloudflare Turnstile** (`services/turnstile`) — siteverify com k-anonymity
+- [x] Middleware `requireTurnstile` aplicado em `/login`, `/register`, `/forgot-password`
+- [x] Frontend: `TurnstileWidget` carrega script sob demanda, habilitado por `VITE_TURNSTILE_SITE_KEY`
+- [x] LoginPage injeta token via interceptor axios em header `X-Turnstile-Token`
+- [x] `TURNSTILE_SECRET` ausente -> middleware passthrough (skip em dev)
+- [ ] Adaptive (so apos 3 falhas no IP) — futuro
 
-#### 2.3 Pwned password check
+#### 2.3 Pwned password check — DONE
 
-- [ ] Integrar HaveIBeenPwned API com **k-anonymity** (envia so 5 chars do SHA-1, recebe lista, compara local — senha nunca sai do servidor)
-- [ ] Bloquear no register e change-password se `count > 100` (senhas amplamente vazadas)
-- [ ] Avisar (warning, nao bloquear) se `count > 0`
+- [x] HIBP k-anonymity (`services/pwnedPassword`): SHA-1 prefix 5 chars enviado a `api.pwnedpasswords.com/range`
+- [x] `Add-Padding: true` para defesa extra contra fingerprinting
+- [x] Bloqueia se `count >= 100` em register/accept-invite/change-password/reset-password
+- [x] Fail-open em erro de rede (timeout 3s); `HIBP_DISABLED=1` desliga em air-gapped
 
-#### 2.4 Account lockout adaptativo
+#### 2.4 Account lockout adaptativo — DONE
 
-- [ ] Apos 5 falhas em 10min em **conta especifica** (nao IP): lock conta por 30min
-- [ ] Apos 3 lockouts em 24h: requer reset de senha por email
-- [ ] Notificacao por email ao usuario: "Sua conta foi temporariamente bloqueada apos varias tentativas. Foi voce?"
-- [ ] Audit: `account_locked`, `account_unlocked`
+- [x] `services/accountLockout`: 5 falhas/10min -> lock 30min; 3 lockouts/24h -> exige reset (`requireReset:true`)
+- [x] Storage Redis com fallback `memStore` (single-process dev)
+- [x] Chave por `(tenantId, email-lowercase)` — botnet por IP nao burla
+- [x] `clearLoginFailures` chamado apos sucesso (zera contador, mantem lockoutCount24h)
+- [x] Audit: `login_blocked_locked`, `login_blocked_reset_required`, `login_failed` com `failuresInWindow`/`nowLocked`/`lockoutCount24h`
 
-#### 2.5 Session binding (IP/UA fingerprint)
+#### 2.5 Session binding (IP/UA fingerprint) — DONE (parcial)
 
-- [ ] No login, salvar `session.ip_hash`, `session.ua_hash`, `session.created_country` (via Cloudflare IP geolocation header `CF-IPCountry`)
-- [ ] No `requireAuth`, comparar:
-  - Se UA mudou drasticamente (browser family diferente): forcar reauth
-  - Se pais mudou: enviar email de alerta + opcao "nao fui eu" -> revoga sessao
-  - Se IP mudou de subnet /16: log warning (nao bloquear — celular muda IP)
+- [x] Sessions ganharam `ip_hash`, `ua_hash`, `ua_family` (migration v5/007)
+- [x] `buildSessionBinding(ip, ua)` no login + `detectUaFamily` (chrome/firefox/safari/edge/opera/cli/postman/other)
+- [x] `requireAuth` revoga sessao quando UA family mudou drasticamente (chrome <-> safari)
+- [x] Novo dispositivo (UA hash novo) dispara email `newDeviceLoginTemplate` via `sendNewDeviceAlertIfUnknown`
+- [ ] `created_country` via `CF-IPCountry` (precisa Cloudflare em frente — SEC-3)
+- [ ] Mudanca de pais -> email + revoga (depende de geo header)
+- [ ] IP subnet /16 mudou -> log warning (futuro)
 
-#### 2.6 Refresh token rotation
+#### 2.6 Refresh token rotation — DONE
 
-- [ ] Substituir sessao de 8h por: **access token 15min** (JWT) + **refresh token 7d** (random + Redis)
-- [ ] Refresh token **rotaciona** a cada uso (token velho fica invalido por 5s para tolerar race condition)
-- [ ] Reuse detection: se refresh token velho usado fora do grace -> revogar **toda a familia** + alerta de seguranca
-- [ ] Logout invalida access (blacklist Redis com TTL=15min) + refresh (delete)
+- [x] Tabela `refresh_tokens` (token_hash + family_id + parent_hash + revoked_at) — migration v7/009
+- [x] `services/refreshTokenStore`: issue/rotate com reuse detection -> `revokeFamily` em hijack + `audit_log refresh_reuse_detected`
+- [x] `POST /auth/refresh` rotaciona e emite novo access; reuse retorna 401 + revoked:true
+- [x] `/auth/login` retorna `refreshToken` + `refreshExpiresAt` (TTL 7d)
+- [x] `/auth/logout-all` revoga refresh tokens da familia + sessoes
+- [ ] **Substituir** sessao 8h por access 15min: deferido — refactor maior, hoje os dois sistemas coexistem (frontend continua usando session JWT 8h via cookie, refresh token disponivel para clients que quiserem)
+- [ ] Blacklist de access tokens em logout (TTL=15min)
 
-#### 2.7 SSO Enterprise (SAML 2.0 / OIDC)
+#### 2.7 SSO Enterprise (SAML 2.0 / OIDC) — pendente
 
 - [ ] Integrar via **WorkOS** (R$ 50/conexao) OU **Auth0/Clerk** OU implementar com `passport-saml`/`openid-client`
 - [ ] Tela de configuracao em Tenant Settings (so plano Enterprise): IdP metadata XML upload + ACS URL
 - [ ] JIT provisioning: cria user no primeiro login se email matches dominio configurado
 - [ ] SCIM 2.0 (deprovisioning) — opcional, vendida como add-on
 
-#### 2.8 Password history
+#### 2.8 Password history — DONE
 
-- [ ] Tabela `user_password_history` (user_id, hash_argon2id, created_at)
-- [ ] Bloquear reuso das ultimas **5** senhas
-- [ ] Limpar entries com mais de 1 ano (LGPD: minimizacao)
+- [x] Tabela `user_password_history` (user_id, password_hash, created_at) — migration v5/007
+- [x] Bloquear reuso das ultimas **5** senhas (`isPasswordReused`) em change-password e reset-password
+- [x] `cleanupOldPasswordHistory()` remove entries > 1 ano (disponivel para job — falta wirar no agendador)
+- [x] `recordPasswordHistory` chamado apos cada mudanca de senha
 
-#### 2.9 Forgot password timing-safe
+#### 2.9 Forgot password timing-safe — DONE
 
-- [ ] Endpoint sempre retorna 200 + mensagem generica ("Se o email existir, enviamos um link")
-- [ ] Tempo de resposta constante (`setTimeout` ate atingir baseline) — evita timing attack
-- [ ] Token de reset: 32 bytes random, hash SHA-256 armazenado, TTL 1h, single-use
+- [x] `/auth/forgot-password` sempre retorna 200 + `GENERIC_FORGOT_MESSAGE` ("Se o email existir, enviamos um link...")
+- [x] Baseline 600ms via `setTimeout` ate atingir tempo minimo — user existente vs inexistente indistinguivel por timing
+- [x] Token de reset: 32 bytes random, hash SHA-256 armazenado, TTL 1h, single-use (`createAuthActionToken`/`consumeAuthActionToken`)
+- [x] Erros de DB/email tratados silenciosamente — mesma resposta generica
 
-#### 2.10 Login alerts
+#### 2.10 Login alerts — DONE
 
-- [ ] Email automatico ao usuario quando:
-  - Login de novo pais
-  - Login de novo dispositivo (UA fingerprint hash novo)
-  - Senha alterada
-  - MFA habilitado/desabilitado
-  - Email da conta alterado
-- [ ] Texto inclui: data/hora, IP, cidade aproximada, "nao fui eu -> [link revoga sessao + reset senha]"
+- [x] Templates: `newDeviceLoginTemplate`, `passwordChangedTemplate`, `emailChangedTemplate`, `mfaToggleTemplate`
+- [x] Disparado em: novo dispositivo (UA hash novo), senha alterada, MFA habilitado/desabilitado
+- [x] CTA "nao fui eu" aponta para `/forgot-password?tenant=...` (revoga + reset)
+- [x] Texto inclui: data/hora UTC, IP, dispositivo (UA truncado a 200 chars)
+- [ ] Login de novo pais (depende de `CF-IPCountry` — SEC-3)
+- [ ] Email da conta alterado (sem fluxo de mudanca de email hoje)
 
 **Entrega SEC-2**:
-- [ ] OWASP ASVS Level 2 compliance no modulo de auth
+- [ ] OWASP ASVS Level 2 compliance no modulo de auth (audit formal pendente)
 - [ ] Doc `IDENTITY-PLAYBOOK.md` para suporte (como ajudar user que perdeu MFA, como impersonar, etc.)
 
 ---
