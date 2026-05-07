@@ -1,8 +1,12 @@
 import { Router } from 'express'
 import { randomBytes } from 'node:crypto'
-import { readAll } from '../storage.js'
 import { fetchProxyDataForTool } from './proxy.js'
 import { resolveTenantId } from '../utils/tenant.js'
+import { createSharedCache } from '../services/sharedCache.js'
+import { ConnectorRegistry } from '../connectors/connectorRegistry.js'
+import { findTenantBySlug } from '../tenantStorage.js'
+import { findDsIdForArea } from '../connectors/findDsIdForArea.js'
+import type { IndustryConnector } from '../connectors/industryConnector.js'
 
 export const financeRouter = Router()
 
@@ -18,28 +22,27 @@ financeRouter.get('/', (_req, res) => {
   })
 })
 
-function getContasPagarDataSourceId(tenantId: string): string | null {
-  const all = readAll().filter((d) => d.tenantId === tenantId)
-  const match = all.find((d) => {
-    const ep = normalizeDataEndpointPath(d.dataEndpoint)
-    return ep.includes('/contas') || ep.includes('/pagar') || ep.includes('/pagos') || ep.includes('/titulos')
-  })
-  return match?.id ?? null
+async function getContasPagarDataSourceId(tenantId: string): Promise<string | null> {
+  const connector = await getTenantConnector(tenantId)
+  return findDsIdForArea(tenantId, 'contas', connector)
 }
 
-const contasPagarCache = new Map<string, { rows: Record<string, unknown>[]; expiresAt: number }>()
+const contasPagarCache = createSharedCache<Record<string, unknown>[]>({
+  namespace: 'finance:contas-pagar',
+  ttlMs: 15 * 60_000,
+})
 
-// GET /finance/contas-pagar — dados reais via proxy SGBR
+// GET /finance/contas-pagar — dados reais via proxy do connector do tenant
 financeRouter.get('/contas-pagar', async (req, res) => {
   const tenantId = resolveTenantId(req)
   const dtDe = typeof req.query.dt_de === 'string' ? req.query.dt_de : ''
   const dtAte = typeof req.query.dt_ate === 'string' ? req.query.dt_ate : ''
-  const dsId = getContasPagarDataSourceId(tenantId)
+  const dsId = await getContasPagarDataSourceId(tenantId)
   if (!dsId) return res.json([])
 
   const cacheKey = `${tenantId}:${dsId}:${dtDe}:${dtAte}`
-  const cached = contasPagarCache.get(cacheKey)
-  if (cached && Date.now() < cached.expiresAt) return res.json(cached.rows)
+  const cached = await contasPagarCache.get(cacheKey)
+  if (cached) return res.json(cached)
 
   const query: Record<string, string> = { requireDsId: '1' }
   if (dtDe) query.dt_de = dtDe
@@ -49,35 +52,15 @@ financeRouter.get('/contas-pagar', async (req, res) => {
   if (!result.ok) return res.json([])
 
   const rows = result.rows.filter((r): r is Record<string, unknown> => Boolean(r && typeof r === 'object'))
-  contasPagarCache.set(cacheKey, { rows, expiresAt: Date.now() + 15 * 60_000 })
+  await contasPagarCache.set(cacheKey, rows)
   res.json(rows)
 })
 
 type EstoqueRawRow = Record<string, unknown>
 
-function normalizeDataEndpointPath(ep: string | undefined): string {
-  if (!ep) return ''
-  let s = ep.trim()
-  const q = s.indexOf('?')
-  if (q >= 0) s = s.slice(0, q)
-  const h = s.indexOf('#')
-  if (h >= 0) s = s.slice(0, h)
-  if (s.startsWith('http')) {
-    try {
-      s = new URL(s).pathname
-    } catch {
-      // mantém valor original
-    }
-  }
-  return s.toLowerCase()
-}
-
-function getEstoqueDataSourceId(tenantId: string): string | null {
-  const all = readAll().filter((d) => d.tenantId === tenantId)
-  const byArea = all.find((d) => (d.erpEndpoints ?? []).includes('estoque'))
-  if (byArea?.id) return byArea.id
-  const byEndpoint = all.find((d) => normalizeDataEndpointPath(d.dataEndpoint).includes('/sgbrbi/estoque'))
-  return byEndpoint?.id ?? null
+async function getEstoqueDataSourceId(tenantId: string): Promise<string | null> {
+  const connector = await getTenantConnector(tenantId)
+  return findDsIdForArea(tenantId, 'estoque', connector)
 }
 
 function pickRaw(row: EstoqueRawRow, keys: string[]): unknown {
@@ -142,43 +125,32 @@ function calcCustoTotal(row: EstoqueRawRow, qtde: number, custoUnit: number): nu
   return Math.round(qtde * custoUnit * 100) / 100
 }
 
-/**
- * Classifica item pelo campo `grupo` da API SGBR.
- * Valores reais: "MATERIA PRIMA", "INSUMO", "PRODUTO BASE", "PRODUTO FINAL", "" / null.
- */
-function classifyEstoqueItem(row: EstoqueRawRow): 'materia-prima' | 'espuma' | 'aglomerado' | 'produto-final' | 'outro' {
-  const grupo = asText(pickRaw(row, ['grupo'])).toUpperCase().trim()
-  const produto = asText(pickRaw(row, MATERIAL_KEYS)).toUpperCase()
+/** Classificacao delegada 100% ao connector — cada industria define sua taxonomia. */
+function classifyEstoqueItem(row: EstoqueRawRow, connector: IndustryConnector) {
+  return connector.classifyProduct(row)
+}
 
-  if (grupo === 'MATERIA PRIMA' || grupo === 'INSUMO') return 'materia-prima'
-
-  if (grupo === 'PRODUTO BASE') {
-    if (/AGLOMERADO/i.test(produto)) return 'aglomerado'
-    return 'espuma'
-  }
-
-  if (grupo === 'PRODUTO FINAL') return 'produto-final'
-
-  /* Sem grupo — classifica pelo nome do produto */
-  if (/AGLOMERADO/i.test(produto)) return 'aglomerado'
-  if (/ESPUMA|EUROPA|BLOCO/i.test(produto)) return 'espuma'
-
-  return 'outro'
+async function getTenantConnector(tenantId: string): Promise<IndustryConnector> {
+  const tenant = await findTenantBySlug(tenantId)
+  return ConnectorRegistry.get(tenant?.connectorId)
 }
 
 /**
- * Cache in-memory do estoque — evita 3 chamadas SGBR idênticas (uma por aba).
- * TTL 3 min: a API SGBR leva ~20s, sem cache cada aba dispara uma nova.
+ * Cache compartilhado do estoque — evita 3 chamadas SGBR idênticas (uma por aba).
+ * Em modo cluster, Redis garante que servidores diferentes compartilhem o cache.
  */
-const estoqueCache = new Map<string, { rows: EstoqueRawRow[]; expiresAt: number }>()
+const estoqueCache = createSharedCache<EstoqueRawRow[]>({
+  namespace: 'finance:estoque',
+  ttlMs: 15 * 60_000,
+})
 
 async function loadEstoqueRows(tenantId: string): Promise<EstoqueRawRow[]> {
-  const dsId = getEstoqueDataSourceId(tenantId)
+  const dsId = await getEstoqueDataSourceId(tenantId)
   if (!dsId) return []
 
   const cacheKey = `${tenantId}:${dsId}`
-  const cached = estoqueCache.get(cacheKey)
-  if (cached && Date.now() < cached.expiresAt) return cached.rows
+  const cached = await estoqueCache.get(cacheKey)
+  if (cached) return cached
 
   const result = await fetchProxyDataForTool({
     tenantId,
@@ -187,17 +159,18 @@ async function loadEstoqueRows(tenantId: string): Promise<EstoqueRawRow[]> {
   })
   if (!result.ok) return []
   const rows = result.rows.filter((r): r is EstoqueRawRow => Boolean(r && typeof r === 'object'))
-  estoqueCache.set(cacheKey, { rows, expiresAt: Date.now() + 15 * 60_000 })
+  await estoqueCache.set(cacheKey, rows)
   return rows
 }
 
 // GET /finance/estoque-materia-prima
 financeRouter.get('/estoque-materia-prima', async (req, res) => {
   const tenantId = resolveTenantId(req)
+  const connector = await getTenantConnector(tenantId)
   const rows = await loadEstoqueRows(tenantId)
   const mapped = rows
     .map((row) => {
-      const cls = classifyEstoqueItem(row)
+      const cls = classifyEstoqueItem(row, connector)
       if (cls !== 'materia-prima' && cls !== 'outro') return null
       const material = asText(pickRaw(row, MATERIAL_KEYS))
       if (!material) return null
@@ -226,10 +199,11 @@ financeRouter.get('/estoque-materia-prima', async (req, res) => {
 // GET /finance/estoque-espuma
 financeRouter.get('/estoque-espuma', async (req, res) => {
   const tenantId = resolveTenantId(req)
+  const connector = await getTenantConnector(tenantId)
   const rows = await loadEstoqueRows(tenantId)
   const mapped = rows
     .map((row) => {
-      const cls = classifyEstoqueItem(row)
+      const cls = classifyEstoqueItem(row, connector)
       if (cls !== 'espuma' && cls !== 'aglomerado') return null
       const produto = asText(pickRaw(row, MATERIAL_KEYS))
       if (!produto) return null
@@ -260,10 +234,11 @@ financeRouter.get('/estoque-espuma', async (req, res) => {
 // GET /finance/estoque-produto-final
 financeRouter.get('/estoque-produto-final', async (req, res) => {
   const tenantId = resolveTenantId(req)
+  const connector = await getTenantConnector(tenantId)
   const rows = await loadEstoqueRows(tenantId)
   const mapped = rows
     .map((row) => {
-      const cls = classifyEstoqueItem(row)
+      const cls = classifyEstoqueItem(row, connector)
       if (cls !== 'produto-final') return null
       const produto = asText(pickRaw(row, MATERIAL_KEYS))
       if (!produto) return null

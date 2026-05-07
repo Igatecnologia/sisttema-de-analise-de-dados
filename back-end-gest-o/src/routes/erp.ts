@@ -1,7 +1,11 @@
 import { Router } from 'express'
-import { readAll } from '../storage.js'
 import { fetchProxyDataForTool } from './proxy.js'
 import { resolveTenantId } from '../utils/tenant.js'
+import { createSharedCache } from '../services/sharedCache.js'
+import { ConnectorRegistry } from '../connectors/connectorRegistry.js'
+import { findTenantBySlug } from '../tenantStorage.js'
+import { findDsIdForArea } from '../connectors/findDsIdForArea.js'
+import type { ConnectorArea, IndustryConnector } from '../connectors/industryConnector.js'
 
 export const erpRouter = Router()
 
@@ -18,36 +22,33 @@ function asNumber(v: unknown, fb = 0): number {
   return fb
 }
 
-function normalizeEndpoint(ep: string | undefined): string {
-  if (!ep) return ''
-  let s = ep.trim()
-  const q = s.indexOf('?')
-  if (q >= 0) s = s.slice(0, q)
-  return s.toLowerCase()
+/* ── Caches Redis (com fallback em memoria local) ── */
+
+type Rows = Record<string, unknown>[]
+
+const estoqueCache = createSharedCache<Rows>({ namespace: 'erp:estoque', ttlMs: 15 * 60_000 })
+const produzidoCache = createSharedCache<Rows>({ namespace: 'erp:produzido', ttlMs: 15 * 60_000 })
+const producaoDiariaCache = createSharedCache<Rows>({ namespace: 'erp:producao-diaria', ttlMs: 15 * 60_000 })
+const comprasCache = createSharedCache<Rows>({ namespace: 'erp:compras', ttlMs: 15 * 60_000 })
+const faturamentosCache = createSharedCache<Rows>({ namespace: 'erp:faturamentos', ttlMs: 15 * 60_000 })
+
+async function getTenantConnector(tenantId: string): Promise<IndustryConnector> {
+  const tenant = await findTenantBySlug(tenantId)
+  return ConnectorRegistry.get(tenant?.connectorId)
 }
 
-/* ── Cache para dados combinados (estoque + produzido) ── */
-
-type CachedRows = { rows: Record<string, unknown>[]; expiresAt: number }
-const estoqueCache = new Map<string, CachedRows>()
-const produzidoCache = new Map<string, CachedRows>()
-
-function findDsId(tenantId: string, hint: string): string | null {
-  const all = readAll().filter((d) => d.tenantId === tenantId)
-  return all.find((d) => normalizeEndpoint(d.dataEndpoint).includes(hint))?.id ?? null
-}
-
-async function loadCachedProxy(
+async function loadCachedProxyByArea(
   tenantId: string,
-  hint: string,
-  cache: Map<string, CachedRows>,
+  area: ConnectorArea,
+  cache: ReturnType<typeof createSharedCache<Rows>>,
   extraQuery?: Record<string, string>,
-): Promise<Record<string, unknown>[]> {
-  const dsId = findDsId(tenantId, hint)
+): Promise<Rows> {
+  const connector = await getTenantConnector(tenantId)
+  const dsId = findDsIdForArea(tenantId, area, connector)
   if (!dsId) return []
   const key = `${tenantId}:${dsId}`
-  const cached = cache.get(key)
-  if (cached && Date.now() < cached.expiresAt) return cached.rows
+  const cached = await cache.get(key)
+  if (cached) return cached
   const result = await fetchProxyDataForTool({
     tenantId,
     dsId,
@@ -55,7 +56,7 @@ async function loadCachedProxy(
   })
   if (!result.ok) return []
   const rows = result.rows.filter((r): r is Record<string, unknown> => Boolean(r && typeof r === 'object'))
-  cache.set(key, { rows, expiresAt: Date.now() + 15 * 60_000 })
+  await cache.set(key, rows)
   return rows
 }
 
@@ -65,10 +66,11 @@ async function loadCachedProxy(
 
 erpRouter.get('/fichas-tecnicas', async (req, res) => {
   const tenantId = resolveTenantId(req)
+  const connector = await getTenantConnector(tenantId)
 
   const [estoqueRows, produzidoRows] = await Promise.all([
-    loadCachedProxy(tenantId, '/sgbrbi/estoque', estoqueCache),
-    loadCachedProxy(tenantId, '/sgbrbi/produzido', produzidoCache, {
+    loadCachedProxyByArea(tenantId, 'estoque', estoqueCache),
+    loadCachedProxyByArea(tenantId, 'produzido', produzidoCache, {
       dt_de: formatSgbrDate(sixMonthsAgo()),
       dt_ate: formatSgbrDate(new Date()),
     }),
@@ -92,10 +94,8 @@ erpRouter.get('/fichas-tecnicas', async (req, res) => {
   /* Filtrar apenas produtos (PRODUTO BASE + PRODUTO FINAL) */
   const fichas = estoqueRows
     .filter((r) => {
-      const grupo = asText(r.grupo).toUpperCase()
-      const produto = asText(r.produto).toUpperCase()
-      return grupo === 'PRODUTO BASE' || grupo === 'PRODUTO FINAL' ||
-        /ESPUMA|AGLOMERADO|BLOCO|EUROPA/.test(produto)
+      const cls = connector.classifyProduct(r)
+      return cls === 'espuma' || cls === 'aglomerado' || cls === 'produto-final'
     })
     .map((r) => {
       const cod = asNumber(r.controle)
@@ -109,7 +109,8 @@ erpRouter.get('/fichas-tecnicas', async (req, res) => {
         ? Math.round(((precovenda - precocusto) / precovenda) * 1000) / 10
         : 0
 
-      const tipo: 'Espuma' | 'Aglomerado' = /aglomerado/i.test(produto) ? 'Aglomerado' : 'Espuma'
+      const classification = connector.classifyProduct(r)
+      const tipo = classification === 'aglomerado' ? 'Aglomerado' : connector.labels.product
 
       return {
         id: `FT-${cod}`,
@@ -151,24 +152,23 @@ erpRouter.get('/fichas-tecnicas', async (req, res) => {
    Consulta dia a dia (max 14 dias) para saber QUANDO cada produto foi produzido.
    ══════════════════════════════════════════════════════════ */
 
-const producaoDiariaCache = new Map<string, CachedRows>()
-
 erpRouter.get('/producao-diaria', async (req, res) => {
   const tenantId = resolveTenantId(req)
   const dtDe = typeof req.query.dt_de === 'string' ? req.query.dt_de : formatSgbrDate(thirtyDaysAgo())
   const dtAte = typeof req.query.dt_ate === 'string' ? req.query.dt_ate : formatSgbrDate(new Date())
 
-  const dsId = findDsId(tenantId, '/sgbrbi/produzido')
+  const connector = await getTenantConnector(tenantId)
+  const dsId = findDsIdForArea(tenantId, 'produzido', connector)
   if (!dsId) return res.json({ rows: [], truncated: false, periodoReal: { de: dtDe, ate: dtAte } })
 
   const cacheKey = `${tenantId}:${dsId}:${dtDe}:${dtAte}`
-  const cached = producaoDiariaCache.get(cacheKey)
+  const cached = await producaoDiariaCache.get(cacheKey)
 
   let rawRows: Record<string, unknown>[]
   let truncated = false
 
-  if (cached && Date.now() < cached.expiresAt) {
-    rawRows = cached.rows
+  if (cached) {
+    rawRows = cached
   } else {
     const result = await fetchProxyDataForTool({
       tenantId,
@@ -179,7 +179,7 @@ erpRouter.get('/producao-diaria', async (req, res) => {
       ? result.rows.filter((r): r is Record<string, unknown> => Boolean(r && typeof r === 'object'))
       : []
     truncated = result.ok ? result.truncated : false
-    producaoDiariaCache.set(cacheKey, { rows: rawRows, expiresAt: Date.now() + 15 * 60_000 })
+    await producaoDiariaCache.set(cacheKey, rawRows)
   }
 
   type ProdRow = { codproduto: number; produto: string; qtdeproduzida: number; unidade: string; componentes: unknown[]; data: string }
@@ -217,7 +217,8 @@ erpRouter.get('/vendas-sgbr', async (req, res) => {
   const dtDe = typeof req.query.dt_de === 'string' ? req.query.dt_de : formatSgbrDate(thirtyDaysAgo())
   const dtAte = typeof req.query.dt_ate === 'string' ? req.query.dt_ate : formatSgbrDate(new Date())
 
-  const dsId = findDsId(tenantId, '/sgbrbi/vendas')
+  const connector = await getTenantConnector(tenantId)
+  const dsId = findDsIdForArea(tenantId, 'vendas', connector)
   if (!dsId) return res.json([])
 
   const result = await fetchProxyDataForTool({
@@ -269,25 +270,25 @@ function formatSgbrDate(d: Date): string {
 /* ── Endpoints ERP adicionais ── */
 
 /* ══════════════════════════════════════════════════════════
-   GET /erp/compras-materia-prima — Dados reais via proxy /sgbrbi/compras
+   GET /erp/compras-materia-prima — Compras via connector.areaHints.compras
    Query: dt_de, dt_ate (formato YYYY.MM.DD)
    ══════════════════════════════════════════════════════════ */
-const comprasCache = new Map<string, CachedRows>()
 
 erpRouter.get('/compras-materia-prima', async (req, res) => {
   const tenantId = resolveTenantId(req)
   const dtDe = typeof req.query.dt_de === 'string' ? req.query.dt_de : formatSgbrDate(thirtyDaysAgo())
   const dtAte = typeof req.query.dt_ate === 'string' ? req.query.dt_ate : formatSgbrDate(new Date())
 
-  const dsId = findDsId(tenantId, '/sgbrbi/compras')
+  const connector = await getTenantConnector(tenantId)
+  const dsId = findDsIdForArea(tenantId, 'compras', connector)
   if (!dsId) {
     return res.json({ rows: [], truncated: false, periodoReal: { de: dtDe, ate: dtAte } })
   }
 
   const cacheKey = `${tenantId}:${dsId}:${dtDe}:${dtAte}`
-  const cached = comprasCache.get(cacheKey)
-  if (cached && Date.now() < cached.expiresAt) {
-    return res.json({ rows: cached.rows, truncated: false, periodoReal: { de: dtDe, ate: dtAte } })
+  const cached = await comprasCache.get(cacheKey)
+  if (cached) {
+    return res.json({ rows: cached, truncated: false, periodoReal: { de: dtDe, ate: dtAte } })
   }
 
   const result = await fetchProxyDataForTool({
@@ -301,7 +302,7 @@ erpRouter.get('/compras-materia-prima', async (req, res) => {
   }
 
   const rows = result.rows.filter((r): r is Record<string, unknown> => Boolean(r && typeof r === 'object'))
-  comprasCache.set(cacheKey, { rows, expiresAt: Date.now() + 15 * 60_000 })
+  await comprasCache.set(cacheKey, rows)
 
   res.json({
     rows,
@@ -320,19 +321,18 @@ erpRouter.get('/pedidos', (_req, res) => res.json([]))
 erpRouter.get('/ordens-producao', (_req, res) => res.json([]))
 
 /* GET /erp/faturamentos — Notas fiscais via proxy SGBR (vendanfe ou notasfiscais) */
-const faturamentosCache = new Map<string, CachedRows>()
 erpRouter.get('/faturamentos', async (req, res) => {
   const tenantId = resolveTenantId(req)
   const dtDe = typeof req.query.dt_de === 'string' ? req.query.dt_de : formatSgbrDate(thirtyDaysAgo())
   const dtAte = typeof req.query.dt_ate === 'string' ? req.query.dt_ate : formatSgbrDate(new Date())
 
-  // Procura fonte de notas fiscais (vendanfe, notasfiscais, etc.)
-  const dsId = findDsId(tenantId, '/sgbrbi/vendanfe') ?? findDsId(tenantId, '/sgbrbi/notasfiscais') ?? findDsId(tenantId, '/sgbrbi/notafiscal')
+  const connector = await getTenantConnector(tenantId)
+  const dsId = findDsIdForArea(tenantId, 'notasfiscais', connector)
   if (!dsId) return res.json([])
 
   const cacheKey = `${tenantId}:${dsId}:${dtDe}:${dtAte}`
-  const cached = faturamentosCache.get(cacheKey)
-  if (cached && Date.now() < cached.expiresAt) return res.json(cached.rows)
+  const cached = await faturamentosCache.get(cacheKey)
+  if (cached) return res.json(cached)
 
   const result = await fetchProxyDataForTool({
     tenantId,
@@ -342,7 +342,7 @@ erpRouter.get('/faturamentos', async (req, res) => {
   if (!result.ok) return res.json([])
 
   const rows = result.rows.filter((r): r is Record<string, unknown> => Boolean(r && typeof r === 'object'))
-  faturamentosCache.set(cacheKey, { rows, expiresAt: Date.now() + 15 * 60_000 })
+  await faturamentosCache.set(cacheKey, rows)
   res.json(rows)
 })
 
