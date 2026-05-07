@@ -67,6 +67,30 @@ const AuditPage = lazy(() =>
 const SecurityPage = lazy(() =>
   import('../pages/SecurityPage').then((m) => ({ default: m.SecurityPage })),
 )
+const BillingPlansPage = lazy(() =>
+  import('../pages/BillingPlansPage').then((m) => ({ default: m.BillingPlansPage })),
+)
+const BillingPortalPage = lazy(() =>
+  import('../pages/BillingPortalPage').then((m) => ({ default: m.BillingPortalPage })),
+)
+const LgpdPage = lazy(() =>
+  import('../pages/LgpdPage').then((m) => ({ default: m.LgpdPage })),
+)
+const SuperAdminPage = lazy(() =>
+  import('../pages/SuperAdminPage').then((m) => ({ default: m.SuperAdminPage })),
+)
+const ConnectorsMarketplacePage = lazy(() =>
+  import('../pages/ConnectorsMarketplacePage').then((m) => ({ default: m.ConnectorsMarketplacePage })),
+)
+const PrivacyPolicyPage = lazy(() =>
+  import('../pages/LegalPages').then((m) => ({ default: m.PrivacyPolicyPage })),
+)
+const TermsOfServicePage = lazy(() =>
+  import('../pages/LegalPages').then((m) => ({ default: m.TermsOfServicePage })),
+)
+const CookiesPolicyPage = lazy(() =>
+  import('../pages/LegalPages').then((m) => ({ default: m.CookiesPolicyPage })),
+)
 const ProducaoPage = lazy(() =>
   import('../pages/ProducaoPage').then((m) => ({ default: m.ProducaoPage })),
 )
@@ -160,6 +184,9 @@ export function AppRouter() {
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/accept-invite" element={<AcceptInvitePage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/legal/privacidade" element={<PageErrorBoundary><PrivacyPolicyPage /></PageErrorBoundary>} />
+            <Route path="/legal/termos" element={<PageErrorBoundary><TermsOfServicePage /></PageErrorBoundary>} />
+            <Route path="/legal/cookies" element={<PageErrorBoundary><CookiesPolicyPage /></PageErrorBoundary>} />
             <Route path="/onboarding" element={<RequireAuth><OnboardingPage /></RequireAuth>} />
             <Route path="/importando-dados" element={<RequireAuth><ImportingDataPage /></RequireAuth>} />
             <Route
@@ -241,6 +268,26 @@ export function AppRouter() {
           <Route
             path="/seguranca"
             element={<PageErrorBoundary><SecurityPage /></PageErrorBoundary>}
+          />
+          <Route
+            path="/seguranca/lgpd"
+            element={<PageErrorBoundary><LgpdPage /></PageErrorBoundary>}
+          />
+          <Route
+            path="/planos"
+            element={<PageErrorBoundary><BillingPlansPage /></PageErrorBoundary>}
+          />
+          <Route
+            path="/billing"
+            element={<PageErrorBoundary><BillingPortalPage /></PageErrorBoundary>}
+          />
+          <Route
+            path="/connectors"
+            element={<PageErrorBoundary><ConnectorsMarketplacePage /></PageErrorBoundary>}
+          />
+          <Route
+            path="/super-admin"
+            element={<PageErrorBoundary><SuperAdminPage /></PageErrorBoundary>}
           />
           <Route
             path="/producao"

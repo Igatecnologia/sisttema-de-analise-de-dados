@@ -32,6 +32,10 @@ import { tenantsRouter } from './routes/tenants.js'
 import { onboardingRouter } from './routes/onboarding.js'
 import { billingRouter, stripeWebhookRouter } from './routes/billing.js'
 import { subscriptionGate } from './middleware/subscriptionGate.js'
+import { lgpdRouter } from './routes/lgpd.js'
+import { superAdminRouter } from './routes/superAdmin.js'
+import { securityRouter } from './routes/security.js'
+import { connectorsRouter } from './routes/connectors.js'
 import { startScheduledReportsJob } from './jobs/scheduledReports.js'
 import { startBackupScheduler } from './jobs/dbBackup.js'
 import { startCopilotRetentionJob } from './jobs/copilotRetention.js'
@@ -91,15 +95,27 @@ export function createApp(options: CreateAppOptions = {}) {
    *  10MB vira ~2MB. Threshold 1KB pra não comprimir respostas curtas em vão. */
   app.use(compression({ threshold: 1024 }))
   /**
-   * CORS: em produção só a `FRONTEND_URL` é aceita; em dev adicionamos as portas Vite comuns.
-   * Remover os hardcodes em produção evita que origens indesejadas usem credentials=true.
+   * CORS dinamico (SEC-3.5): em prod aceita a FRONTEND_URL + qualquer subdomain do
+   * dominio raiz configurado em CORS_TENANT_DOMAIN_REGEX (default igagestao.com.br).
+   * Em dev adiciona as portas Vite comuns.
    */
   const isStrictlyDev = process.env.NODE_ENV === 'development'
-  const allowedOrigins = isStrictlyDev
-    ? [FRONTEND_URL, 'http://localhost:5173', 'http://localhost:4173']
-    : [FRONTEND_URL]
+  const tenantSubdomainRegex = process.env.CORS_TENANT_DOMAIN_REGEX
+    ? new RegExp(process.env.CORS_TENANT_DOMAIN_REGEX)
+    : /^https:\/\/[a-z0-9-]+\.igagestao\.com\.br$/
+  const staticAllowed = new Set(
+    isStrictlyDev
+      ? [FRONTEND_URL, 'http://localhost:5173', 'http://localhost:4173']
+      : [FRONTEND_URL],
+  )
   app.use(cors({
-    origin: allowedOrigins,
+    origin: (origin, cb) => {
+      /** Server-to-server (sem header Origin) — permitido. */
+      if (!origin) return cb(null, true)
+      if (staticAllowed.has(origin)) return cb(null, true)
+      if (!isStrictlyDev && tenantSubdomainRegex.test(origin)) return cb(null, true)
+      cb(new Error(`CORS denied: ${origin}`), false)
+    },
     credentials: true,
   }))
   /** Stripe webhook precisa de raw body para validar assinatura — registrado ANTES do json. */
@@ -109,6 +125,9 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use(csrfProtection)
   app.use(jsonRequestLog)
   app.use(postgresTenantContext)
+
+  /** Endpoints publicos de seguranca: security.txt + policy + /security. */
+  app.use(securityRouter)
 
   app.get('/health/live', (_req, res) => {
     res.status(200).json({
@@ -178,6 +197,9 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/api/v1/tenants', tenantsRouter)
   app.use('/api/v1/onboarding', onboardingRouter)
   app.use('/api/v1/billing', billingRouter)
+  app.use('/api/v1/lgpd', lgpdRouter)
+  app.use('/api/v1/super-admin', superAdminRouter)
+  app.use('/api/v1/connectors', connectorsRouter)
   /** Gate de billing apos as rotas de auth/billing/onboarding/tenant config. */
   app.use(subscriptionGate)
 
