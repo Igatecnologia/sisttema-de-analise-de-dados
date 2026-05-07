@@ -210,6 +210,9 @@ try { db.exec("ALTER TABLE users ADD COLUMN email_verified_at TEXT NULL") } catc
 try { db.exec("ALTER TABLE copilot_messages ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'") } catch { /* ja existe */ }
 try { db.exec("ALTER TABLE scheduled_reports ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'") } catch { /* ja existe */ }
 try { db.exec("ALTER TABLE audit_log ADD COLUMN tenant_id TEXT NULL") } catch { /* ja existe */ }
+// Migração v4: hash chain do audit log (SEC-1.3) — prev_hash + row_hash idempotente
+try { db.exec("ALTER TABLE audit_log ADD COLUMN prev_hash TEXT NULL") } catch { /* ja existe */ }
+try { db.exec("ALTER TABLE audit_log ADD COLUMN row_hash TEXT NULL") } catch { /* ja existe */ }
 try { db.exec("ALTER TABLE tenants ADD COLUMN connector_id TEXT NOT NULL DEFAULT 'sgbr-espuma'") } catch { /* ja existe */ }
 try { db.exec("ALTER TABLE tenants ADD COLUMN plan TEXT NOT NULL DEFAULT 'trial'") } catch { /* ja existe */ }
 try { db.exec("ALTER TABLE tenants ADD COLUMN trial_ends_at TEXT NULL") } catch { /* ja existe */ }

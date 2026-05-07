@@ -334,4 +334,16 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON auth_action_tokens TO iga_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON tenant_onboarding TO iga_app;
 `,
   },
+  {
+    id: '006_audit_log_hash_chain',
+    sql: `
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS prev_hash TEXT NULL;
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS row_hash TEXT NULL;
+
+-- Tampering protection: a aplicacao so pode INSERT em audit_log.
+-- UPDATE/DELETE viram negados pelo Postgres mesmo se a politica RLS deixar passar.
+REVOKE UPDATE, DELETE ON audit_log FROM iga_app;
+GRANT SELECT, INSERT ON audit_log TO iga_app;
+`,
+  },
 ]
