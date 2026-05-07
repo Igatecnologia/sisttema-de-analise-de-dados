@@ -18,6 +18,11 @@ import { findTenantBySlug, genTenantId, upsertTenant } from '../tenantStorage.js
 import { signSessionJwt } from '../services/sessionJwt.js'
 import { tenantRateLimit } from '../middleware/tenantRateLimit.js'
 import { maxBodySize } from '../middleware/maxBodySize.js'
+import {
+  clearLoginFailures,
+  getLockState,
+  recordLoginFailure,
+} from '../services/accountLockout.js'
 import { buildPublicUrl, sendTransactionalEmail } from '../services/transactionalEmail.js'
 import { inviteTemplate, resetPasswordTemplate, welcomeVerificationTemplate } from '../services/emailTemplates.js'
 
@@ -142,20 +147,62 @@ authRouter.post('/login', tenantAuthLimiter, loginLimiter, async (req, res) => {
   }
 
   const { email, password } = parsed.data
-
   const tenantId = resolveTenantId(req)
+  const normalizedEmail = email.trim().toLowerCase()
+
+  /**
+   * SEC-2.4: bloqueio por conta antes de validar senha. Atacante com botnet
+   * burla o rate limit por IP, mas nao consegue burlar lock por email.
+   */
+  const lockState = await getLockState(tenantId, normalizedEmail)
+  if (lockState.locked) {
+    logAudit({
+      action: lockState.requireReset ? 'login_blocked_reset_required' : 'login_blocked_locked',
+      resource: 'auth',
+      metadata: { email: normalizedEmail, tenantId, lockoutCount24h: lockState.lockoutCount24h, ip: req.ip },
+    })
+    if (lockState.requireReset) {
+      return res.status(423).json({
+        message: 'Conta bloqueada por excesso de falhas. Use "Esqueci minha senha" para liberar.',
+        requireReset: true,
+      })
+    }
+    return res.status(423).json({
+      message: 'Conta temporariamente bloqueada apos varias tentativas. Tente novamente em alguns minutos.',
+      lockedUntil: lockState.lockedUntil,
+    })
+  }
+
   const user = (await readAllUsersAsync()).find(
     (u) =>
       u.tenantId === tenantId &&
-      u.email.toLowerCase() === email.trim().toLowerCase() &&
+      u.email.toLowerCase() === normalizedEmail &&
       u.status === 'active',
   )
 
   if (!user || !verifyUserPassword(password, user.passwordHash)) {
-    logAudit({ action: 'login_failed', resource: 'auth', metadata: { email: email.trim().toLowerCase(), ip: req.ip } })
+    const newState = await recordLoginFailure(tenantId, normalizedEmail)
+    logAudit({
+      action: 'login_failed',
+      resource: 'auth',
+      metadata: {
+        email: normalizedEmail,
+        ip: req.ip,
+        tenantId,
+        failuresInWindow: newState.failuresInWindow,
+        nowLocked: newState.locked,
+      },
+    })
+    if (newState.locked) {
+      return res.status(423).json({
+        message: 'Conta bloqueada apos varias tentativas. Tente novamente em alguns minutos.',
+        lockedUntil: newState.lockedUntil,
+      })
+    }
     return res.status(401).json({ message: 'Email ou senha incorretos' })
   }
 
+  await clearLoginFailures(tenantId, normalizedEmail)
   const tenant = await findTenantBySlug(tenantId)
   const token = signSessionJwt({
     sub: user.id,
@@ -391,28 +438,54 @@ authRouter.post('/accept-invite', tenantAuthLimiter, async (req, res) => {
   res.status(201).json({ ok: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } })
 })
 
+/**
+ * Tempo minimo de resposta (ms) — evita timing oracle que revela se email existe.
+ * SEC-2.9: endpoint sempre responde com mesmo shape e tempo proximo do baseline.
+ */
+const FORGOT_PASSWORD_BASELINE_MS = 600
+const GENERIC_FORGOT_MESSAGE = 'Se o email existir, enviamos um link para redefinir a senha.'
+
 authRouter.post('/forgot-password', tenantAuthLimiter, async (req, res) => {
+  const startedAt = Date.now()
   const parsed = forgotPasswordSchema.safeParse(req.body)
   if (!parsed.success) {
+    /** Validacao de schema eh user error obvio — responder cedo nao vaza oracle. */
     return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
   }
   const tenantId = resolveTenantId(req)
-  const user = (await readAllUsersAsync()).find(
-    (u) => u.tenantId === tenantId && u.email.toLowerCase() === parsed.data.email && u.status === 'active',
-  )
-  if (!user) return res.json({ ok: true })
-  const reset = await createAuthActionToken({
-    tenantId,
-    userId: user.id,
-    email: user.email,
-    type: 'password_reset',
-    ttlMs: 60 * 60 * 1000,
-  })
-  await sendTransactionalEmail(user.email, resetPasswordTemplate({
-    resetUrl: buildPublicUrl(`/reset-password?tenant=${tenantUrlParam(tenantId)}&token=${reset.token}`),
-  }))
-  logAudit({ userId: user.id, action: 'password_reset_requested', resource: 'auth', metadata: { tenantId } })
-  res.json({ ok: true, ...devTokenPayload(reset.token) })
+
+  const respondGeneric = async (devToken?: string) => {
+    const elapsed = Date.now() - startedAt
+    if (elapsed < FORGOT_PASSWORD_BASELINE_MS) {
+      await new Promise((resolve) => setTimeout(resolve, FORGOT_PASSWORD_BASELINE_MS - elapsed))
+    }
+    res.json({ ok: true, message: GENERIC_FORGOT_MESSAGE, ...(devToken ? devTokenPayload(devToken) : {}) })
+  }
+
+  try {
+    const user = (await readAllUsersAsync()).find(
+      (u) => u.tenantId === tenantId && u.email.toLowerCase() === parsed.data.email && u.status === 'active',
+    )
+    if (!user) {
+      logAudit({ action: 'password_reset_requested_unknown', resource: 'auth', metadata: { tenantId, email: parsed.data.email } })
+      return respondGeneric()
+    }
+    const reset = await createAuthActionToken({
+      tenantId,
+      userId: user.id,
+      email: user.email,
+      type: 'password_reset',
+      ttlMs: 60 * 60 * 1000,
+    })
+    await sendTransactionalEmail(user.email, resetPasswordTemplate({
+      resetUrl: buildPublicUrl(`/reset-password?tenant=${tenantUrlParam(tenantId)}&token=${reset.token}`),
+    })).catch(() => undefined)
+    logAudit({ userId: user.id, action: 'password_reset_requested', resource: 'auth', metadata: { tenantId } })
+    return respondGeneric(reset.token)
+  } catch {
+    /** Falha de DB/email NAO revela ao atacante — resposta generica e baseline mantido. */
+    return respondGeneric()
+  }
 })
 
 authRouter.post('/reset-password', tenantAuthLimiter, async (req, res) => {
