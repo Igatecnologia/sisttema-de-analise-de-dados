@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { getDb } from './db/sqlite.js'
+import { getPostgresClientFromContext, getPostgresPool, hasPostgresConfig, queryPostgres } from './db/postgres.js'
 import { encryptSecret, decryptSecret, isEncryptedPayload } from './services/crypto.js'
 
 export type DataSource = {
@@ -34,15 +35,26 @@ export type DataSource = {
 
 const db = getDb()
 
+function usePostgresStorage(): boolean {
+  return process.env.IGA_STORAGE_DRIVER === 'postgres' && hasPostgresConfig()
+}
+
 /** Decripta credenciais lidas do banco. Suporta payload criptografado (JSON) e plaintext legado. */
 function decryptStoredCredentials(raw: unknown): string | undefined {
   if (!raw) return undefined
-  const str = String(raw)
+  if (isEncryptedPayload(raw)) return decryptSecret(raw)
+  const str = typeof raw === 'string' ? raw : JSON.stringify(raw)
   try {
     const parsed = JSON.parse(str) as unknown
     if (isEncryptedPayload(parsed)) return decryptSecret(parsed)
   } catch { /* não é JSON — plaintext legado */ }
   return str
+}
+
+function parseArray<T>(raw: unknown): T[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw as T[]
+  return JSON.parse(String(raw)) as T[]
 }
 
 function mapRow(row: Record<string, unknown>): DataSource {
@@ -57,9 +69,9 @@ function mapRow(row: Record<string, unknown>): DataSource {
     status: String(row.status),
     lastCheckedAt: row.last_checked_at ? String(row.last_checked_at) : null,
     lastError: row.last_error ? String(row.last_error) : null,
-    fieldMappings: JSON.parse(String(row.field_mappings_json ?? '[]')) as DataSource['fieldMappings'],
-    erpEndpoints: JSON.parse(String(row.erp_endpoints_json ?? '[]')) as string[],
-    isAuthSource: Number(row.is_auth_source ?? 0) === 1,
+    fieldMappings: parseArray<DataSource['fieldMappings'][number]>(row.field_mappings_json),
+    erpEndpoints: parseArray<string>(row.erp_endpoints_json),
+    isAuthSource: row.is_auth_source === true || Number(row.is_auth_source ?? 0) === 1,
     loginEndpoint: row.login_endpoint ? String(row.login_endpoint) : undefined,
     dataEndpoint: row.data_endpoint ? String(row.data_endpoint) : undefined,
     passwordMode: row.password_mode ? String(row.password_mode) : undefined,
@@ -79,6 +91,42 @@ function mapRow(row: Record<string, unknown>): DataSource {
 export function readAll(): DataSource[] {
   const rows = db.prepare('SELECT * FROM datasources ORDER BY created_at ASC').all() as Record<string, unknown>[]
   return rows.map(mapRow)
+}
+
+export async function readAllAsync(): Promise<DataSource[]> {
+  if (usePostgresStorage()) {
+    const rows = await queryPostgres('SELECT * FROM datasources ORDER BY created_at ASC')
+    return rows.rows.map((row) => mapRow(row as Record<string, unknown>))
+  }
+
+  return readAll()
+}
+
+function assertTenantId(tenantId: string, fn: string): void {
+  if (!tenantId || typeof tenantId !== 'string' || !tenantId.trim()) {
+    throw new Error(`[storage.${fn}] tenantId obrigatorio`)
+  }
+}
+
+/** Defense-in-depth: filtra no banco para nenhum caller esquecer de aplicar o WHERE. */
+export function readAllForTenant(tenantId: string): DataSource[] {
+  assertTenantId(tenantId, 'readAllForTenant')
+  const rows = db
+    .prepare('SELECT * FROM datasources WHERE tenant_id = ? ORDER BY created_at ASC')
+    .all(tenantId) as Record<string, unknown>[]
+  return rows.map(mapRow)
+}
+
+export async function readAllForTenantAsync(tenantId: string): Promise<DataSource[]> {
+  assertTenantId(tenantId, 'readAllForTenantAsync')
+  if (usePostgresStorage()) {
+    const rows = await queryPostgres(
+      'SELECT * FROM datasources WHERE tenant_id = $1 ORDER BY created_at ASC',
+      [tenantId],
+    )
+    return rows.rows.map((row) => mapRow(row as Record<string, unknown>))
+  }
+  return readAllForTenant(tenantId)
 }
 
 export function writeAll(items: DataSource[]) {
@@ -134,6 +182,73 @@ export function writeAll(items: DataSource[]) {
     }
   })
   tx(items)
+}
+
+export async function writeAllAsync(items: DataSource[]) {
+  if (usePostgresStorage()) {
+    const contextClient = getPostgresClientFromContext()
+    const client = contextClient ?? await getPostgresPool().connect()
+    try {
+      if (!contextClient) await client.query('BEGIN')
+      await client.query('DELETE FROM datasources')
+      for (const item of items) {
+        await client.query(
+          `
+          INSERT INTO datasources (
+            id, tenant_id, name, type, api_url, auth_method, auth_credentials_encrypted, status, last_checked_at, last_error,
+            field_mappings_json, erp_endpoints_json, is_auth_source, login_endpoint, data_endpoint, password_mode,
+            login_field_user, login_field_password,
+            pagination_style, page_param, per_page_param, default_per_page, cursor_param, cursor_response_field,
+            created_at, updated_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+            $11, $12, $13, $14, $15, $16,
+            $17, $18,
+            $19, $20, $21, $22, $23, $24,
+            $25, $26
+          )
+          `,
+          [
+            item.id,
+            item.tenantId,
+            item.name,
+            item.type,
+            item.apiUrl,
+            item.authMethod,
+            item.authCredentials ? JSON.stringify(encryptSecret(item.authCredentials)) : null,
+            item.status,
+            item.lastCheckedAt,
+            item.lastError,
+            JSON.stringify(item.fieldMappings ?? []),
+            JSON.stringify(item.erpEndpoints ?? []),
+            item.isAuthSource,
+            item.loginEndpoint ?? null,
+            item.dataEndpoint ?? null,
+            item.passwordMode ?? 'plain',
+            item.loginFieldUser ?? 'login',
+            item.loginFieldPassword ?? 'senha',
+            item.paginationStyle ?? null,
+            item.pageParam ?? null,
+            item.perPageParam ?? null,
+            item.defaultPerPage ?? null,
+            item.cursorParam ?? null,
+            item.cursorResponseField ?? null,
+            item.createdAt,
+            item.updatedAt,
+          ],
+        )
+      }
+      if (!contextClient) await client.query('COMMIT')
+    } catch (err) {
+      if (!contextClient) await client.query('ROLLBACK')
+      throw err
+    } finally {
+      if (!contextClient) client.release()
+    }
+    return
+  }
+
+  writeAll(items)
 }
 
 /** Fila de escrita — evita perder fontes quando vários POST /test ou CRUD rodam em paralelo. */

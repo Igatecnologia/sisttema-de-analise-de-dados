@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: iga-gestao
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: cd front-end-gest-o && npm install && npm run build && cd ../back-end-gest-o && npm install && npm run build && mkdir -p front-end-dist && cp -r ../front-end-gest-o/dist/* front-end-dist/
+    startCommand: cd back-end-gest-o && node dist/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      # Secrets — definir manualmente no painel do Render (Dashboard → Environment).
+      # NUNCA commitar credenciais reais aqui — git history fica publico.
+      - key: ADMIN_DEFAULT_EMAIL
+        sync: false
+      - key: ADMIN_DEFAULT_PASSWORD
+        sync: false
+      - key: IGA_SESSION_JWT_SECRET
+        sync: false
+      - key: IGA_SECRETS_KEY
+        sync: false
+      - key: LOG_PROXY_DATA
+        value: "0"

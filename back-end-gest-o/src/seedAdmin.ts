@@ -49,13 +49,31 @@ function writeFirstLoginFile(email: string, password: string) {
 
 export function seedDefaultAdmin() {
   const users = readAllUsers()
-  if (users.length > 0) return
-
+  const email = process.env.ADMIN_DEFAULT_EMAIL?.trim() || 'admin@iga.com'
   const { password, source } = resolveInitialAdminPassword()
   const now = new Date().toISOString()
-  const email = process.env.ADMIN_DEFAULT_EMAIL?.trim() || 'admin@iga.com'
+  /** Tenant onde o admin de bootstrap nasce. Override via env em deploys SaaS. */
+  const adminTenantId = process.env.ADMIN_DEFAULT_TENANT_ID?.trim() || 'default'
+
+  if (users.length > 0) {
+    const idx = users.findIndex((user) => user.email.toLowerCase() === email.toLowerCase() && user.tenantId === adminTenantId && user.role === 'admin')
+    if (idx >= 0 && source === 'env') {
+      users[idx] = {
+        ...users[idx],
+        email,
+        passwordHash: hashUserPassword(password),
+        mustChangePassword: false,
+        updatedAt: now,
+      }
+      writeAllUsers(users)
+      console.log(`[IGA Backend] ADMIN ATUALIZADO — senha definida via ADMIN_DEFAULT_PASSWORD para ${email}`)
+    }
+    return
+  }
+
   const admin = {
     id: genUserId(),
+    tenantId: adminTenantId,
     name: 'Administrador',
     email,
     role: 'admin' as const,

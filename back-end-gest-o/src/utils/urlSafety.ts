@@ -41,13 +41,19 @@ function isBlockedHostname(host: string): boolean {
   return false
 }
 
-function hostFromUrl(url: string): string | null {
+const ALLOWED_SCHEMES = new Set(['http:', 'https:'])
+
+function parseUrl(url: string): URL | null {
   try {
-    const u = new URL(url)
-    return u.hostname
+    return new URL(url)
   } catch {
     return null
   }
+}
+
+function hostFromUrl(url: string): string | null {
+  const u = parseUrl(url)
+  return u ? u.hostname : null
 }
 
 function allowedOverride(host: string): boolean {
@@ -57,10 +63,24 @@ function allowedOverride(host: string): boolean {
   return list.includes(host.toLowerCase())
 }
 
-export type UrlSafetyReason = 'invalid_url' | 'loopback_or_private_ipv4' | 'private_ipv6' | 'blocked_hostname'
+export type UrlSafetyReason =
+  | 'invalid_url'
+  | 'invalid_scheme'
+  | 'loopback_or_private_ipv4'
+  | 'private_ipv6'
+  | 'blocked_hostname'
 
 export function validateExternalApiUrl(url: string): { ok: true } | { ok: false; reason: UrlSafetyReason; message: string } {
-  const host = hostFromUrl(url)
+  const parsed = parseUrl(url)
+  if (!parsed) return { ok: false, reason: 'invalid_url', message: 'URL da API inválida.' }
+  if (!ALLOWED_SCHEMES.has(parsed.protocol)) {
+    return {
+      ok: false,
+      reason: 'invalid_scheme',
+      message: `Esquema "${parsed.protocol}" não permitido. Use http:// ou https://.`,
+    }
+  }
+  const host = parsed.hostname
   if (!host) return { ok: false, reason: 'invalid_url', message: 'URL da API inválida.' }
   if (allowedOverride(host)) return { ok: true }
   if (isPrivateIPv4(host)) {
@@ -85,4 +105,20 @@ export function validateExternalApiUrl(url: string): { ok: true } | { ok: false;
     }
   }
   return { ok: true }
+}
+
+/**
+ * Garante a validacao em RUNTIME, no momento do fetch.
+ * Defesa contra:
+ *  - datasources criados antes da validacao
+ *  - URLs montadas dinamicamente em rotas como /compare ou /reconcile
+ *  - admins que tenham passado a checagem inicial mas alteram o registro
+ *
+ * Lanca erro com mensagem segura (nao vaza host interno).
+ */
+export function assertSafeExternalUrl(url: string): void {
+  const result = validateExternalApiUrl(url)
+  if (!result.ok) {
+    throw new Error(`URL externa rejeitada: ${result.message}`)
+  }
 }

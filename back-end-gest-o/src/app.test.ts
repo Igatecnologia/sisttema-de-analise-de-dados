@@ -19,11 +19,23 @@ describe('backend app', () => {
     expect(res.status).toBe(401)
   })
 
+  it('GET /api/v1/tenants/default/config retorna branding publico', async () => {
+    const res = await request(app).get('/api/v1/tenants/default/config')
+
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({
+      tenantId: 'default',
+      slug: 'default',
+      companyName: 'IGA',
+    })
+    expect(res.body.enabledModules).toContain('dashboard')
+  })
+
   it('GET /api/proxy/health com token válido retorna 200', async () => {
     const user = readAllUsersCached()[0]
     expect(user).toBeDefined()
     const token = `test-token-${Date.now()}`
-    registerToken(token, user.id)
+    await registerToken(token, user.id, user.tenantId)
 
     const res = await request(app)
       .get('/api/proxy/health')
@@ -39,7 +51,7 @@ describe('backend app', () => {
     const user = readAllUsersCached()[0]
     expect(user).toBeDefined()
     const token = `test-token-ds-${Date.now()}`
-    registerToken(token, user.id)
+    await registerToken(token, user.id, user.tenantId)
 
     const res = await request(app)
       .get('/api/proxy/data')
@@ -54,7 +66,7 @@ describe('backend app', () => {
     const user = readAllUsersCached()[0]
     expect(user?.role).toBe('admin')
     const token = `test-token-ops-${Date.now()}`
-    registerToken(token, user.id)
+    await registerToken(token, user.id, user.tenantId)
 
     const res = await request(app)
       .get('/api/v1/ops/status')
