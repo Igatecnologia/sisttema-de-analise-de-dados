@@ -13,6 +13,7 @@ import { getRedisClient, hasRedisConfig } from '../services/redis.js'
 import { ConnectorRegistry } from '../connectors/connectorRegistry.js'
 import { findTenantBySlug } from '../tenantStorage.js'
 import { assertSafeExternalUrl, validateExternalApiUrl } from '../utils/urlSafety.js'
+import { logInfo } from '../services/structuredLog.js'
 
 /**
  * Agente HTTP com keep-alive — reutiliza conexões TCP com a API externa.
@@ -1050,25 +1051,20 @@ proxyRouter.get('/data', async (req, res) => {
     if (process.env.NODE_ENV === 'production' && process.env.LOG_PROXY_DATA !== '1') return
     const totalMs = Date.now() - proxyStartedAt
     const cacheHeader = (res.getHeader('X-Proxy-Cache') as string) || 'MISS'
-    console.log(
-      JSON.stringify({
-        t: new Date().toISOString(),
-        level: 'info',
-        event: 'proxy.data',
-        tenantId,
-        dsId: source.id,
-        dataEndpoint: source.dataEndpoint ?? null,
-        durationMs: totalMs,
-        status: res.statusCode,
-        cache: cacheHeader,
-        timing: {
-          auth: timings.authMs,
-          firstPage: timings.firstPageMs,
-          pagination: timings.paginationMs,
-          pagesFetched: timings.pagesFetched,
-        },
-      }),
-    )
+    logInfo('proxy.data', {
+      tenantId,
+      dsId: source.id,
+      dataEndpoint: source.dataEndpoint ?? null,
+      durationMs: totalMs,
+      status: res.statusCode,
+      cache: cacheHeader,
+      timing: {
+        auth: timings.authMs,
+        firstPage: timings.firstPageMs,
+        pagination: timings.paginationMs,
+        pagesFetched: timings.pagesFetched,
+      },
+    })
   })
 
   // Auth

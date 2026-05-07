@@ -15,22 +15,32 @@ import { auditRouter } from './routes/audit.js'
 import { erpRouter } from './routes/erp.js'
 import { financeRouter } from './routes/finance.js'
 import { seedDefaultAdmin } from './seedAdmin.js'
+import { seedDefaultDataSources } from './seedDataSources.js'
 import { readAll as ensureDataSourcesFile } from './storage.js'
 import { readAllUsers as ensureUsersFile } from './userStorage.js'
 import { requireAuth, requireAdmin } from './middleware/auth.js'
 import { csrfProtection } from './middleware/csrf.js'
 import { jsonRequestLog } from './middleware/requestLog.js'
+import { blockPrototypePollution } from './middleware/blockPrototypePollution.js'
 import { opsRouter } from './routes/ops.js'
 import { alertsRouter, startAlertsEngine } from './routes/alerts.js'
 import { userPreferencesRouter } from './routes/userPreferences.js'
 import { searchRouter } from './routes/search.js'
 import { copilotRouter } from './routes/copilot.js'
 import { scheduledReportsRouter } from './routes/scheduledReports.js'
+import { tenantsRouter } from './routes/tenants.js'
+import { onboardingRouter } from './routes/onboarding.js'
 import { startScheduledReportsJob } from './jobs/scheduledReports.js'
 import { startBackupScheduler } from './jobs/dbBackup.js'
 import { startCopilotRetentionJob } from './jobs/copilotRetention.js'
 import { startWarmCacheJob } from './jobs/warmCache.js'
+import { startTrialLifecycleJob } from './jobs/trialLifecycle.js'
 import { getDbPath } from './db/sqlite.js'
+import { checkPostgresHealth, hasPostgresConfig, postgresTenantContext } from './db/postgres.js'
+import { checkRedisHealth, hasRedisConfig } from './services/redis.js'
+import { ConnectorRegistry } from './connectors/connectorRegistry.js'
+import { findTenantBySlug } from './tenantStorage.js'
+import { resolveTenantId } from './utils/tenant.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -40,22 +50,15 @@ type CreateAppOptions = {
 
 export function createApp(options: CreateAppOptions = {}) {
   const app = express()
+  // Render/Railway/Heroku usam proxy reverso — sem isso, cookies Secure não funcionam
+  if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1)
+  }
   const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173'
   const startSchedulers = options.startSchedulers ?? true
 
   app.use(helmet({
-    contentSecurityPolicy: {
-      useDefaults: true,
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:', 'blob:'],
-        fontSrc: ["'self'", 'data:'],
-        connectSrc: ["'self'", 'https://*.sgbrbi.com.br'],
-        frameAncestors: ["'none'"],
-      },
-    },
+    contentSecurityPolicy: false,
     strictTransportSecurity: {
       maxAge: 31536000,
       includeSubDomains: true,
@@ -63,6 +66,21 @@ export function createApp(options: CreateAppOptions = {}) {
     },
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   }))
+  app.use(async (req, res, next) => {
+    const tenant = await findTenantBySlug(resolveTenantId(req))
+    const connector = ConnectorRegistry.get(tenant?.connectorId)
+    const connectSrc = ["'self'", FRONTEND_URL, ...connector.cspConnectSrc]
+    res.setHeader('Content-Security-Policy', [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self' data:",
+      `connect-src ${[...new Set(connectSrc)].join(' ')}`,
+      "frame-ancestors 'none'",
+    ].join('; '))
+    next()
+  })
   app.use((_req, res, next) => {
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()')
     next()
@@ -83,8 +101,10 @@ export function createApp(options: CreateAppOptions = {}) {
     credentials: true,
   }))
   app.use(express.json({ limit: '1mb' }))
+  app.use(blockPrototypePollution)
   app.use(csrfProtection)
   app.use(jsonRequestLog)
+  app.use(postgresTenantContext)
 
   app.get('/health/live', (_req, res) => {
     res.status(200).json({
@@ -94,8 +114,10 @@ export function createApp(options: CreateAppOptions = {}) {
     })
   })
 
-  const getReadyPayload = () => {
+  const getReadyPayload = async () => {
     const sqliteOk = existsSync(getDbPath())
+    const postgres = hasPostgresConfig() ? await checkPostgresHealth() : null
+    const redis = hasRedisConfig() ? await checkRedisHealth() : null
     const proxySnapshot = getProxyOperationalSnapshot()
     const sgbrLastErrorAt = proxySnapshot.stats.lastErrorAt
     const sgbrLastSuccessAt =
@@ -103,7 +125,10 @@ export function createApp(options: CreateAppOptions = {}) {
         ? proxySnapshot.reconcileAlert.lastCheckAt
         : null
 
-    const healthy = sqliteOk
+    const healthy =
+      sqliteOk &&
+      (postgres === null || postgres.ok) &&
+      (redis === null || redis.ok)
     const mem = process.memoryUsage()
     return {
       status: healthy ? 'ok' : 'degraded',
@@ -116,7 +141,12 @@ export function createApp(options: CreateAppOptions = {}) {
         heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024),
         heapTotalMb: Math.round(mem.heapTotal / 1024 / 1024),
       },
-      storage: { ok: healthy, sqlite: sqliteOk },
+      storage: {
+        ok: healthy,
+        sqlite: sqliteOk,
+        postgres: postgres ? { ok: postgres.ok, message: postgres.ok ? null : postgres.message } : null,
+        redis: redis ? { ok: redis.ok, message: redis.ok ? null : redis.message } : null,
+      },
       sgbr: {
         lastSuccessAt: sgbrLastSuccessAt,
         lastErrorAt: sgbrLastErrorAt,
@@ -124,13 +154,13 @@ export function createApp(options: CreateAppOptions = {}) {
     }
   }
 
-  app.get('/health/ready', (_req, res) => {
-    const payload = getReadyPayload()
+  app.get('/health/ready', async (_req, res) => {
+    const payload = await getReadyPayload()
     res.status(payload.status === 'ok' ? 200 : 503).json(payload)
   })
 
-  app.get('/health', (_req, res) => {
-    const payload = getReadyPayload()
+  app.get('/health', async (_req, res) => {
+    const payload = await getReadyPayload()
     res.status(payload.status === 'ok' ? 200 : 503).json(payload)
   })
 
@@ -141,6 +171,8 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/api/v1/search', searchRouter)
   app.use('/api/v1/copilot', copilotRouter)
   app.use('/api/v1/scheduled-reports', scheduledReportsRouter)
+  app.use('/api/v1/tenants', tenantsRouter)
+  app.use('/api/v1/onboarding', onboardingRouter)
 
   app.use('/api/v1/users', requireAdmin, usersRouter)
   app.use('/api/v1/datasources', dataSourceRouter)
@@ -185,12 +217,14 @@ export function createApp(options: CreateAppOptions = {}) {
   ensureUsersFile()
   ensureDataSourcesFile()
   seedDefaultAdmin()
+  seedDefaultDataSources()
   if (startSchedulers) setupReconcileAlertScheduler()
   if (startSchedulers) startAlertsEngine()
   if (startSchedulers) startScheduledReportsJob()
   if (startSchedulers) startBackupScheduler()
   if (startSchedulers) startCopilotRetentionJob()
   if (startSchedulers) startWarmCacheJob()
+  if (startSchedulers) startTrialLifecycleJob()
 
   return app
 }
