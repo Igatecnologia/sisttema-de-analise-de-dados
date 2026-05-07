@@ -30,6 +30,8 @@ import { copilotRouter } from './routes/copilot.js'
 import { scheduledReportsRouter } from './routes/scheduledReports.js'
 import { tenantsRouter } from './routes/tenants.js'
 import { onboardingRouter } from './routes/onboarding.js'
+import { billingRouter, stripeWebhookRouter } from './routes/billing.js'
+import { subscriptionGate } from './middleware/subscriptionGate.js'
 import { startScheduledReportsJob } from './jobs/scheduledReports.js'
 import { startBackupScheduler } from './jobs/dbBackup.js'
 import { startCopilotRetentionJob } from './jobs/copilotRetention.js'
@@ -100,6 +102,8 @@ export function createApp(options: CreateAppOptions = {}) {
     origin: allowedOrigins,
     credentials: true,
   }))
+  /** Stripe webhook precisa de raw body para validar assinatura — registrado ANTES do json. */
+  app.use('/api/v1/billing', stripeWebhookRouter)
   app.use(express.json({ limit: '1mb' }))
   app.use(blockPrototypePollution)
   app.use(csrfProtection)
@@ -173,6 +177,9 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/api/v1/scheduled-reports', scheduledReportsRouter)
   app.use('/api/v1/tenants', tenantsRouter)
   app.use('/api/v1/onboarding', onboardingRouter)
+  app.use('/api/v1/billing', billingRouter)
+  /** Gate de billing apos as rotas de auth/billing/onboarding/tenant config. */
+  app.use(subscriptionGate)
 
   app.use('/api/v1/users', requireAdmin, usersRouter)
   app.use('/api/v1/datasources', dataSourceRouter)

@@ -15,11 +15,14 @@ import {
   setRememberedEmail,
   setStoredSession,
 } from '../auth/authStorage'
+import { TurnstileWidget } from '../components/TurnstileWidget'
+import { http } from '../services/http'
 
 type LoginForm = {
   email: string
   password: string
   remember: boolean
+  totp?: string
 }
 
 export function LoginPage() {
@@ -30,6 +33,21 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [lockoutMsg, setLockoutMsg] = useState<string | null>(null)
+  const [mfaRequired, setMfaRequired] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState<string>('')
+
+  // Adiciona o token do captcha no header da proxima requisicao
+  useEffect(() => {
+    if (!captchaToken) return
+    const interceptor = http.interceptors.request.use((config) => {
+      if (config.url?.includes('/api/v1/auth/login')) {
+        config.headers = config.headers ?? {}
+        config.headers['X-Turnstile-Token'] = captchaToken
+      }
+      return config
+    })
+    return () => http.interceptors.request.eject(interceptor)
+  }, [captchaToken])
 
   const from = sanitizeAppRedirectPath(
     (location.state as { from?: string } | null)?.from,
@@ -68,7 +86,17 @@ export function LoginPage() {
     setSubmitting(true)
     setErrorMsg(null)
     try {
-      await signIn({ email: values.email, password: values.password })
+      const outcome = await signIn({
+        email: values.email,
+        password: values.password,
+        totp: values.totp?.trim() || undefined,
+      })
+      if (outcome.kind === 'mfa-required') {
+        setMfaRequired(true)
+        setSubmitting(false)
+        setErrorMsg(null)
+        return
+      }
       /** Reaplica a sessão no storage correto (caso tenha mudado o checkbox antes do signIn). */
       const sess = (await import('../auth/authStorage')).getStoredSession()
       if (sess) setStoredSession(sess, values.remember)
@@ -177,9 +205,33 @@ export function LoginPage() {
               <Checkbox>Manter conectado neste computador</Checkbox>
             </Form.Item>
 
+            <div style={{ marginBottom: 12 }}>
+              <TurnstileWidget onToken={setCaptchaToken} />
+            </div>
+
+            {mfaRequired ? (
+              <Form.Item
+                label="Codigo de autenticacao (2FA)"
+                name="totp"
+                rules={[
+                  { required: true, message: 'Informe o codigo do app autenticador.' },
+                  { min: 6, message: 'Minimo 6 digitos.' },
+                  { max: 16, message: 'Maximo 16 caracteres.' },
+                ]}
+              >
+                <Input
+                  placeholder="6 digitos do app ou codigo de backup"
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
+                  maxLength={16}
+                  autoFocus
+                />
+              </Form.Item>
+            ) : null}
+
             <Space direction="vertical" size={8} style={{ width: '100%' }}>
               <Button type="primary" htmlType="submit" loading={submitting} block>
-                Entrar
+                {mfaRequired ? 'Verificar codigo' : 'Entrar'}
               </Button>
               <Space style={{ justifyContent: 'space-between', width: '100%' }}>
                 <Link to="/forgot-password">Esqueci minha senha</Link>

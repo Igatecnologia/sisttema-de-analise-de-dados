@@ -22,6 +22,7 @@ import { signSessionJwt } from '../services/sessionJwt.js'
 import { buildSessionBinding } from '../services/sessionStore.js'
 import { tenantRateLimit } from '../middleware/tenantRateLimit.js'
 import { maxBodySize } from '../middleware/maxBodySize.js'
+import { requireTurnstile } from '../middleware/turnstile.js'
 import {
   clearLoginFailures,
   getLockState,
@@ -31,6 +32,11 @@ import { checkPwnedPassword } from '../services/pwnedPassword.js'
 import { sendPasswordChangedAlert } from '../services/loginAlerts.js'
 import { isPasswordReused, recordPasswordHistory } from '../services/passwordHistory.js'
 import { sendNewDeviceAlertIfUnknown } from '../services/knownDevices.js'
+import {
+  issueRefreshTokenForLogin,
+  revokeAllRefreshForUser,
+  rotateRefreshToken,
+} from '../services/refreshTokenStore.js'
 import {
   confirmMfaSetup,
   disableMfa,
@@ -157,7 +163,7 @@ const changePasswordLimiter = redisRateLimit({
 /**
  * POST /api/v1/auth/login
  */
-authRouter.post('/login', tenantAuthLimiter, loginLimiter, async (req, res) => {
+authRouter.post('/login', tenantAuthLimiter, loginLimiter, requireTurnstile, async (req, res) => {
   const parsed = loginSchema.safeParse(req.body)
   if (!parsed.success) {
     return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
@@ -279,6 +285,8 @@ authRouter.post('/login', tenantAuthLimiter, loginLimiter, async (req, res) => {
   const userAgent = typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : ''
   const binding = buildSessionBinding(req.ip ?? '', userAgent)
   await registerToken(token, user.id, tenantId, binding)
+  /** SEC-2.6: emite refresh token na familia atual. Frontend pode armazenar em cookie httpOnly separado. */
+  const refreshIssue = await issueRefreshTokenForLogin(user.id, tenantId, { ipHash: binding.ipHash, uaHash: binding.uaHash }).catch(() => null)
   logAudit({ userId: user.id, action: 'login_success', resource: 'auth', metadata: { ip: req.ip, tenantId, uaFamily: binding.uaFamily } })
   /**
    * SEC-2.10: alerta novo dispositivo. "Novo" = uaHash nunca visto.
@@ -295,6 +303,8 @@ authRouter.post('/login', tenantAuthLimiter, loginLimiter, async (req, res) => {
 
   res.json({
     token,
+    /** SEC-2.6: refresh token entregue para clients que querem long-lived sessions. */
+    ...(refreshIssue ? { refreshToken: refreshIssue.token, refreshExpiresAt: refreshIssue.expiresAt } : {}),
     user: {
       id: user.id,
       name: user.name,
@@ -304,6 +314,45 @@ authRouter.post('/login', tenantAuthLimiter, loginLimiter, async (req, res) => {
       mustChangePassword: user.mustChangePassword ?? false,
     },
     permissions,
+  })
+})
+
+/**
+ * POST /api/v1/auth/refresh
+ * Rotaciona refresh token e emite novo access token (session). Detecta reuse:
+ * se o mesmo token eh apresentado 2x, revoga a familia inteira.
+ */
+const refreshSchema = z.object({ refreshToken: z.string().min(20) })
+
+authRouter.post('/refresh', async (req, res) => {
+  const parsed = refreshSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ message: 'refreshToken obrigatorio' })
+  }
+  const userAgent = typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : ''
+  const binding = buildSessionBinding(req.ip ?? '', userAgent)
+  const result = await rotateRefreshToken(parsed.data.refreshToken, { ipHash: binding.ipHash, uaHash: binding.uaHash })
+  if (!result.ok) {
+    if (result.reason === 'reuse_detected') {
+      logAudit({ action: 'refresh_reuse_detected', resource: 'auth', metadata: { ip: req.ip } })
+      return res.status(401).json({ message: 'Sessao comprometida. Faca login novamente.', revoked: true })
+    }
+    return res.status(401).json({ message: 'Refresh token invalido ou expirado' })
+  }
+  /** Cria novo access token na mesma "sessao" (registerToken). */
+  const tenant = await findTenantBySlug(result.tenantId)
+  const accessToken = signSessionJwt({
+    sub: result.userId,
+    tid: result.tenantId,
+    role: 'admin',
+    plan: tenant?.plan ?? 'trial',
+  })
+  await registerToken(accessToken, result.userId, result.tenantId, binding)
+  logAudit({ userId: result.userId, action: 'refresh_rotated', resource: 'auth', metadata: { ip: req.ip, familyId: result.familyId } })
+  res.json({
+    token: accessToken,
+    refreshToken: result.issue.token,
+    refreshExpiresAt: result.issue.expiresAt,
   })
 })
 
@@ -403,7 +452,7 @@ authRouter.post('/change-password', requireAuth, changePasswordLimiter, async (r
   res.json({ ok: true })
 })
 
-authRouter.post('/register', tenantAuthLimiter, async (req, res) => {
+authRouter.post('/register', tenantAuthLimiter, requireTurnstile, async (req, res) => {
   const parsed = registerSchema.safeParse(req.body)
   if (!parsed.success) {
     return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
@@ -555,7 +604,7 @@ authRouter.post('/accept-invite', tenantAuthLimiter, async (req, res) => {
 const FORGOT_PASSWORD_BASELINE_MS = 600
 const GENERIC_FORGOT_MESSAGE = 'Se o email existir, enviamos um link para redefinir a senha.'
 
-authRouter.post('/forgot-password', tenantAuthLimiter, async (req, res) => {
+authRouter.post('/forgot-password', tenantAuthLimiter, requireTurnstile, async (req, res) => {
   const startedAt = Date.now()
   const parsed = forgotPasswordSchema.safeParse(req.body)
   if (!parsed.success) {
@@ -692,6 +741,7 @@ authRouter.post('/logout', async (req, res) => {
 authRouter.post('/logout-all', requireAuth, async (req, res) => {
   const authReq = req as unknown as AuthenticatedRequest
   const revoked = await revokeAllUserSessions(authReq.userId)
+  await revokeAllRefreshForUser(authReq.userId).catch(() => undefined)
   logAudit({ userId: authReq.userId, action: 'logout_all', resource: 'auth', metadata: { ip: req.ip, sessionsRevoked: revoked } })
   res.setHeader('Set-Cookie', clearSessionCookie())
   res.json({ ok: true, sessionsRevoked: revoked })

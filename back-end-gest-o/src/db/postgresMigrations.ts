@@ -380,4 +380,44 @@ CREATE TABLE IF NOT EXISTS user_mfa (
 GRANT SELECT, INSERT, UPDATE, DELETE ON user_mfa TO iga_app;
 `,
   },
+  {
+    id: '009_refresh_tokens',
+    sql: `
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tenant_id TEXT NOT NULL,
+  family_id TEXT NOT NULL,
+  parent_hash TEXT NULL,
+  used_at TIMESTAMPTZ NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  ip_hash TEXT NULL,
+  ua_hash TEXT NULL,
+  revoked_at TIMESTAMPTZ NULL
+);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id, expires_at);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_family ON refresh_tokens(family_id);
+GRANT SELECT, INSERT, UPDATE ON refresh_tokens TO iga_app;
+`,
+  },
+  {
+    id: '010_subscriptions',
+    sql: `
+CREATE TABLE IF NOT EXISTS subscriptions (
+  tenant_id TEXT PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+  plan TEXT NOT NULL DEFAULT 'trial',
+  status TEXT NOT NULL DEFAULT 'trialing',
+  stripe_customer_id TEXT NULL,
+  stripe_subscription_id TEXT NULL,
+  current_period_end TIMESTAMPTZ NULL,
+  cancel_at_period_end BOOLEAN NOT NULL DEFAULT false,
+  grace_until TIMESTAMPTZ NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status, current_period_end);
+GRANT SELECT, INSERT, UPDATE, DELETE ON subscriptions TO iga_app;
+`,
+  },
 ]

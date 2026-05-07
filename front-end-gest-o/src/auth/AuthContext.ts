@@ -1,10 +1,12 @@
 import { createContext, useContext } from 'react'
 import type { AuthSession } from './authStorage'
 
+export type SignInOutcome = { kind: 'ok' } | { kind: 'mfa-required' }
+
 export type AuthContextValue = {
   session: AuthSession | null
   isAuthenticated: boolean
-  signIn: (input: { email: string; password: string }) => Promise<void>
+  signIn: (input: { email: string; password: string; totp?: string }) => Promise<SignInOutcome>
   signOut: () => void
   /** Aplica mutação na sessão atual (ex.: limpar `mustChangePassword` após troca). */
   updateSession: (updater: (prev: AuthSession) => AuthSession) => void

@@ -238,6 +238,40 @@ db.exec(`
     updated_at TEXT NOT NULL
   );
 `)
+// Migração v7: refresh tokens (SEC-2.6) — rotation + reuse detection
+db.exec(`
+  CREATE TABLE IF NOT EXISTS refresh_tokens (
+    token_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    family_id TEXT NOT NULL,
+    parent_hash TEXT NULL,
+    used_at TEXT NULL,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    ip_hash TEXT NULL,
+    ua_hash TEXT NULL,
+    revoked_at TEXT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id, expires_at);
+  CREATE INDEX IF NOT EXISTS idx_refresh_tokens_family ON refresh_tokens(family_id);
+`)
+// Migração v8: subscriptions (S5 billing — Stripe)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS subscriptions (
+    tenant_id TEXT PRIMARY KEY,
+    plan TEXT NOT NULL DEFAULT 'trial',
+    status TEXT NOT NULL DEFAULT 'trialing',
+    stripe_customer_id TEXT NULL,
+    stripe_subscription_id TEXT NULL,
+    current_period_end TEXT NULL,
+    cancel_at_period_end INTEGER NOT NULL DEFAULT 0,
+    grace_until TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status, current_period_end);
+`)
 try { db.exec("ALTER TABLE tenants ADD COLUMN connector_id TEXT NOT NULL DEFAULT 'sgbr-espuma'") } catch { /* ja existe */ }
 try { db.exec("ALTER TABLE tenants ADD COLUMN plan TEXT NOT NULL DEFAULT 'trial'") } catch { /* ja existe */ }
 try { db.exec("ALTER TABLE tenants ADD COLUMN trial_ends_at TEXT NULL") } catch { /* ja existe */ }

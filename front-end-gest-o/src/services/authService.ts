@@ -5,7 +5,10 @@ import { localLoginResponseSchema, sgbrUsuarioLoginResponseSchema } from '../api
 import { http } from './http'
 import { getAuthDataSource } from './dataSourceService'
 
-type SignInInput = { email: string; password: string }
+type SignInInput = { email: string; password: string; totp?: string }
+export type SignInResult =
+  | { kind: 'ok'; session: AuthSession }
+  | { kind: 'mfa-required' }
 export type RegisterInput = {
   companyName: string
   slug: string
@@ -31,18 +34,23 @@ const INVALID_CREDENTIALS_MSG = 'Usuário ou senha incorretos.'
  * Tenta login local (usuarios do proprio sistema).
  * Se falhar com 401, e houver fonte SGBR configurada como auth, tenta via proxy.
  */
-export async function signIn(input: SignInInput): Promise<AuthSession> {
+export async function signIn(input: SignInInput): Promise<SignInResult> {
   const login = input.email.trim()
   if (!login) throw new Error('Informe o usuário.')
 
   // 1. Tenta login local
   try {
-    const data = await postValidated(
-      http,
-      '/api/v1/auth/login',
-      { email: login, password: input.password },
-      localLoginResponseSchema,
-    )
+    /** Usa http direto para detectar mfaRequired (fora do schema validado). */
+    const response = await http.post('/api/v1/auth/login', {
+      email: login,
+      password: input.password,
+      ...(input.totp ? { totp: input.totp } : {}),
+    })
+    const raw = response.data as { mfaRequired?: boolean } & Record<string, unknown>
+    if (raw.mfaRequired) {
+      return { kind: 'mfa-required' }
+    }
+    const data = localLoginResponseSchema.parse(raw)
 
     const permissions: AuthSession['permissions'] =
       data.permissions && data.permissions.length > 0
@@ -50,12 +58,15 @@ export async function signIn(input: SignInInput): Promise<AuthSession> {
         : resolvePermissionsByRole(data.user.role)
 
     return {
-      token: data.token,
-      user: {
-        ...data.user,
-        mustChangePassword: data.user.mustChangePassword ?? false,
+      kind: 'ok',
+      session: {
+        token: data.token,
+        user: {
+          ...data.user,
+          mustChangePassword: data.user.mustChangePassword ?? false,
+        },
+        permissions,
       },
-      permissions,
     }
   } catch (localErr) {
     const is401 =
@@ -80,14 +91,17 @@ export async function signIn(input: SignInInput): Promise<AuthSession> {
         const email = data.email?.trim() || `${data.nome_usuario}@local`
 
         return {
-          token: data.token,
-          user: {
-            id: String(data.id_usuario),
-            name: data.nome_usuario,
-            email,
-            role: 'viewer',
+          kind: 'ok',
+          session: {
+            token: data.token,
+            user: {
+              id: String(data.id_usuario),
+              name: data.nome_usuario,
+              email,
+              role: 'viewer',
+            },
+            permissions: resolvePermissionsByRole('viewer'),
           },
-          permissions: resolvePermissionsByRole('viewer'),
         }
       } catch {
         throw new Error(INVALID_CREDENTIALS_MSG)

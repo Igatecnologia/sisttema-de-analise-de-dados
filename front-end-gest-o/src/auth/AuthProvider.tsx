@@ -87,7 +87,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = useCallback<AuthContextValue['signIn']>(
     async (input) => {
-      const next = await signInService(input)
+      const result = await signInService(input)
+      if (result.kind === 'mfa-required') {
+        return { kind: 'mfa-required' }
+      }
+      const next = result.session
       try {
         const me = await http.get('/api/v1/auth/me')
         const payload = me.data as {
@@ -106,6 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         message: 'Bem-vindo',
         description: next.user.name,
       })
+      return { kind: 'ok' }
     },
     [notification, setSession],
   )

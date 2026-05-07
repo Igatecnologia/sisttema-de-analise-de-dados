@@ -64,6 +64,9 @@ const UsersPage = lazy(() =>
 const AuditPage = lazy(() =>
   import('../pages/AuditPage').then((m) => ({ default: m.AuditPage })),
 )
+const SecurityPage = lazy(() =>
+  import('../pages/SecurityPage').then((m) => ({ default: m.SecurityPage })),
+)
 const ProducaoPage = lazy(() =>
   import('../pages/ProducaoPage').then((m) => ({ default: m.ProducaoPage })),
 )
@@ -234,6 +237,10 @@ export function AppRouter() {
                 <RequireTenantModule path="/auditoria"><PageErrorBoundary><AuditPage /></PageErrorBoundary></RequireTenantModule>
               </RequirePermission>
             }
+          />
+          <Route
+            path="/seguranca"
+            element={<PageErrorBoundary><SecurityPage /></PageErrorBoundary>}
           />
           <Route
             path="/producao"
