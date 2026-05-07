@@ -1,5 +1,5 @@
 import { Router, type Response, type Request } from 'express'
-import rateLimit from 'express-rate-limit'
+import { redisRateLimit } from '../middleware/redisRateLimit.js'
 import { Agent as UndiciAgent, fetch as uFetch } from 'undici'
 import { readAll, readAllForTenant, type DataSource } from '../storage.js'
 import { hashPassword } from '../services/passwordHasher.js'
@@ -42,12 +42,11 @@ async function safeUFetch(url: string, init: UFetchInit) {
 }
 
 /** Rate limit: máximo 60 chamadas ao proxy por IP a cada 1 min */
-const proxyLimiter = rateLimit({
+const proxyLimiter = redisRateLimit({
+  namespace: 'proxy',
   windowMs: 60 * 1000,
   max: 60,
   message: { message: 'Muitas requisições. Aguarde um momento.' },
-  standardHeaders: true,
-  legacyHeaders: false,
 })
 
 proxyRouter.use(proxyLimiter)

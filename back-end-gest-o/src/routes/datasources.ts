@@ -5,16 +5,15 @@ import { testConnection } from '../services/connectionTester.js'
 import { requireAuth } from '../middleware/auth.js'
 import { resolveTenantId } from '../utils/tenant.js'
 import { validateExternalApiUrl } from '../utils/urlSafety.js'
-import rateLimit from 'express-rate-limit'
+import { redisRateLimit } from '../middleware/redisRateLimit.js'
 
 export const dataSourceRouter = Router()
 dataSourceRouter.use(requireAuth)
 
-const dataSourceTestLimiter = rateLimit({
+const dataSourceTestLimiter = redisRateLimit({
+  namespace: 'datasources:test',
   windowMs: 60 * 1000,
   max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
 })
 
 const fieldMappingSchema = z.object({

@@ -1,11 +1,14 @@
 import type { Request, Response, NextFunction } from 'express'
 import { findUserByIdForTenantAsync } from '../userStorage.js'
 import {
+  buildSessionBinding,
   cleanupExpiredSqliteSessions,
+  detectUaFamily,
   readSession,
   registerSession,
   revokeAllSessionsForUser,
   revokeSession,
+  type SessionBinding,
 } from '../services/sessionStore.js'
 import { verifySessionJwt } from '../services/sessionJwt.js'
 
@@ -28,11 +31,16 @@ function readTokenFromCookie(req: Request): string | null {
   return null
 }
 
-export function registerToken(token: string, userId: string, tenantId: string) {
+export function registerToken(
+  token: string,
+  userId: string,
+  tenantId: string,
+  binding?: SessionBinding,
+) {
   if (!tenantId || !tenantId.trim()) {
     throw new Error('[auth.registerToken] tenantId obrigatorio')
   }
-  return registerSession(token, userId, tenantId)
+  return registerSession(token, userId, tenantId, binding)
 }
 
 export function revokeToken(token: string) {
@@ -85,6 +93,19 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   if (!user || user.status !== 'active') {
     await revokeToken(token)
     return res.status(401).json({ message: 'Usuario inativo' })
+  }
+
+  /**
+   * SEC-2.5: session binding — UA family mudou drasticamente (chrome <-> safari)
+   * indica session hijack ou cookie roubado. Forca reauth.
+   * IP nao bloqueia (celular muda subnet); fica para alerta por email.
+   */
+  if (sessionRow.uaFamily) {
+    const currentFamily = detectUaFamily(typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : '')
+    if (currentFamily !== 'other' && sessionRow.uaFamily !== 'other' && currentFamily !== sessionRow.uaFamily) {
+      await revokeToken(token)
+      return res.status(401).json({ message: 'Sessao expirada por mudanca de dispositivo. Faca login novamente.' })
+    }
   }
 
   const authReq = req as AuthenticatedRequest

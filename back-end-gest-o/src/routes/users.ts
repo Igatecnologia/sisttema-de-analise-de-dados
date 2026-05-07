@@ -9,15 +9,14 @@ import {
 } from '../userStorage.js'
 import { isValidPermission } from '../permissions.js'
 import type { AuthenticatedRequest } from '../middleware/auth.js'
-import rateLimit from 'express-rate-limit'
+import { redisRateLimit } from '../middleware/redisRateLimit.js'
 
 export const usersRouter = Router()
 
-const createUserLimiter = rateLimit({
+const createUserLimiter = redisRateLimit({
+  namespace: 'users:create',
   windowMs: 60 * 60 * 1000,
   max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
 })
 
 const permissionsArraySchema = z

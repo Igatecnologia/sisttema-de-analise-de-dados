@@ -5,17 +5,21 @@ import {
   readAllUsersAsync,
   writeAllUsersAsync,
   verifyUserPassword,
+  verifyUserPasswordAsync,
   hashUserPassword,
+  hashUserPasswordAsync,
+  isLegacyPasswordHash,
 } from '../userStorage.js'
 import { resolveEffectivePermissions } from '../permissions.js'
 import { registerToken, revokeToken, revokeAllUserSessions, requireAuth, requireAdmin, type AuthenticatedRequest } from '../middleware/auth.js'
-import rateLimit from 'express-rate-limit'
+import { redisRateLimit } from '../middleware/redisRateLimit.js'
 import { resolveTenantId } from '../utils/tenant.js'
 import { logAudit } from '../services/auditLog.js'
 import { generateCsrfToken, buildCsrfCookie } from '../middleware/csrf.js'
 import { createAuthActionToken, consumeAuthActionToken } from '../services/authActionTokens.js'
 import { findTenantBySlug, genTenantId, upsertTenant } from '../tenantStorage.js'
 import { signSessionJwt } from '../services/sessionJwt.js'
+import { buildSessionBinding } from '../services/sessionStore.js'
 import { tenantRateLimit } from '../middleware/tenantRateLimit.js'
 import { maxBodySize } from '../middleware/maxBodySize.js'
 import {
@@ -23,6 +27,19 @@ import {
   getLockState,
   recordLoginFailure,
 } from '../services/accountLockout.js'
+import { checkPwnedPassword } from '../services/pwnedPassword.js'
+import { sendPasswordChangedAlert } from '../services/loginAlerts.js'
+import { isPasswordReused, recordPasswordHistory } from '../services/passwordHistory.js'
+import { sendNewDeviceAlertIfUnknown } from '../services/knownDevices.js'
+import {
+  confirmMfaSetup,
+  disableMfa,
+  getMfaStatus,
+  initMfaSetup,
+  regenerateBackupCodes,
+  verifyMfaToken,
+} from '../services/mfa.js'
+import { sendMfaToggleAlert } from '../services/loginAlerts.js'
 import { buildPublicUrl, sendTransactionalEmail } from '../services/transactionalEmail.js'
 import { inviteTemplate, resetPasswordTemplate, welcomeVerificationTemplate } from '../services/emailTemplates.js'
 
@@ -75,12 +92,11 @@ function readSessionCookieToken(cookieHeader?: string): string | null {
 }
 
 /** Rate limit: 20 tentativas de login por IP a cada 15 min — mitiga brute force. */
-const loginLimiter = rateLimit({
+const loginLimiter = redisRateLimit({
+  namespace: 'auth:login',
   windowMs: 15 * 60 * 1000,
   max: 20,
   message: { message: 'Muitas tentativas. Aguarde 15 minutos.' },
-  standardHeaders: true,
-  legacyHeaders: false,
 })
 
 const tenantAuthLimiter = tenantRateLimit({
@@ -93,6 +109,8 @@ const tenantAuthLimiter = tenantRateLimit({
 const loginSchema = z.object({
   email: z.string().email('Email invalido'),
   password: z.string().min(1, 'Senha obrigatoria'),
+  /** SEC-2.1: TOTP de 6 digitos OU backup code de 8 hex. */
+  totp: z.string().min(6).max(16).optional(),
 })
 
 const registerSchema = z.object({
@@ -130,11 +148,10 @@ const verifyEmailSchema = z.object({
   token: z.string().min(32),
 })
 
-const changePasswordLimiter = rateLimit({
+const changePasswordLimiter = redisRateLimit({
+  namespace: 'auth:change-password',
   windowMs: 60 * 60 * 1000,
   max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
 })
 
 /**
@@ -173,14 +190,47 @@ authRouter.post('/login', tenantAuthLimiter, loginLimiter, async (req, res) => {
     })
   }
 
-  const user = (await readAllUsersAsync()).find(
+  const allUsers = await readAllUsersAsync()
+  const user = allUsers.find(
     (u) =>
       u.tenantId === tenantId &&
       u.email.toLowerCase() === normalizedEmail &&
       u.status === 'active',
   )
 
-  if (!user || !verifyUserPassword(password, user.passwordHash)) {
+  const passwordOk = user ? await verifyUserPasswordAsync(password, user.passwordHash) : false
+
+  /** SEC-2.1: se MFA ativado, exige TOTP no mesmo request. Sem token -> 200 mfaRequired. */
+  if (user && passwordOk) {
+    const mfaStatus = await getMfaStatus(user.id)
+    if (mfaStatus.enabled) {
+      if (!parsed.data.totp) {
+        return res.status(200).json({ mfaRequired: true, message: 'Codigo de autenticacao em dois fatores obrigatorio.' })
+      }
+      const mfaCheck = await verifyMfaToken(user.id, parsed.data.totp)
+      if (!mfaCheck.ok) {
+        const newState = await recordLoginFailure(tenantId, normalizedEmail)
+        logAudit({
+          userId: user.id,
+          action: 'mfa_failed',
+          resource: 'auth',
+          metadata: { ip: req.ip, tenantId, failuresInWindow: newState.failuresInWindow, nowLocked: newState.locked },
+        })
+        if (newState.locked) {
+          return res.status(423).json({ message: 'Conta bloqueada apos varias tentativas.', lockedUntil: newState.lockedUntil })
+        }
+        return res.status(401).json({ message: 'Codigo de autenticacao invalido' })
+      }
+      logAudit({
+        userId: user.id,
+        action: mfaCheck.usedBackupCode ? 'mfa_backup_code_used' : 'mfa_success',
+        resource: 'auth',
+        metadata: { ip: req.ip, tenantId },
+      })
+    }
+  }
+
+  if (!user || !passwordOk) {
     const newState = await recordLoginFailure(tenantId, normalizedEmail)
     logAudit({
       action: 'login_failed',
@@ -203,6 +253,21 @@ authRouter.post('/login', tenantAuthLimiter, loginLimiter, async (req, res) => {
   }
 
   await clearLoginFailures(tenantId, normalizedEmail)
+
+  /** SEC-1.2 graceful migration: rehash para argon2id no proximo login bem-sucedido. */
+  if (isLegacyPasswordHash(user.passwordHash)) {
+    try {
+      const upgradedHash = await hashUserPasswordAsync(password)
+      const idx = allUsers.findIndex((u) => u.id === user.id)
+      if (idx >= 0) {
+        allUsers[idx] = { ...allUsers[idx], passwordHash: upgradedHash, updatedAt: new Date().toISOString() }
+        await writeAllUsersAsync(allUsers)
+      }
+    } catch {
+      /** Falha no rehash nao impede o login. */
+    }
+  }
+
   const tenant = await findTenantBySlug(tenantId)
   const token = signSessionJwt({
     sub: user.id,
@@ -210,8 +275,19 @@ authRouter.post('/login', tenantAuthLimiter, loginLimiter, async (req, res) => {
     role: user.role,
     plan: tenant?.plan ?? 'trial',
   })
-  await registerToken(token, user.id, tenantId)
-  logAudit({ userId: user.id, action: 'login_success', resource: 'auth', metadata: { ip: req.ip, tenantId } })
+  /** SEC-2.5: amarra a sessao a IP/UA + uaFamily para detectar hijack futuro. */
+  const userAgent = typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : ''
+  const binding = buildSessionBinding(req.ip ?? '', userAgent)
+  await registerToken(token, user.id, tenantId, binding)
+  logAudit({ userId: user.id, action: 'login_success', resource: 'auth', metadata: { ip: req.ip, tenantId, uaFamily: binding.uaFamily } })
+  /**
+   * SEC-2.10: alerta novo dispositivo. "Novo" = uaHash nunca visto.
+   * Pulamos no primeiro login do tenant (sem historico) para evitar spam.
+   */
+  void sendNewDeviceAlertIfUnknown(
+    { userId: user.id, userEmail: user.email, userName: user.name, tenantSlug: tenantId, ip: req.ip ?? '', userAgent },
+    binding.uaHash,
+  )
   const csrfToken = generateCsrfToken()
   res.setHeader('Set-Cookie', [buildSessionCookie(token), buildCsrfCookie(csrfToken)])
 
@@ -245,6 +321,19 @@ function validateStrongPassword(password: string): string | null {
   return parsed.success ? null : parsed.error.issues[0]?.message ?? 'Senha invalida'
 }
 
+/**
+ * SEC-2.3: rejeita senhas amplamente vazadas (HIBP k-anonymity).
+ * Aplicar em register/change-password/reset-password/accept-invite.
+ */
+async function validatePasswordNotPwned(password: string): Promise<string | null> {
+  const result = await checkPwnedPassword(password)
+  if (result.skipped) return null
+  if (result.blocked) {
+    return `Esta senha aparece em vazamentos publicos (${result.count.toLocaleString('pt-BR')} ocorrencias). Escolha outra.`
+  }
+  return null
+}
+
 function devTokenPayload(token: string) {
   return process.env.NODE_ENV === 'production' ? {} : { token }
 }
@@ -276,6 +365,8 @@ authRouter.post('/change-password', requireAuth, changePasswordLimiter, async (r
   if (currentPassword === newPassword) {
     return res.status(400).json({ message: 'A nova senha deve ser diferente da atual' })
   }
+  const pwnedError = await validatePasswordNotPwned(newPassword)
+  if (pwnedError) return res.status(400).json({ message: pwnedError })
 
   const all = await readAllUsersAsync()
   const idx = all.findIndex((u) => u.id === authReq.userId)
@@ -286,14 +377,29 @@ authRouter.post('/change-password', requireAuth, changePasswordLimiter, async (r
     return res.status(401).json({ message: 'Senha atual incorreta' })
   }
 
+  /** SEC-2.8: bloquear reuso das ultimas senhas (inclui a atual). */
+  if (await isPasswordReused(authReq.userId, newPassword)) {
+    return res.status(400).json({ message: 'A senha nova nao pode ser igual a uma das ultimas senhas usadas.' })
+  }
+
+  const newHash = await hashUserPasswordAsync(newPassword)
   all[idx] = {
     ...all[idx],
-    passwordHash: hashUserPassword(newPassword),
+    passwordHash: newHash,
     mustChangePassword: false,
     updatedAt: new Date().toISOString(),
   }
   await writeAllUsersAsync(all)
+  await recordPasswordHistory(authReq.userId, newHash).catch(() => undefined)
   logAudit({ userId: authReq.userId, action: 'password_changed', resource: 'auth', metadata: { ip: req.ip } })
+  /** SEC-2.10: alerta o usuario que a senha mudou — best-effort, fora do critical path. */
+  void sendPasswordChangedAlert({
+    userEmail: all[idx].email,
+    userName: all[idx].name,
+    tenantSlug: all[idx].tenantId,
+    ip: req.ip ?? '',
+    userAgent: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : '',
+  })
   res.json({ ok: true })
 })
 
@@ -304,6 +410,8 @@ authRouter.post('/register', tenantAuthLimiter, async (req, res) => {
   }
   const passwordError = validateStrongPassword(parsed.data.password)
   if (passwordError) return res.status(400).json({ message: passwordError })
+  const pwnedError = await validatePasswordNotPwned(parsed.data.password)
+  if (pwnedError) return res.status(400).json({ message: pwnedError })
 
   const slug = parsed.data.slug.trim().toLowerCase()
   const existingTenant = await findTenantBySlug(slug)
@@ -335,7 +443,7 @@ authRouter.post('/register', tenantAuthLimiter, async (req, res) => {
     email: parsed.data.email,
     role: 'admin' as const,
     status: 'active' as const,
-    passwordHash: hashUserPassword(parsed.data.password),
+    passwordHash: await hashUserPasswordAsync(parsed.data.password),
     mustChangePassword: false,
     emailVerifiedAt: null,
     createdAt: now,
@@ -407,6 +515,8 @@ authRouter.post('/accept-invite', tenantAuthLimiter, async (req, res) => {
   }
   const passwordError = validateStrongPassword(parsed.data.password)
   if (passwordError) return res.status(400).json({ message: passwordError })
+  const pwnedError = await validatePasswordNotPwned(parsed.data.password)
+  if (pwnedError) return res.status(400).json({ message: pwnedError })
   const invite = await consumeAuthActionToken('invite', parsed.data.token)
   if (!invite) return res.status(400).json({ message: 'Convite invalido ou expirado' })
 
@@ -427,7 +537,7 @@ authRouter.post('/accept-invite', tenantAuthLimiter, async (req, res) => {
     permissions: Array.isArray(invite.metadata.permissions)
       ? invite.metadata.permissions.filter((item): item is string => typeof item === 'string')
       : undefined,
-    passwordHash: hashUserPassword(parsed.data.password),
+    passwordHash: await hashUserPasswordAsync(parsed.data.password),
     mustChangePassword: false,
     emailVerifiedAt: new Date().toISOString(),
     createdAt: now,
@@ -495,18 +605,27 @@ authRouter.post('/reset-password', tenantAuthLimiter, async (req, res) => {
   }
   const passwordError = validateStrongPassword(parsed.data.password)
   if (passwordError) return res.status(400).json({ message: passwordError })
+  const pwnedError = await validatePasswordNotPwned(parsed.data.password)
+  if (pwnedError) return res.status(400).json({ message: pwnedError })
   const reset = await consumeAuthActionToken('password_reset', parsed.data.token)
   if (!reset?.userId) return res.status(400).json({ message: 'Token invalido ou expirado' })
   const users = await readAllUsersAsync()
   const idx = users.findIndex((u) => u.id === reset.userId && u.tenantId === reset.tenantId)
   if (idx < 0) return res.status(400).json({ message: 'Token invalido ou expirado' })
+
+  if (await isPasswordReused(users[idx].id, parsed.data.password)) {
+    return res.status(400).json({ message: 'A senha nova nao pode ser igual a uma das ultimas senhas usadas.' })
+  }
+
+  const newHash = await hashUserPasswordAsync(parsed.data.password)
   users[idx] = {
     ...users[idx],
-    passwordHash: hashUserPassword(parsed.data.password),
+    passwordHash: newHash,
     mustChangePassword: false,
     updatedAt: new Date().toISOString(),
   }
   await writeAllUsersAsync(users)
+  await recordPasswordHistory(users[idx].id, newHash).catch(() => undefined)
   await revokeAllUserSessions(users[idx].id)
   logAudit({ userId: users[idx].id, action: 'password_reset_completed', resource: 'auth', metadata: { tenantId: reset.tenantId } })
   res.json({ ok: true })
@@ -576,4 +695,105 @@ authRouter.post('/logout-all', requireAuth, async (req, res) => {
   logAudit({ userId: authReq.userId, action: 'logout_all', resource: 'auth', metadata: { ip: req.ip, sessionsRevoked: revoked } })
   res.setHeader('Set-Cookie', clearSessionCookie())
   res.json({ ok: true, sessionsRevoked: revoked })
+})
+
+// ─── MFA/TOTP (SEC-2.1) ────────────────────────────────────────────────────
+
+const mfaConfirmSchema = z.object({ totp: z.string().regex(/^\d{6}$/, 'Codigo deve ter 6 digitos') })
+const mfaDisableSchema = z.object({
+  password: z.string().min(1, 'Senha obrigatoria'),
+  totp: z.string().min(6).max(16),
+})
+
+async function findAuthenticatedUser(authReq: AuthenticatedRequest) {
+  const all = await readAllUsersAsync()
+  return all.find((u) => u.id === authReq.userId && u.tenantId === authReq.tenantId) ?? null
+}
+
+authRouter.get('/mfa/status', requireAuth, async (req, res: Response) => {
+  const authReq = req as unknown as AuthenticatedRequest
+  const status = await getMfaStatus(authReq.userId)
+  res.json(status)
+})
+
+authRouter.post('/mfa/setup-init', requireAuth, async (req, res: Response) => {
+  const authReq = req as unknown as AuthenticatedRequest
+  const user = await findAuthenticatedUser(authReq)
+  if (!user) return res.status(404).json({ message: 'Usuario nao encontrado' })
+  const tenant = await findTenantBySlug(authReq.tenantId)
+  const issuer = tenant?.name ?? 'IGA Gestao'
+  const result = await initMfaSetup(user.id, user.email, issuer)
+  /** Secret retornado uma vez para fallback caso QR nao funcione. */
+  res.json({ otpauthUrl: result.otpauthUrl, secret: result.secret })
+})
+
+authRouter.post('/mfa/setup-confirm', requireAuth, async (req, res: Response) => {
+  const authReq = req as unknown as AuthenticatedRequest
+  const parsed = mfaConfirmSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
+  }
+  const result = await confirmMfaSetup(authReq.userId, parsed.data.totp)
+  if (!result.ok) {
+    return res.status(400).json({ message: result.reason === 'no_pending' ? 'Nenhum setup pendente' : 'Codigo invalido' })
+  }
+  const user = await findAuthenticatedUser(authReq)
+  if (user) {
+    void sendMfaToggleAlert({
+      userEmail: user.email,
+      userName: user.name,
+      tenantSlug: authReq.tenantId,
+      ip: req.ip ?? '',
+      userAgent: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : '',
+      enabled: true,
+    })
+  }
+  logAudit({ userId: authReq.userId, action: 'mfa_enabled', resource: 'auth', metadata: { ip: req.ip } })
+  /** Backup codes retornados UMA vez. Frontend deve forcar download/copy. */
+  res.json({ ok: true, backupCodes: result.backupCodes })
+})
+
+authRouter.post('/mfa/disable', requireAuth, async (req, res: Response) => {
+  const authReq = req as unknown as AuthenticatedRequest
+  const parsed = mfaDisableSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
+  }
+  const user = await findAuthenticatedUser(authReq)
+  if (!user) return res.status(404).json({ message: 'Usuario nao encontrado' })
+  if (!(await verifyUserPasswordAsync(parsed.data.password, user.passwordHash))) {
+    return res.status(401).json({ message: 'Senha incorreta' })
+  }
+  const tokenCheck = await verifyMfaToken(authReq.userId, parsed.data.totp)
+  if (!tokenCheck.ok) return res.status(401).json({ message: 'Codigo MFA invalido' })
+  await disableMfa(authReq.userId)
+  void sendMfaToggleAlert({
+    userEmail: user.email,
+    userName: user.name,
+    tenantSlug: authReq.tenantId,
+    ip: req.ip ?? '',
+    userAgent: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : '',
+    enabled: false,
+  })
+  logAudit({ userId: authReq.userId, action: 'mfa_disabled', resource: 'auth', metadata: { ip: req.ip } })
+  res.json({ ok: true })
+})
+
+authRouter.post('/mfa/backup-codes/regenerate', requireAuth, async (req, res: Response) => {
+  const authReq = req as unknown as AuthenticatedRequest
+  const parsed = mfaDisableSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
+  }
+  const user = await findAuthenticatedUser(authReq)
+  if (!user) return res.status(404).json({ message: 'Usuario nao encontrado' })
+  if (!(await verifyUserPasswordAsync(parsed.data.password, user.passwordHash))) {
+    return res.status(401).json({ message: 'Senha incorreta' })
+  }
+  const tokenCheck = await verifyMfaToken(authReq.userId, parsed.data.totp)
+  if (!tokenCheck.ok) return res.status(401).json({ message: 'Codigo MFA invalido' })
+  const codes = await regenerateBackupCodes(authReq.userId)
+  if (!codes) return res.status(400).json({ message: 'MFA nao habilitado' })
+  logAudit({ userId: authReq.userId, action: 'mfa_backup_codes_regenerated', resource: 'auth', metadata: { ip: req.ip } })
+  res.json({ ok: true, backupCodes: codes })
 })

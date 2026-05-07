@@ -346,4 +346,38 @@ REVOKE UPDATE, DELETE ON audit_log FROM iga_app;
 GRANT SELECT, INSERT ON audit_log TO iga_app;
 `,
   },
+  {
+    id: '007_password_history_session_binding',
+    sql: `
+CREATE TABLE IF NOT EXISTS user_password_history (
+  id BIGSERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_user_password_history_user ON user_password_history(user_id, created_at DESC);
+GRANT SELECT, INSERT, DELETE ON user_password_history TO iga_app;
+GRANT USAGE, SELECT ON SEQUENCE user_password_history_id_seq TO iga_app;
+
+-- Sessao binding (SEC-2.5): IP/UA fingerprint e pais inicial.
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip_hash TEXT NULL;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ua_hash TEXT NULL;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ua_family TEXT NULL;
+`,
+  },
+  {
+    id: '008_user_mfa',
+    sql: `
+CREATE TABLE IF NOT EXISTS user_mfa (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  secret_encrypted TEXT NOT NULL,
+  backup_codes_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  enabled_at TIMESTAMPTZ NULL,
+  last_used_at TIMESTAMPTZ NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON user_mfa TO iga_app;
+`,
+  },
 ]

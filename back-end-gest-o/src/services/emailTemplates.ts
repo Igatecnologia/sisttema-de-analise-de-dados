@@ -79,3 +79,62 @@ export function trialExpiredTemplate(input: { companyName: string; billingUrl: s
   }
 }
 
+/**
+ * Login alerts (SEC-2.10) — notificacoes de mudanca de seguranca para o usuario.
+ * Sempre incluem CTA "nao fui eu" que aponta para reset de senha.
+ */
+type SecurityAlertCtx = {
+  userName: string
+  ip: string
+  userAgent: string
+  occurredAt: string
+  resetUrl: string
+}
+
+function securityAlertBody(reason: string, ctx: SecurityAlertCtx): string {
+  return `
+    <p>Ola, ${escapeHtml(ctx.userName)}.</p>
+    <p>${escapeHtml(reason)}</p>
+    <ul style="font-size:14px;color:#566678">
+      <li><strong>Quando:</strong> ${escapeHtml(ctx.occurredAt)}</li>
+      <li><strong>IP:</strong> ${escapeHtml(ctx.ip)}</li>
+      <li><strong>Dispositivo:</strong> ${escapeHtml(ctx.userAgent.slice(0, 200))}</li>
+    </ul>
+    <p style="font-size:13px;color:#566678">Se nao foi voce, redefina a senha agora — todas as sessoes ativas sao revogadas.</p>
+    ${button(ctx.resetUrl, 'Nao fui eu — redefinir senha')}
+  `
+}
+
+export function newDeviceLoginTemplate(ctx: SecurityAlertCtx): EmailTemplate {
+  return {
+    subject: 'Novo login detectado',
+    text: `Novo login na sua conta. Em ${ctx.occurredAt} de ${ctx.ip}. Se nao foi voce: ${ctx.resetUrl}`,
+    html: shell('Novo login detectado', securityAlertBody('Detectamos um login a partir de um dispositivo ou local que nao reconhecemos.', ctx)),
+  }
+}
+
+export function passwordChangedTemplate(ctx: SecurityAlertCtx): EmailTemplate {
+  return {
+    subject: 'Sua senha foi alterada',
+    text: `Sua senha foi alterada em ${ctx.occurredAt} de ${ctx.ip}. Se nao foi voce: ${ctx.resetUrl}`,
+    html: shell('Senha alterada', securityAlertBody('Sua senha de acesso foi alterada com sucesso.', ctx)),
+  }
+}
+
+export function emailChangedTemplate(ctx: SecurityAlertCtx & { newEmail: string }): EmailTemplate {
+  return {
+    subject: 'Email da conta foi alterado',
+    text: `O email da conta foi alterado para ${ctx.newEmail} em ${ctx.occurredAt}. Se nao foi voce: ${ctx.resetUrl}`,
+    html: shell('Email alterado', securityAlertBody(`O email principal da sua conta foi alterado para ${ctx.newEmail}.`, ctx)),
+  }
+}
+
+export function mfaToggleTemplate(ctx: SecurityAlertCtx & { enabled: boolean }): EmailTemplate {
+  const action = ctx.enabled ? 'habilitada' : 'desabilitada'
+  return {
+    subject: `Autenticacao em dois fatores ${action}`,
+    text: `MFA ${action} na sua conta em ${ctx.occurredAt} de ${ctx.ip}. Se nao foi voce: ${ctx.resetUrl}`,
+    html: shell(`MFA ${action}`, securityAlertBody(`A autenticacao em dois fatores foi ${action} na sua conta.`, ctx)),
+  }
+}
+

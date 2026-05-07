@@ -1,4 +1,5 @@
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
+import argon2 from 'argon2'
 import { getDb } from './db/sqlite.js'
 import { getPostgresClientFromContext, getPostgresPool, hasPostgresConfig, queryPostgres } from './db/postgres.js'
 
@@ -212,22 +213,37 @@ export function genUserId(): string {
   return `usr_${randomBytes(6).toString('hex')}_${Date.now().toString(36)}`
 }
 
-// ─── Password hashing (scrypt, zero deps) ──────────────────────────────────
+// ─── Password hashing — argon2id (OWASP recommended, SEC-1.2) ──────────────
 //
-// Formato versionado:
-//   v2 (atual): "scrypt$2$<saltHex>$<hashHex>"  — N=2^17 (OWASP), r=8, p=1, len=64
-//   v1 (legado): "<saltHex>:<hashHex>"          — N=2^14 default, mantido p/ compat
+// Formato suportado em verify (precedencia top-down):
+//   v3 (atual): "$argon2id$..."         — argon2id (memory-hard, SOTA)
+//   v2 (legado): "scrypt$2$<salt>$<hash>" — scrypt N=131072 (interim hardening)
+//   v1 (legado): "<salt>:<hash>"          — scrypt defaults (codigo original)
 //
-// Hashes novos sempre usam v2. Verificação detecta o formato e aceita v1 antigos
-// até o usuário trocar de senha (re-hash automatico no proximo change-password).
+// Hashes novos SEMPRE usam argon2id. `isLegacyPasswordHash` detecta v1/v2 para
+// forcar rehash no proximo login bem-sucedido (graceful migration).
 
-const SCRYPT_V2_N = 131072 // 2^17, OWASP recomenda min p/ scrypt
+const ARGON2_OPTS = {
+  type: argon2.argon2id,
+  memoryCost: 65536, // 64 MB — OWASP m=64MB
+  timeCost: 3,       // OWASP t=3
+  parallelism: 4,    // OWASP p=4
+} as const
+
+const SCRYPT_V2_N = 131072
 const SCRYPT_V2_R = 8
 const SCRYPT_V2_P = 1
 const SCRYPT_V2_LEN = 64
-// scrypt N=131072 + r=8 exige >= 128 * N * r = 128 MB de buffer
 const SCRYPT_V2_MAXMEM = 256 * 1024 * 1024
 
+export async function hashUserPasswordAsync(password: string): Promise<string> {
+  return argon2.hash(password, ARGON2_OPTS)
+}
+
+/**
+ * API legada (sincrona) usada em seedAdmin e fluxos que ainda nao migraram.
+ * Mantida com scrypt v2 — chamadores async devem preferir `hashUserPasswordAsync`.
+ */
 export function hashUserPassword(password: string): string {
   const salt = randomBytes(16).toString('hex')
   const derived = scryptSync(password, salt, SCRYPT_V2_LEN, {
@@ -239,22 +255,21 @@ export function hashUserPassword(password: string): string {
   return `scrypt$2$${salt}$${derived}`
 }
 
-export function verifyUserPassword(password: string, stored: string): boolean {
-  if (!stored) return false
-  if (stored.startsWith('scrypt$2$')) {
-    const [, , salt, hash] = stored.split('$')
-    if (!salt || !hash) return false
-    const derived = scryptSync(password, salt, SCRYPT_V2_LEN, {
-      N: SCRYPT_V2_N,
-      r: SCRYPT_V2_R,
-      p: SCRYPT_V2_P,
-      maxmem: SCRYPT_V2_MAXMEM,
-    })
-    const expected = Buffer.from(hash, 'hex')
-    if (expected.length !== derived.length) return false
-    return timingSafeEqual(derived, expected)
-  }
-  // Legado v1 (salt:hash) — defaults do Node (N=16384, r=8, p=1)
+function verifyScryptV2(password: string, stored: string): boolean {
+  const [, , salt, hash] = stored.split('$')
+  if (!salt || !hash) return false
+  const derived = scryptSync(password, salt, SCRYPT_V2_LEN, {
+    N: SCRYPT_V2_N,
+    r: SCRYPT_V2_R,
+    p: SCRYPT_V2_P,
+    maxmem: SCRYPT_V2_MAXMEM,
+  })
+  const expected = Buffer.from(hash, 'hex')
+  if (expected.length !== derived.length) return false
+  return timingSafeEqual(derived, expected)
+}
+
+function verifyScryptV1(password: string, stored: string): boolean {
   const [salt, hash] = stored.split(':')
   if (!salt || !hash) return false
   const derived = scryptSync(password, salt, 64)
@@ -263,7 +278,36 @@ export function verifyUserPassword(password: string, stored: string): boolean {
   return timingSafeEqual(derived, expected)
 }
 
-/** Detecta hash em formato legado — útil para forçar re-hash no próximo login. */
+/**
+ * Verify sincrono — necessario para o fluxo legado (login chama em mid-request).
+ * Para argon2id usamos `verifySync` que internamente roda blocking; para scrypt
+ * tambem eh sync. Em throughput alto considerar mover login todo para async.
+ */
+export function verifyUserPassword(password: string, stored: string): boolean {
+  if (!stored) return false
+  if (stored.startsWith('$argon2')) {
+    /** argon2 nao expoe verifySync; checagem em userStorage usa async path. */
+    throw new Error('Use verifyUserPasswordAsync para hashes argon2id')
+  }
+  if (stored.startsWith('scrypt$2$')) return verifyScryptV2(password, stored)
+  return verifyScryptV1(password, stored)
+}
+
+/** Verify async — suporta argon2id + fallbacks scrypt v2/v1 (transparente). */
+export async function verifyUserPasswordAsync(password: string, stored: string): Promise<boolean> {
+  if (!stored) return false
+  if (stored.startsWith('$argon2')) {
+    try {
+      return await argon2.verify(stored, password)
+    } catch {
+      return false
+    }
+  }
+  if (stored.startsWith('scrypt$2$')) return verifyScryptV2(password, stored)
+  return verifyScryptV1(password, stored)
+}
+
+/** Detecta hash em formato legado — chame para forcar rehash no proximo login. */
 export function isLegacyPasswordHash(stored: string): boolean {
-  return Boolean(stored) && !stored.startsWith('scrypt$')
+  return Boolean(stored) && !stored.startsWith('$argon2')
 }

@@ -213,6 +213,31 @@ try { db.exec("ALTER TABLE audit_log ADD COLUMN tenant_id TEXT NULL") } catch { 
 // Migração v4: hash chain do audit log (SEC-1.3) — prev_hash + row_hash idempotente
 try { db.exec("ALTER TABLE audit_log ADD COLUMN prev_hash TEXT NULL") } catch { /* ja existe */ }
 try { db.exec("ALTER TABLE audit_log ADD COLUMN row_hash TEXT NULL") } catch { /* ja existe */ }
+// Migração v5: password history (SEC-2.8) + session binding (SEC-2.5)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_password_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_user_password_history_user ON user_password_history(user_id, created_at DESC);
+`)
+try { db.exec("ALTER TABLE sessions ADD COLUMN ip_hash TEXT NULL") } catch { /* ja existe */ }
+try { db.exec("ALTER TABLE sessions ADD COLUMN ua_hash TEXT NULL") } catch { /* ja existe */ }
+try { db.exec("ALTER TABLE sessions ADD COLUMN ua_family TEXT NULL") } catch { /* ja existe */ }
+// Migração v6: MFA/TOTP (SEC-2.1)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_mfa (
+    user_id TEXT PRIMARY KEY,
+    secret_encrypted TEXT NOT NULL,
+    backup_codes_json TEXT NOT NULL DEFAULT '[]',
+    enabled_at TEXT NULL,
+    last_used_at TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+`)
 try { db.exec("ALTER TABLE tenants ADD COLUMN connector_id TEXT NOT NULL DEFAULT 'sgbr-espuma'") } catch { /* ja existe */ }
 try { db.exec("ALTER TABLE tenants ADD COLUMN plan TEXT NOT NULL DEFAULT 'trial'") } catch { /* ja existe */ }
 try { db.exec("ALTER TABLE tenants ADD COLUMN trial_ends_at TEXT NULL") } catch { /* ja existe */ }

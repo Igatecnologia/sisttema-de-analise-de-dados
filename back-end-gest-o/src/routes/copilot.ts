@@ -1,5 +1,6 @@
 import { Router, type Response, type NextFunction, type Request } from 'express'
-import rateLimit, { ipKeyGenerator } from 'express-rate-limit'
+import { ipKeyGenerator } from 'express-rate-limit'
+import { redisRateLimit } from '../middleware/redisRateLimit.js'
 import { randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import { requireAuth } from '../middleware/auth.js'
@@ -72,11 +73,10 @@ async function insertCopilotMessage(id: string, userId: string, role: string, co
 }
 
 /** 20 msgs/min por usuário — evita abuso e estouro da free tier do Gemini. */
-const chatLimiter = rateLimit({
+const chatLimiter = redisRateLimit({
+  namespace: 'copilot:chat',
   windowMs: 60_000,
   max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
   keyGenerator: (req) => {
     const userId = (req as AuthenticatedRequest).userId
     return userId ? `user:${userId}` : ipKeyGenerator(req.ip ?? '')
