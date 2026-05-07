@@ -178,7 +178,7 @@ export function BillingPlansPage() {
                     block
                     loading={loadingPlan === plan.id}
                     disabled={isCurrent || !status?.stripeEnabled}
-                    onClick={() => onSubscribe(plan.id)}
+                    onClick={() => onSubscribe(plan.id as 'pro' | 'enterprise')}
                   >
                     {isCurrent ? 'Plano atual' : `Assinar ${plan.name}`}
                   </Button>

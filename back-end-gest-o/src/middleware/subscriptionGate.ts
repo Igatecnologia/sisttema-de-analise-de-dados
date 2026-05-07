@@ -25,6 +25,9 @@ function isAllowed(path: string): boolean {
 }
 
 export async function subscriptionGate(req: Request, res: Response, next: NextFunction) {
+  /** Disable em dev/test/CI: NODE_ENV !== 'production' OU BILLING_GATE_DISABLED=1. */
+  if (process.env.BILLING_GATE_DISABLED === '1') return next()
+  if (process.env.NODE_ENV !== 'production') return next()
   if (isAllowed(req.path)) return next()
   const authReq = req as Partial<AuthenticatedRequest>
   if (!authReq.tenantId) return next() // rotas nao autenticadas seguem

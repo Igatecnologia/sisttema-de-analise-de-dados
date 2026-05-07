@@ -19,6 +19,10 @@ export function resolveTenantIdFromLocation(location: Pick<Location, 'hostname' 
   }
 
   const host = location.hostname
+  /** Hostnames sem DNS (IPv4, localhost, IPv6) caem para tenant default. */
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(host) || host === 'localhost' || host.startsWith('[')) {
+    return 'default'
+  }
   const parts = host.split('.')
   if (parts.length >= 3 && parts[0] !== 'www') {
     return normalizeTenantSlug(parts[0]) ?? 'default'

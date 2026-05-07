@@ -23,11 +23,18 @@ export default defineConfig({
     },
     {
       name: 'chromium',
+      testIgnore: /smoke-saas\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'tests/e2e/.auth/admin.json',
       },
       dependencies: ['setup'],
+    },
+    {
+      /** Smokes HTTP do backend SaaS — sem dependencia de UI nem storageState. */
+      name: 'api',
+      testMatch: /smoke-saas\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
     },
     ...(isCi
       ? []

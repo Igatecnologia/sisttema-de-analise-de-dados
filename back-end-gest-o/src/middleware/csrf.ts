@@ -16,6 +16,13 @@ const TOKEN_LENGTH = 32
 /** Rotas isentas de CSRF (não usam cookies de sessão). */
 const EXEMPT_PATHS = [
   '/api/v1/auth/login',
+  '/api/v1/auth/refresh',
+  '/api/v1/auth/register',
+  '/api/v1/auth/forgot-password',
+  '/api/v1/auth/reset-password',
+  '/api/v1/auth/verify-email',
+  '/api/v1/auth/accept-invite',
+  '/api/v1/billing/webhook',
   '/api/proxy/login',
   '/health',
   '/health/live',
@@ -68,6 +75,14 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
 
   // Rotas isentas
   if (isExempt(req.path)) return next()
+
+  /**
+   * Bearer token (Authorization header) ja eh CSRF-safe nativamente — o atacante
+   * nao consegue setar Authorization em requests cross-origin. Cookies session
+   * permanecem protegidos pelo double-submit pattern.
+   */
+  const authHeader = req.headers.authorization
+  if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) return next()
 
   const cookieToken = readCookie(req.headers.cookie, CSRF_COOKIE)
   const headerToken = req.header(CSRF_HEADER)
