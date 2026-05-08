@@ -24,6 +24,7 @@ const EXEMPT_PATHS = [
   '/api/v1/auth/accept-invite',
   '/api/v1/billing/webhook',
   '/api/v1/security/csp-report',
+  '/api/v1/leads',
   '/api/proxy/login',
   '/health',
   '/health/live',

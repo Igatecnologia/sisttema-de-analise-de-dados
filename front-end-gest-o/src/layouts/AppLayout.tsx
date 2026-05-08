@@ -45,6 +45,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { ForcePasswordChangeModal } from '../auth/ForcePasswordChangeModal'
 import { TermsAcceptanceModal } from '../components/TermsAcceptanceModal'
+import { BetaWelcomeModal } from '../components/BetaWelcomeModal'
 import { hasPermission } from '../auth/permissions'
 import { useAppTheme } from '../theme/ThemeContext'
 import { useTenant } from '../tenant/TenantContext'
@@ -772,6 +773,7 @@ export function AppLayout() {
       </Layout>
       <ForcePasswordChangeModal />
       <TermsAcceptanceModal />
+      <BetaWelcomeModal />
     </Layout>
   )
 }

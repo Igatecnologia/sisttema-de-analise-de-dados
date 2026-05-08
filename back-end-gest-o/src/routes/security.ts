@@ -43,6 +43,34 @@ securityRouter.post(
 )
 
 /**
+ * GET /api/v1/status — status publico simplificado (sem auth).
+ * Para status page externa, dashboards de cliente Enterprise e UptimeRobot.
+ * Nao expoe detalhes sensiveis — so binary up/down, version e timestamp.
+ */
+securityRouter.get('/api/v1/status', (_req, res) => {
+  const memory = process.memoryUsage()
+  res.setHeader('Cache-Control', 'public, max-age=10')
+  res.json({
+    status: 'operational',
+    version: process.env.APP_VERSION ?? process.env.npm_package_version ?? 'dev',
+    commit: process.env.GIT_COMMIT?.slice(0, 7) ?? null,
+    uptime: Math.round(process.uptime()),
+    timestamp: new Date().toISOString(),
+    region: process.env.RENDER_REGION ?? process.env.AWS_REGION ?? 'unknown',
+    memory: {
+      rssMb: Math.round(memory.rss / 1024 / 1024),
+      heapUsedMb: Math.round(memory.heapUsed / 1024 / 1024),
+    },
+    /** Links uteis para clientes Enterprise. */
+    links: {
+      sbom: '/security/sbom.json',
+      securityTxt: '/.well-known/security.txt',
+      policy: '/security/policy',
+    },
+  })
+})
+
+/**
  * GET /security/sbom.json — SBOM publico em formato CycloneDX (SEC-3.2).
  * Permite auditorias de cliente Enterprise verificarem dependencias declaradas.
  *

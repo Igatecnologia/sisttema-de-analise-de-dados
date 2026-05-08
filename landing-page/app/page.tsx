@@ -9,7 +9,7 @@ import { Security } from '@/components/sections/Security'
 import { Pricing } from '@/components/sections/Pricing'
 import { SocialProof } from '@/components/sections/SocialProof'
 import { Faq } from '@/components/sections/Faq'
-import { FinalCta } from '@/components/sections/FinalCta'
+import { BetaInvite } from '@/components/sections/BetaInvite'
 import { Footer } from '@/components/sections/Footer'
 
 export default function HomePage() {
@@ -27,7 +27,7 @@ export default function HomePage() {
         <Pricing />
         <SocialProof />
         <Faq />
-        <FinalCta />
+        <BetaInvite />
       </main>
       <Footer />
     </>

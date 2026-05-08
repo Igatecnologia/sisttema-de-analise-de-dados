@@ -39,6 +39,7 @@ import { connectorsRouter } from './routes/connectors.js'
 import { webhooksRouter } from './routes/webhooks.js'
 import { legalRouter } from './routes/legal.js'
 import { analyticsRouter } from './routes/analytics.js'
+import { leadsRouter } from './routes/leads.js'
 import { startScheduledReportsJob } from './jobs/scheduledReports.js'
 import { startBackupScheduler } from './jobs/dbBackup.js'
 import { startCopilotRetentionJob } from './jobs/copilotRetention.js'
@@ -247,6 +248,8 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/api/v1/legal', legalRouter)
   /** Analytics tambem antes do gate — events de tela precisam fluir mesmo se billing falhou. */
   app.use('/api/v1/analytics', analyticsRouter)
+  /** Leads (Beta capture) — sem auth, com anti-fraud + rate limit. */
+  app.use('/api/v1/leads', leadsRouter)
   /** Gate de billing apos as rotas de auth/billing/onboarding/tenant config. */
   app.use(subscriptionGate)
 
