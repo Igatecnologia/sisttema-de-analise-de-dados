@@ -1,6 +1,5 @@
 'use client'
 
-import { motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 
 const links = [
@@ -8,7 +7,6 @@ const links = [
   { label: 'Como funciona', href: '#how' },
   { label: 'Integrações', href: '#integrations' },
   { label: 'Planos', href: '#pricing' },
-  { label: 'FAQ', href: '#faq' },
 ]
 
 export function Nav() {
@@ -23,36 +21,43 @@ export function Nav() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-        scrolled ? 'backdrop-blur-md bg-ink-900/60 border-b border-ink-600/40' : ''
+      className={`fixed top-0 inset-x-0 z-50 transition-all duration-400 ${
+        scrolled
+          ? 'bg-white/85 backdrop-blur-xl border-b border-[var(--color-line)]'
+          : 'bg-transparent'
       }`}
     >
-      <div className="mx-auto flex max-w-[1280px] items-center justify-between px-6 py-4 md:px-10 md:py-5">
-        <a href="#top" className="flex items-baseline gap-2">
-          <span className="font-display text-2xl tracking-tight text-ink-50">IGA</span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-300">Gestão</span>
+      <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 md:px-8 lg:px-10 py-4 md:py-5">
+        <a href="#top" className="flex items-center gap-2 group">
+          <div className="size-8 rounded-lg grad-blue flex items-center justify-center font-bold text-white text-sm">
+            I
+          </div>
+          <span className="font-semibold text-lg tracking-tight">IGA</span>
         </a>
 
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden md:flex items-center gap-1">
           {links.map((l) => (
-            <motion.a
+            <a
               key={l.href}
               href={l.href}
-              className="link-underline text-sm text-ink-100 hover:text-ink-50 transition-colors"
-              whileHover={{ y: -1 }}
-              transition={{ duration: 0.2 }}
+              className="px-4 py-2 text-sm font-medium text-[var(--color-fg-soft)] hover:text-[var(--color-fg)] hover:bg-[var(--color-bg-alt)] rounded-full transition-colors"
             >
               {l.label}
-            </motion.a>
+            </a>
           ))}
         </nav>
 
-        <a
-          href="#cta"
-          className="btn-emerald-glow rounded-full bg-emerald-base px-5 py-2.5 text-sm font-medium text-ink-950"
-        >
-          Testar grátis
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href="https://app.igagestao.com.br/login"
+            className="hidden sm:inline-flex px-4 py-2 text-sm font-medium text-[var(--color-fg)] hover:text-[var(--color-brand)] transition-colors"
+          >
+            Entrar
+          </a>
+          <a href="#cta" className="btn-primary text-sm">
+            Começar grátis
+          </a>
+        </div>
       </div>
     </header>
   )

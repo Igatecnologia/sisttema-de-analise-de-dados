@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
-import { Container, Eyebrow, Hairline, Reveal } from '../primitives'
+import { Container, Reveal } from '../primitives'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
@@ -33,7 +33,7 @@ const faqs = [
   },
   {
     q: 'A IA do Copilot é confiável?',
-    a: 'O Copilot usa LLM via Groq (Llama 3, GPT-OSS) com tool-calling: ele só responde com dados reais do seu tenant, buscados em tempo de execução. Sem alucinação — se a tool retorna vazio, o Copilot diz "não encontrei". Plano Pro tem 20 mensagens/dia, Enterprise tem ilimitado.',
+    a: 'O Copilot usa LLM via Groq com tool-calling: ele só responde com dados reais do seu tenant, buscados em tempo de execução. Sem alucinação — se a tool retorna vazio, o Copilot diz "não encontrei". Plano Pro tem 20 mensagens/dia, Enterprise tem ilimitado.',
   },
   {
     q: 'Como vocês cobram?',
@@ -45,26 +45,19 @@ export function Faq() {
   const [open, setOpen] = useState<number | null>(0)
 
   return (
-    <section id="faq" className="relative py-32 md:py-40">
+    <section id="faq" className="py-28 md:py-36 bg-white">
       <Container>
-        <Hairline className="mb-20 opacity-40" />
-
-        <div className="grid grid-cols-12 gap-x-4 md:gap-x-8 mb-16 md:mb-20 items-end">
-          <div className="col-span-12 md:col-span-5">
+        <div className="grid lg:grid-cols-12 gap-12 lg:gap-16">
+          <div className="lg:col-span-5">
             <Reveal>
-              <Eyebrow number="09" accent="ink">
-                Perguntas frequentes
-              </Eyebrow>
-            </Reveal>
-            <Reveal delay={0.1}>
-              <h2 className="mt-6 text-display-lg font-display text-ink-50">
-                Antes de você <span className="italic-accent">perguntar</span>.
+              <p className="text-[var(--color-brand)] text-sm font-medium mb-4">Perguntas frequentes</p>
+              <h2 className="text-display-lg">
+                Antes de você <br />
+                <span className="text-[var(--color-fg-muted)]">perguntar.</span>
               </h2>
-            </Reveal>
-            <Reveal delay={0.2}>
-              <p className="mt-6 text-ink-200">
+              <p className="mt-6 text-[var(--color-fg-muted)]">
                 Não achou o que procurava?{' '}
-                <a href="#cta" className="link-underline text-emerald-soft">
+                <a href="#cta" className="text-[var(--color-brand)] font-medium hover:underline">
                   Fale conosco
                 </a>
                 .
@@ -72,32 +65,30 @@ export function Faq() {
             </Reveal>
           </div>
 
-          <div className="col-span-12 md:col-span-7 mt-12 md:mt-0">
-            <ul className="border-t border-ink-600/60">
+          <div className="lg:col-span-7">
+            <ul className="divide-y divide-[var(--color-line)]">
               {faqs.map((f, i) => {
                 const isOpen = open === i
                 return (
-                  <li
-                    key={f.q}
-                    className="border-b border-ink-600/60"
-                  >
+                  <li key={f.q}>
                     <button
                       onClick={() => setOpen(isOpen ? null : i)}
                       aria-expanded={isOpen}
-                      className="group flex w-full items-start justify-between gap-6 py-6 text-left transition-colors hover:bg-ink-800/40 px-2 -mx-2 rounded"
+                      className="flex w-full items-start justify-between gap-6 py-6 text-left group"
                     >
-                      <span className="flex items-baseline gap-4">
-                        <span className="font-mono text-[10px] tracking-[0.2em] text-ink-400">
-                          {String(i + 1).padStart(2, '0')}
-                        </span>
-                        <span className="font-display text-xl md:text-2xl text-ink-50">{f.q}</span>
+                      <span className="text-lg md:text-xl font-semibold tracking-tight pr-4 group-hover:text-[var(--color-brand)] transition-colors">
+                        {f.q}
                       </span>
                       <motion.span
                         animate={{ rotate: isOpen ? 45 : 0 }}
                         transition={{ duration: 0.4, ease }}
-                        className={`mt-2 size-5 shrink-0 ${isOpen ? 'text-emerald-soft' : 'text-ink-300'}`}
+                        className={`mt-1.5 size-6 shrink-0 rounded-full flex items-center justify-center ${
+                          isOpen
+                            ? 'bg-[var(--color-fg)] text-white'
+                            : 'bg-[var(--color-bg-alt)] text-[var(--color-fg)]'
+                        }`}
                       >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <path d="M12 5v14M5 12h14" strokeLinecap="round" />
                         </svg>
                       </motion.span>
@@ -111,7 +102,7 @@ export function Faq() {
                           transition={{ duration: 0.45, ease }}
                           className="overflow-hidden"
                         >
-                          <p className="pb-6 pl-12 pr-2 text-ink-200 leading-relaxed max-w-[58ch]">
+                          <p className="pb-6 pr-12 text-[var(--color-fg-muted)] leading-relaxed">
                             {f.a}
                           </p>
                         </motion.div>
