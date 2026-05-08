@@ -201,6 +201,27 @@
   /* Tabular nums for prices */
   .tnum { font-feature-settings: 'tnum' on; }
 
+  /* Animated gradient text — slow shifting hue */
+  @keyframes gradient-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  .text-gradient-animated {
+    background: linear-gradient(110deg, #0052ff, #6e4eff, #ff3d8b, #ff6e2e, #0052ff);
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: gradient-shift 8s ease infinite;
+  }
+
+  /* Floating bob — for hero badges */
+  @keyframes float-y {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  .float { animation: float-y 4s ease-in-out infinite; }
+
   /* Reduced motion */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {

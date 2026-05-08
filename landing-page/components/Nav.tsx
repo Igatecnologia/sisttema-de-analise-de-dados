@@ -1,6 +1,9 @@
 'use client'
 
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
+import { ArrowRight } from 'lucide-react'
+import { ShimmerButton } from './magic/ShimmerButton'
 
 const links = [
   { label: 'Produto', href: '#features' },
@@ -28,11 +31,15 @@ export function Nav() {
       }`}
     >
       <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 md:px-8 lg:px-10 py-4 md:py-5">
-        <a href="#top" className="flex items-center gap-2 group">
-          <div className="size-8 rounded-lg grad-blue flex items-center justify-center font-bold text-white text-sm">
-            I
-          </div>
-          <span className="font-semibold text-lg tracking-tight">IGA</span>
+        <a href="#top" className="flex items-center gap-2.5 group" aria-label="IGA Gestão — início">
+          <Image
+            src="/iga-logo.png"
+            alt="IGA Automação & Tecnologia"
+            width={130}
+            height={42}
+            priority
+            className="h-9 w-auto"
+          />
         </a>
 
         <nav className="hidden md:flex items-center gap-1">
@@ -54,9 +61,10 @@ export function Nav() {
           >
             Entrar
           </a>
-          <a href="#cta" className="btn-primary text-sm">
+          <ShimmerButton href="#cta" className="!px-5 !py-2.5">
             Começar grátis
-          </a>
+            <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+          </ShimmerButton>
         </div>
       </div>
     </header>

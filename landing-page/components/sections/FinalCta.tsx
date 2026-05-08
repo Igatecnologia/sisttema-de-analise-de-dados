@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'motion/react'
+import { ArrowRight, Calendar, MessageCircle } from 'lucide-react'
 import { Container, Reveal } from '../primitives'
 
 const ease = [0.22, 1, 0.36, 1] as const
@@ -41,17 +42,16 @@ export function FinalCta() {
             <div className="relative mt-12 flex flex-wrap items-center justify-center gap-3">
               <a
                 href="https://app.igagestao.com.br/registrar"
-                className="inline-flex items-center gap-2 bg-white text-[var(--color-fg)] px-7 py-3.5 rounded-full font-medium hover:bg-white/90 transition-colors"
+                className="group inline-flex items-center gap-2 bg-white text-[var(--color-fg)] px-7 py-3.5 rounded-full font-medium hover:bg-white/90 transition-colors"
               >
                 Começar trial grátis
-                <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M5 12h14M13 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
               </a>
               <a
                 href="#demo"
                 className="inline-flex items-center gap-2 border border-white/25 text-white px-7 py-3.5 rounded-full font-medium hover:bg-white/10 transition-colors"
               >
+                <Calendar className="size-4" />
                 Agendar demo
               </a>
               <a
@@ -60,10 +60,7 @@ export function FinalCta() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-white/70 px-5 py-3.5 hover:text-white transition-colors"
               >
-                <svg className="size-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17.5 14.4c-.3-.1-1.7-.8-1.9-.9-.3-.1-.5-.1-.7.1l-.9 1.2c-.2.2-.4.2-.7.1-.3-.1-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.4-.5c.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.1-.7-1.7-1-2.4-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1.1 1.1-1.1 2.6 0 1.6 1.1 3.1 1.3 3.3.2.2 2.2 3.4 5.4 4.7.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.2-.7.2-1.3.2-1.4-.1-.1-.3-.2-.5-.3z" />
-                  <path d="M20.5 3.5C18.2 1.2 15.2 0 12 0 5.4 0 0 5.4 0 12c0 2.1.5 4.1 1.6 5.9L0 24l6.3-1.6c1.7 1 3.7 1.4 5.7 1.4 6.6 0 12-5.4 12-12 0-3.2-1.2-6.2-3.5-8.3z" />
-                </svg>
+                <MessageCircle className="size-4" />
                 WhatsApp
               </a>
             </div>

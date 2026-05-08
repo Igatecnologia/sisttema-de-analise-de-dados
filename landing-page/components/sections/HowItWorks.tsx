@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { motion } from 'motion/react'
+import { Clock, ArrowRight } from 'lucide-react'
 import { Container, Reveal } from '../primitives'
 
 const ease = [0.22, 1, 0.36, 1] as const
@@ -66,10 +67,7 @@ export function HowItWorks() {
               <p className="text-[var(--color-fg-muted)] leading-relaxed mb-6">{step.desc}</p>
 
               <div className="mt-auto inline-flex self-start items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--color-bg-alt)] text-xs font-medium text-[var(--color-fg-muted)]">
-                <svg className="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 6v6l4 2" strokeLinecap="round" />
-                </svg>
+                <Clock className="size-3" strokeWidth={2} />
                 {step.badge}
               </div>
             </motion.div>
@@ -88,11 +86,9 @@ export function HowItWorks() {
                 Você escolhe o connector, cola as credenciais, mapeia os campos com auto-sugestão
                 e testa a conexão na tela. Se travar, o time de suporte assume.
               </p>
-              <a href="#cta" className="inline-flex items-center gap-2 bg-white text-[var(--color-fg)] px-6 py-3 rounded-full font-medium hover:bg-white/90 transition-colors">
+              <a href="#cta" className="group inline-flex items-center gap-2 bg-white text-[var(--color-fg)] px-6 py-3 rounded-full font-medium hover:bg-white/90 transition-colors">
                 Começar agora
-                <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M5 12h14M13 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
               </a>
             </div>
             <div className="rounded-2xl border border-white/10 overflow-hidden bg-white">

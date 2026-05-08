@@ -2,6 +2,7 @@
 
 import { motion } from 'motion/react'
 import { Container, Reveal } from '../primitives'
+import { SpotlightCard } from '../magic/SpotlightCard'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
@@ -49,15 +50,20 @@ export function Integrations() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true, margin: '-40px' }}
                 transition={{ duration: 0.5, ease, delay: idx * 0.04 }}
-                className="card-flat p-6 flex flex-col justify-between min-h-[140px]"
               >
-                <span className="text-2xl font-semibold tracking-tight">{i.mono}</span>
-                <div className="flex items-center justify-between mt-4">
-                  <span className="text-sm text-[var(--color-fg-muted)]">{i.name}</span>
-                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-medium border ${s.cls}`}>
-                    {s.label}
-                  </span>
-                </div>
+                <SpotlightCard
+                  glow="#0052ff"
+                  size={240}
+                  className="card-flat group p-6 flex flex-col justify-between min-h-[140px] h-full"
+                >
+                  <span className="text-2xl font-semibold tracking-tight">{i.mono}</span>
+                  <div className="flex items-center justify-between mt-4">
+                    <span className="text-sm text-[var(--color-fg-muted)]">{i.name}</span>
+                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-medium border ${s.cls}`}>
+                      {s.label}
+                    </span>
+                  </div>
+                </SpotlightCard>
               </motion.div>
             )
           })}

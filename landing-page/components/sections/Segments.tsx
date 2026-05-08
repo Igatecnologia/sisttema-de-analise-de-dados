@@ -1,17 +1,26 @@
 'use client'
 
 import { motion } from 'motion/react'
+import {
+  Bed,
+  SprayCan,
+  Hammer,
+  Wheat,
+  Shirt,
+  Truck,
+  type LucideIcon,
+} from 'lucide-react'
 import { Container, Reveal } from '../primitives'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
-const segments = [
-  { name: 'Espumas & Colchões', detail: 'Blocos, densidade, M³', grad: 'grad-violet' },
-  { name: 'Produtos de Limpeza', detail: 'Lotes, validade', grad: 'grad-cyan' },
-  { name: 'Metalurgia', detail: 'Rastreabilidade', grad: 'grad-orange' },
-  { name: 'Alimentos', detail: 'HACCP, validade', grad: 'grad-green' },
-  { name: 'Têxtil', detail: 'Grade, tamanhos', grad: 'grad-pink' },
-  { name: 'Logística', detail: 'Rotas, expedição', grad: 'grad-blue' },
+const segments: { name: string; detail: string; grad: string; Icon: LucideIcon }[] = [
+  { name: 'Espumas & Colchões', detail: 'Blocos, densidade, M³', grad: 'grad-violet', Icon: Bed },
+  { name: 'Produtos de Limpeza', detail: 'Lotes, validade', grad: 'grad-cyan', Icon: SprayCan },
+  { name: 'Metalurgia', detail: 'Rastreabilidade', grad: 'grad-orange', Icon: Hammer },
+  { name: 'Alimentos', detail: 'HACCP, validade', grad: 'grad-green', Icon: Wheat },
+  { name: 'Têxtil', detail: 'Grade, tamanhos', grad: 'grad-pink', Icon: Shirt },
+  { name: 'Logística', detail: 'Rotas, expedição', grad: 'grad-blue', Icon: Truck },
 ]
 
 export function Segments() {
@@ -42,7 +51,11 @@ export function Segments() {
               transition={{ duration: 0.6, ease, delay: i * 0.05 }}
               className="rounded-3xl bg-white border border-[var(--color-line)] p-7 md:p-8 hover:shadow-lg hover:shadow-black/5 transition-shadow group"
             >
-              <div className={`size-14 rounded-2xl ${s.grad} mb-6 group-hover:scale-105 transition-transform duration-500`} />
+              <div
+                className={`size-14 rounded-2xl ${s.grad} mb-6 flex items-center justify-center text-white group-hover:scale-105 transition-transform duration-500`}
+              >
+                <s.Icon className="size-6" strokeWidth={1.75} />
+              </div>
               <h3 className="text-xl font-semibold tracking-tight mb-1.5">{s.name}</h3>
               <p className="text-sm text-[var(--color-fg-muted)]">{s.detail}</p>
             </motion.div>

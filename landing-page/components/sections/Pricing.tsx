@@ -2,7 +2,9 @@
 
 import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
+import { Check } from 'lucide-react'
 import { Container, Reveal } from '../primitives'
+import { BorderBeam } from '../magic/BorderBeam'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
@@ -115,9 +117,12 @@ export function Pricing() {
               }`}
             >
               {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full grad-blue px-3 py-1 text-[11px] font-semibold text-white">
-                  Mais popular
-                </div>
+                <>
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10 rounded-full grad-blue px-3 py-1 text-[11px] font-semibold text-white">
+                    Mais popular
+                  </div>
+                  <BorderBeam size={180} duration={9} colorFrom="#29b1ff" colorTo="#ff3d8b" />
+                </>
               )}
 
               <p className={`text-xs font-medium mb-1 ${plan.popular ? 'text-white/60' : 'text-[var(--color-fg-muted)]'}`}>
@@ -158,13 +163,10 @@ export function Pricing() {
                     key={f}
                     className={`flex items-start gap-2.5 text-sm ${plan.popular ? 'text-white/90' : 'text-[var(--color-fg-soft)]'}`}
                   >
-                    <svg
+                    <Check
                       className={`mt-0.5 size-4 shrink-0 ${plan.popular ? 'text-emerald-400' : 'text-emerald-600'}`}
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                      strokeWidth={2.5}
+                    />
                     {f}
                   </li>
                 ))}

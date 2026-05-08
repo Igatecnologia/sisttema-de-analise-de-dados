@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'motion/react'
+import { Check, X } from 'lucide-react'
 import { Container, Reveal } from '../primitives'
 
 const ease = [0.22, 1, 0.36, 1] as const
@@ -54,21 +55,11 @@ export function Problem() {
               <div className="mb-12">
                 {card.type === 'good' ? (
                   <div className="size-12 rounded-2xl grad-blue flex items-center justify-center">
-                    <svg className="size-6 text-white" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M5 13l4 4L19 7"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
+                    <Check className="size-6 text-white" strokeWidth={2.5} />
                   </div>
                 ) : (
                   <div className="size-12 rounded-2xl bg-[var(--color-bg-alt)] flex items-center justify-center">
-                    <svg className="size-6 text-[var(--color-fg-muted)]" viewBox="0 0 24 24" fill="none">
-                      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
+                    <X className="size-6 text-[var(--color-fg-muted)]" strokeWidth={2} />
                   </div>
                 )}
               </div>

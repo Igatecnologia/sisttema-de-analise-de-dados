@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
+import { Plus } from 'lucide-react'
 import { Container, Reveal } from '../primitives'
 
 const ease = [0.22, 1, 0.36, 1] as const
@@ -88,9 +89,7 @@ export function Faq() {
                             : 'bg-[var(--color-bg-alt)] text-[var(--color-fg)]'
                         }`}
                       >
-                        <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-                        </svg>
+                        <Plus className="size-3.5" strokeWidth={2.5} />
                       </motion.span>
                     </button>
                     <AnimatePresence initial={false}>
