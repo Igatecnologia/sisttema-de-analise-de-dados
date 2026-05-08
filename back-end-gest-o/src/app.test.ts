@@ -31,6 +31,32 @@ describe('backend app', () => {
     expect(res.body.enabledModules).toContain('dashboard')
   })
 
+  /** SEC-3.4 — CSP dinamico inclui hosts do connector mas nao vaza entre tenants. */
+  it('CSP do tenant default (sgbr-espuma) inclui *.sgbrbi.com.br em connect-src', async () => {
+    const res = await request(app).get('/api/v1/tenants/default/config')
+    const csp = res.headers['content-security-policy'] ?? ''
+    expect(csp).toContain('*.sgbrbi.com.br')
+    expect(csp).toContain('default-src')
+    expect(csp).toContain('frame-ancestors')
+  })
+
+  it('CSP inclui hosts CDN confiaveis (Stripe/Sentry/PostHog/Turnstile)', async () => {
+    const res = await request(app).get('/api/v1/tenants/default/config')
+    const csp = res.headers['content-security-policy'] ?? ''
+    expect(csp).toMatch(/script-src[^;]*challenges\.cloudflare\.com/)
+    expect(csp).toMatch(/script-src[^;]*posthog/)
+    expect(csp).toMatch(/script-src[^;]*sentry-cdn/)
+    expect(csp).toMatch(/connect-src[^;]*api\.stripe\.com/)
+  })
+
+  it('Headers cross-origin (COOP/CORP) e Reporting-Endpoints presentes', async () => {
+    const res = await request(app).get('/health')
+    expect(res.headers['cross-origin-opener-policy']).toBe('same-origin')
+    expect(res.headers['cross-origin-resource-policy']).toBe('same-origin')
+    expect(res.headers['reporting-endpoints']).toContain('csp-endpoint')
+    expect(res.headers['permissions-policy']).toContain('camera=()')
+  })
+
   it('GET /api/v1/tenants/current/settings retorna tenant autenticado', async () => {
     const user = readAllUsersCached()[0]
     expect(user).toBeDefined()

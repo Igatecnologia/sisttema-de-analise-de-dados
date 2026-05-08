@@ -21,7 +21,7 @@ import {
 } from 'antd'
 import dayjs from 'dayjs'
 import { RangePickerBR } from '../components/DatePickerPtBR'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useSortableWidgets } from '../hooks/useSortableWidgets'
@@ -92,6 +92,9 @@ const PT_MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set'
 const SGBR_PERMS_INFO_KEY = 'iga-dismiss-sgbr-permissions-info'
 
 export function DashboardPage() {
+  useEffect(() => {
+    void import('../services/analytics').then((m) => m.trackEvent('dashboard_viewed'))
+  }, [])
   const [searchParams, setSearchParams] = useSearchParams()
   const [sgbrInfoVisible, setSgbrInfoVisible] = useState(
     () => typeof window !== 'undefined' && localStorage.getItem(SGBR_PERMS_INFO_KEY) !== '1',

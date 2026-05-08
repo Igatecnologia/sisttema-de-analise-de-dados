@@ -12,6 +12,7 @@ export function LgpdPage() {
 
   async function downloadExport() {
     setLoading('export')
+    void import('../services/analytics').then((m) => m.trackEvent('lgpd_export_requested'))
     try {
       const res = await http.get('/api/v1/lgpd/export', { responseType: 'blob' })
       const blob = new Blob([res.data as BlobPart], { type: 'application/json' })
@@ -55,6 +56,7 @@ export function LgpdPage() {
     setLoading('anonymize')
     try {
       await http.post('/api/v1/lgpd/anonymize')
+      void import('../services/analytics').then((m) => m.trackEvent('lgpd_anonymize_requested'))
       message.success('Sua conta foi anonimizada. Voce sera desconectado.')
       setTimeout(() => signOut(), 1500)
     } catch (err) {
@@ -70,6 +72,7 @@ export function LgpdPage() {
     setLoading('erase')
     try {
       await http.post('/api/v1/lgpd/erase')
+      void import('../services/analytics').then((m) => m.trackEvent('lgpd_erase_requested'))
       message.success('Sua conta foi marcada para exclusao. Voce sera desconectado.')
       setTimeout(() => signOut(), 1500)
     } catch (err) {

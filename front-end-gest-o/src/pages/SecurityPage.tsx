@@ -41,6 +41,7 @@ export function SecurityPage() {
   async function onDisable() {
     try {
       await disableMfa(disablePassword, disableTotp.trim())
+      void import('../services/analytics').then((m) => m.trackEvent('mfa_disabled'))
       message.success('2FA desativado.')
       setDisableOpen(false)
       setDisablePassword('')

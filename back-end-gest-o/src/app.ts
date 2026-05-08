@@ -75,18 +75,46 @@ export function createApp(options: CreateAppOptions = {}) {
     },
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   }))
+  /** SEC-3.3 / SEC-3.4 — CSP dinamico multi-tenant.
+   *  Hosts CDN confiaveis (PostHog, Sentry, Stripe, Turnstile) habilitados quando
+   *  o tenant ativa observabilidade/billing. Para inline scripts (futuros) basta
+   *  adicionar nonce — hoje a SPA Vite nao usa inline. */
+  const TRUSTED_CDN_SCRIPT = [
+    'https://challenges.cloudflare.com',
+    'https://*.posthog.com',
+    'https://browser.sentry-cdn.com',
+    'https://*.ingest.sentry.io',
+    'https://js.stripe.com',
+  ]
+  const TRUSTED_CDN_CONNECT = [
+    'https://*.posthog.com',
+    'https://*.ingest.sentry.io',
+    'https://*.sentry.io',
+    'https://api.stripe.com',
+  ]
+  const TRUSTED_FRAME = [
+    'https://challenges.cloudflare.com',
+    'https://js.stripe.com',
+    'https://hooks.stripe.com',
+  ]
+
   app.use(async (req, res, next) => {
     const tenant = await findTenantBySlug(resolveTenantId(req))
     const connector = ConnectorRegistry.get(tenant?.connectorId)
-    const connectSrc = ["'self'", FRONTEND_URL, ...connector.cspConnectSrc]
+    const connectSrc = ["'self'", FRONTEND_URL, ...connector.cspConnectSrc, ...TRUSTED_CDN_CONNECT]
     res.setHeader('Content-Security-Policy', [
       "default-src 'self'",
-      "script-src 'self'",
+      `script-src 'self' ${TRUSTED_CDN_SCRIPT.join(' ')}`,
+      /** Ant Design exige unsafe-inline em style-attr; CSP nonce em style nao cobre attrs. */
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
+      "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
       `connect-src ${[...new Set(connectSrc)].join(' ')}`,
+      `frame-src ${TRUSTED_FRAME.join(' ')}`,
       "frame-ancestors 'none'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
       "report-uri /api/v1/security/csp-report",
       "report-to csp-endpoint",
     ].join('; '))

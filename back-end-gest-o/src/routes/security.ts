@@ -1,5 +1,10 @@
 import { Router, json } from 'express'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { logWarn } from '../services/structuredLog.js'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 /**
  * Endpoints publicos de seguranca (RFC 9116 + best practices).
@@ -36,6 +41,43 @@ securityRouter.post(
     res.status(204).end()
   },
 )
+
+/**
+ * GET /security/sbom.json — SBOM publico em formato CycloneDX (SEC-3.2).
+ * Permite auditorias de cliente Enterprise verificarem dependencias declaradas.
+ *
+ * Geracao no build (CI ou local):
+ *   npx --yes @cyclonedx/cyclonedx-npm --output-format JSON --output-file dist/sbom.json
+ *
+ * Override via env SBOM_PATH (caminho absoluto). Sem o arquivo, retorna 404 com
+ * instrucoes — nao expoe dados sensiveis.
+ */
+function resolveSbomPath(): string {
+  if (process.env.SBOM_PATH?.trim()) return process.env.SBOM_PATH.trim()
+  /** dist/ ao buildar; fallback para raiz do package em dev. */
+  const distPath = join(__dirname, '..', 'sbom.json')
+  if (existsSync(distPath)) return distPath
+  return join(__dirname, '..', '..', 'sbom.json')
+}
+
+securityRouter.get('/security/sbom.json', (_req, res) => {
+  const sbomPath = resolveSbomPath()
+  if (!existsSync(sbomPath)) {
+    return res.status(404).json({
+      message: 'SBOM nao gerado nesta build',
+      hint: 'Gere com: npx --yes @cyclonedx/cyclonedx-npm --output-format JSON --output-file dist/sbom.json',
+    })
+  }
+  try {
+    const content = readFileSync(sbomPath, 'utf8')
+    res.setHeader('Content-Type', 'application/vnd.cyclonedx+json')
+    res.setHeader('Cache-Control', 'public, max-age=3600')
+    res.send(content)
+  } catch (err) {
+    logWarn('sbom.read_failed', { error: (err as Error).message })
+    res.status(500).json({ message: 'Falha ao ler SBOM' })
+  }
+})
 
 /** GET /.well-known/security.txt — RFC 9116. */
 securityRouter.get('/.well-known/security.txt', (_req, res) => {

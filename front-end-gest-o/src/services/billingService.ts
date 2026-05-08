@@ -1,4 +1,5 @@
 import { http } from './http'
+import { trackEvent } from './analytics'
 
 export type BillingStatus = {
   plan: string
@@ -27,10 +28,12 @@ export async function getBillingStatus(): Promise<BillingStatus> {
 
 export async function startCheckout(plan: 'pro' | 'enterprise'): Promise<{ url: string }> {
   const { data } = await http.post<{ url: string; sessionId: string }>('/api/v1/billing/checkout-session', { plan })
+  trackEvent('billing_checkout_started', { plan })
   return { url: data.url }
 }
 
 export async function openBillingPortal(): Promise<{ url: string }> {
   const { data } = await http.post<{ url: string }>('/api/v1/billing/portal-link', {})
+  trackEvent('billing_portal_opened')
   return data
 }

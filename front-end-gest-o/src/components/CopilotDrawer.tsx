@@ -111,6 +111,9 @@ export function CopilotDrawer({ open, onClose }: Props) {
       const csrfToken = csrfMatch ? decodeURIComponent(csrfMatch[1]) : undefined
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (csrfToken) headers['X-XSRF-TOKEN'] = csrfToken
+      void import('../services/analytics').then((m) =>
+        m.trackEvent('copilot_message_sent', { promptLength: question.length }),
+      )
       const response = await fetch(`${http.defaults.baseURL}/api/v1/copilot/chat`, {
         method: 'POST',
         credentials: 'include',

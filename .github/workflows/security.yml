@@ -100,6 +100,27 @@ jobs:
         with:
           sarif_file: trivy-fs.sarif
 
+  trivy-image:
+    name: Trivy container image scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production image
+        run: docker build --target production -t iga-gestao:ci-${{ github.sha }} .
+      - uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: iga-gestao:ci-${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-image.sarif
+      - name: Upload Trivy image results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image.sarif
+
   sbom-backend:
     name: SBOM backend (CycloneDX)
     runs-on: ubuntu-latest

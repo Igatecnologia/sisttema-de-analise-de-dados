@@ -261,10 +261,12 @@ export function ReportsPage() {
       ...report.monthly.map((m) => [m.month, m.receita, m.custo, m.lucro, Math.round(m.margem * 10) / 10, m.pedidos]),
     ]
     downloadCsv(['Relatório de Vendas'], csvRows, `${basename}.csv`)
+    void import('../services/analytics').then((m) => m.trackEvent('report_exported', { format: 'csv' }))
   }
 
   function exportPdf() {
     if (!report) return
+    void import('../services/analytics').then((m) => m.trackEvent('report_exported', { format: 'pdf' }))
     void (async () => {
       const [{ jsPDF }, autoTableModule] = await Promise.all([
         import('jspdf'),

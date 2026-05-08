@@ -92,8 +92,11 @@ export function UsersPage() {
 
   const createMutation = useMutation({
     mutationFn: createUser,
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: ['users'] })
+      void import('../services/analytics').then((m) =>
+        m.trackEvent('user_invited', { role: (data as { role?: string })?.role ?? 'unknown' }),
+      )
     },
   })
   const updateMutation = useMutation({
