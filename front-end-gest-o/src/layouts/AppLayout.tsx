@@ -1,6 +1,7 @@
 import {
   AlertOutlined,
   AppstoreOutlined,
+  ApiOutlined,
   BarChartOutlined,
   CloudServerOutlined,
   CompassOutlined,
@@ -20,6 +21,7 @@ import {
   MenuUnfoldOutlined,
   ProfileOutlined,
   ShoppingCartOutlined,
+  SettingOutlined,
   TeamOutlined,
   PhoneOutlined,
 } from '@ant-design/icons'
@@ -42,10 +44,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { ForcePasswordChangeModal } from '../auth/ForcePasswordChangeModal'
+import { TermsAcceptanceModal } from '../components/TermsAcceptanceModal'
 import { hasPermission } from '../auth/permissions'
 import { useAppTheme } from '../theme/ThemeContext'
 import { useTenant } from '../tenant/TenantContext'
 import { getAppEnvBadge } from '../api/apiEnv'
+import { http } from '../services/http'
+import { setStoredSession, type AuthSession } from '../auth/authStorage'
 import {
   getAllowedRoutes,
   getWorkspaceDefinition,
@@ -60,6 +65,8 @@ import { OpenTabsBar } from '../components/OpenTabsBar'
 import { useOpenTabs } from '../hooks/useOpenTabs'
 import { GuidedTour } from '../components/GuidedTour'
 import { shouldAutoOpenTour } from '../components/guidedTourStorage'
+import { TrialBanner } from '../components/TrialBanner'
+import { PlanLimitModal } from '../components/PlanLimitModal'
 /**
  * Picker de fonte de vendas foi removido — o sistema lê automaticamente TODAS as
  * fontes compatíveis em paralelo. Ver `services/vendasAnaliticoSourceSelection.ts`.
@@ -73,6 +80,7 @@ const pageTitlesByMenuKey: Record<string, string> = {
   relatorios: 'Relatórios',
   financeiro: 'Financeiro',
   usuarios: 'Funcionários',
+  configuracoes: 'Configurações',
   auditoria: 'Auditoria',
   'dashboard-analises': 'Análises BI',
   'dashboard-vendas-analitico': 'Vendas',
@@ -87,6 +95,8 @@ const pageTitlesByMenuKey: Record<string, string> = {
   suporte: 'Área técnica',
   'suporte-fale-conosco': 'Fale conosco',
   tokens: 'Design Tokens',
+  webhooks: 'Webhooks',
+  'super-admin': 'Super Admin',
 }
 
 function getTitleByMenuKey(menuKey: string) {
@@ -100,6 +110,7 @@ function resolveMenuKeyFromPath(pathname: string): string {
   if (pathname.startsWith('/financeiro')) return 'financeiro'
   if (pathname.startsWith('/relatorios')) return 'relatorios'
   if (pathname.startsWith('/usuarios')) return 'usuarios'
+  if (pathname.startsWith('/configuracoes')) return 'configuracoes'
   if (pathname.startsWith('/auditoria')) return 'auditoria'
   if (pathname.startsWith('/producao')) return 'producao'
   if (pathname.startsWith('/ficha-tecnica')) return 'ficha-tecnica'
@@ -109,8 +120,10 @@ function resolveMenuKeyFromPath(pathname: string): string {
   if (pathname.startsWith('/alertas')) return 'alertas'
   if (pathname.startsWith('/suporte/fale-conosco')) return 'suporte-fale-conosco'
   if (pathname.startsWith('/tokens')) return 'tokens'
+  if (pathname.startsWith('/webhooks')) return 'webhooks'
   if (pathname.startsWith('/fontes-de-dados')) return 'fontes-de-dados'
   if (pathname.startsWith('/admin/operacao')) return 'admin-operacao'
+  if (pathname.startsWith('/super-admin')) return 'super-admin'
   if (pathname.startsWith('/suporte')) return 'suporte'
   return 'dashboard'
 }
@@ -125,9 +138,9 @@ function useOpenSubMenuKeys(selectedKey: string) {
     if (selectedKey === 'gestao' || selectedKey.startsWith('dashboard') || selectedKey === 'alertas') return ['sub-dashboard']
     if (selectedKey === 'producao' || selectedKey === 'ficha-tecnica' || selectedKey === 'compras' || selectedKey === 'notas-fiscais' || selectedKey === 'estoque') return ['sub-erp']
     if (selectedKey === 'financeiro' || selectedKey === 'relatorios') return ['sub-analytics']
-    if (['usuarios', 'auditoria'].includes(selectedKey)) return ['sub-admin']
+    if (['usuarios', 'configuracoes', 'auditoria', 'super-admin'].includes(selectedKey)) return ['sub-admin']
     if (
-      ['suporte', 'suporte-fale-conosco', 'tokens', 'fontes-de-dados', 'admin-operacao'].includes(selectedKey)
+      ['suporte', 'suporte-fale-conosco', 'tokens', 'webhooks', 'fontes-de-dados', 'admin-operacao'].includes(selectedKey)
     ) {
       return ['sub-suporte']
     }
@@ -153,6 +166,7 @@ const chunkPrefetchMap: Record<string, () => Promise<unknown>> = {
   '/gestao/estoque': () => import('../pages/EstoquePage'),
   '/gestao/relatorios': () => import('../pages/ReportsPage'),
   '/gestao/usuarios': () => import('../pages/UsersPage'),
+  '/configuracoes': () => import('../pages/SettingsPage'),
   '/gestao/auditoria': () => import('../pages/AuditPage'),
 }
 
@@ -187,6 +201,7 @@ function LockedModuleLabel({ children }: { children: React.ReactNode }) {
 export function AppLayout() {
   const location = useLocation()
   const selectedKey = useSelectedMenuKey(location.pathname)
+  const isSuperAdminView = selectedKey === 'super-admin'
   const defaultOpenKeys = useOpenSubMenuKeys(selectedKey)
   const [collapsed, setCollapsedRaw] = useState(() => {
     try { return localStorage.getItem('iga.sidebar.collapsed') === '1' } catch { return false }
@@ -283,12 +298,16 @@ export function AppLayout() {
 
     const adminChildren: NonNullable<React.ComponentProps<typeof Menu>['items']> = []
     if (hasPermission(session, 'users:view') && hasTenantModule(tenant.enabledModules, 'usuarios')) {
+      adminChildren.push({ key: 'configuracoes', icon: <SettingOutlined />, label: <SidebarLink to="/configuracoes">Configurações</SidebarLink> })
       adminChildren.push({ key: 'usuarios', icon: <TeamOutlined />, label: <SidebarLink to="/usuarios">Funcionários</SidebarLink> })
     }
     if (hasPermission(session, 'audit:view') && hasTenantModule(tenant.enabledModules, 'auditoria')) {
       adminChildren.push({ key: 'auditoria', icon: <FileSearchOutlined />, label: <SidebarLink to="/auditoria">Auditoria</SidebarLink> })
     }
     if (adminChildren.length) {
+      if (session?.user.role === 'admin') {
+        adminChildren.push({ key: 'super-admin', icon: <StarOutlined />, label: <SidebarLink to="/super-admin">Super Admin</SidebarLink> })
+      }
       items.push({
         key: 'sub-admin',
         icon: <TeamOutlined />,
@@ -322,6 +341,13 @@ export function AppLayout() {
           key: 'fontes-de-dados',
           icon: <DatabaseOutlined />,
           label: <SidebarLink to="/fontes-de-dados">Fontes de dados</SidebarLink>,
+        })
+      }
+      if (hasPermission(session, 'audit:view')) {
+        suporteChildren.push({
+          key: 'webhooks',
+          icon: <ApiOutlined />,
+          label: <SidebarLink to="/webhooks">Webhooks</SidebarLink>,
         })
       }
       if (hasPermission(session, 'operations:view') && hasTenantModule(tenant.enabledModules, 'operations')) {
@@ -365,6 +391,26 @@ export function AppLayout() {
       return
     }
     navigate('/gestao')
+  }
+
+  async function stopImpersonation() {
+    try {
+      await http.post('/api/v1/super-admin/impersonation/stop')
+      const me = await http.get<{
+        user: AuthSession['user']
+        permissions: AuthSession['permissions']
+        impersonation?: AuthSession['impersonation']
+      }>('/api/v1/auth/me')
+      setStoredSession({
+        user: me.data.user,
+        permissions: me.data.permissions,
+        impersonation: me.data.impersonation ?? null,
+      })
+      window.location.assign('/super-admin')
+    } catch {
+      signOut()
+      navigate('/login', { replace: true })
+    }
   }
 
   const { shortcutsOpen, closeShortcuts } = useKeyboardShortcuts({
@@ -442,6 +488,7 @@ export function AppLayout() {
             position: 'sticky',
             top: 0,
             height: '100vh',
+            background: isSuperAdminView ? '#0D1117' : undefined,
           }}
         >
           <div className="app-sider-premium__sheen" aria-hidden />
@@ -472,6 +519,11 @@ export function AppLayout() {
                   >
                     {tenant.subtitle}
                   </Typography.Text>
+                  {isSuperAdminView ? (
+                    <Tag color="red" style={{ marginTop: 6 }}>
+                      ADMIN
+                    </Tag>
+                  ) : null}
                 </div>
               )}
             </Space>
@@ -530,13 +582,37 @@ export function AppLayout() {
       )}
 
       <Layout>
+        {session?.impersonation?.active ? (
+          <div
+            role="status"
+            style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 200,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 12,
+              padding: '8px 16px',
+              background: '#b42318',
+              color: '#fff',
+              fontWeight: 700,
+            }}
+          >
+            <span>Impersonation ativa: tenant {session.impersonation.tenantId}</span>
+            <Button size="small" danger ghost onClick={stopImpersonation}>
+              Sair
+            </Button>
+          </div>
+        ) : null}
+        <TrialBanner />
         <Header
           style={{
             padding: '0 20px',
             background: token.colorBgContainer,
             borderBottom: `1px solid ${token.colorBorderSecondary}`,
             position: 'sticky',
-            top: 0,
+            top: session?.impersonation?.active ? 40 : 0,
             zIndex: 100,
           }}
         >
@@ -640,6 +716,7 @@ export function AppLayout() {
         />
         <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
         <CopilotDrawer open={copilotOpen} onClose={() => setCopilotOpen(false)} />
+        <PlanLimitModal />
         <GuidedTour open={tourOpen} onClose={() => setTourOpen(false)} />
         <Modal open={shortcutsOpen} onCancel={closeShortcuts} footer={null} title="Atalhos de teclado">
           <Space direction="vertical" style={{ width: '100%' }}>
@@ -694,6 +771,7 @@ export function AppLayout() {
 
       </Layout>
       <ForcePasswordChangeModal />
+      <TermsAcceptanceModal />
     </Layout>
   )
 }

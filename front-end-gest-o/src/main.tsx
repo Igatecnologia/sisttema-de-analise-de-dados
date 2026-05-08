@@ -23,6 +23,9 @@ import { resolveTenantIdFromLocation } from './tenant/resolveTenant'
 /** Resolve tenantId cedo — antes de qualquer read de localStorage */
 setCurrentTenantId(resolveTenantIdFromLocation(window.location))
 
+/** Bootstrap de observabilidade (Sentry + PostHog) — no-op se env vars vazias. */
+void import('./services/observabilityBootstrap').then((m) => m.bootstrapObservability())
+
 /** Fundo da tela de login (CSS não resolve import.meta.env.BASE_URL sozinho). */
 document.documentElement.style.setProperty(
   '--login-bg-image',

@@ -1,0 +1,53 @@
+name: DB Backup
+
+on:
+  schedule:
+    # Diario as 03:00 UTC (00:00 BRT). GitHub Actions free roda OK em horarios baixos.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Motivo do backup manual'
+        required: false
+        default: 'on-demand'
+
+permissions:
+  contents: read
+
+jobs:
+  pg-dump:
+    name: pg_dump Supabase -> artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install postgresql-client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: pg_dump
+        env:
+          # Setar em Settings -> Secrets -> DATABASE_URL_BACKUP
+          # Use a string DIRETA do Supabase (porta 5432, NAO o pooler 6543) — pg_dump precisa.
+          # Formato: postgresql://postgres:<senha>@db.<ref>.supabase.co:5432/postgres
+          DATABASE_URL: ${{ secrets.DATABASE_URL_BACKUP }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL_BACKUP secret nao configurado"
+            exit 1
+          fi
+          mkdir -p backups
+          STAMP=$(date -u +%Y%m%d-%H%M%S)
+          pg_dump --format=custom --compress=9 --no-owner --no-privileges \
+            --file="backups/iga-${STAMP}.dump" "$DATABASE_URL"
+          ls -lh backups/
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pg-backup-${{ github.run_id }}
+          path: backups/iga-*.dump
+          # GitHub Actions free permite ate 90 dias. Boas praticas: 30 dias balanceia espaco.
+          retention-days: 30

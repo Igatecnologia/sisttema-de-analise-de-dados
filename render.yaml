@@ -1,25 +1,86 @@
+# IGA Gestao — config de deploy free no Render.
+# Plano:
+#   - Backend: Render free (este service) — dorme apos 15min de inatividade
+#   - Frontend: Vercel free (deploy separado, nao dorme) — apontando VITE_API_BASE_URL pra cá
+#   - Postgres: Supabase free (500MB, backups automaticos 7d)
+#   - Redis: Upstash free (10k req/dia)
+#
+# Render free NAO suporta cron jobs/workers — usar GitHub Actions para tarefas agendadas.
+# Render Postgres free expira em 90 dias — por isso usamos Supabase external.
+
 services:
   - type: web
-    name: iga-gestao
+    name: iga-gestao-api
     runtime: node
     region: oregon
     plan: free
-    buildCommand: cd front-end-gest-o && npm install && npm run build && cd ../back-end-gest-o && npm install && npm run build && mkdir -p front-end-dist && cp -r ../front-end-gest-o/dist/* front-end-dist/
+    healthCheckPath: /health/live
+    buildCommand: cd back-end-gest-o && npm ci && npm run build
     startCommand: cd back-end-gest-o && node dist/server.js
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: "10000"
-      # Secrets — definir manualmente no painel do Render (Dashboard → Environment).
-      # NUNCA commitar credenciais reais aqui — git history fica publico.
+
+      # ── Storage (Supabase Postgres + Upstash Redis) ───────────────────────
+      - key: IGA_STORAGE_DRIVER
+        value: postgres
+      - key: POSTGRES_SSL
+        value: "1"
+      - key: POSTGRES_POOL_MAX
+        value: "5"
+      # DATABASE_URL — Supabase: usar Connection Pooler (transaction mode, port 6543)
+      # Formato: postgresql://postgres.<ref>:<senha>@aws-0-<region>.pooler.supabase.com:6543/postgres
+      - key: DATABASE_URL
+        sync: false
+      # REDIS_URL — Upstash: rediss://default:<senha>@<host>.upstash.io:6379
+      - key: REDIS_URL
+        sync: false
+
+      # ── Beta gratuito: gate de billing desativado ─────────────────────────
+      - key: BILLING_GATE_DISABLED
+        value: "1"
+
+      # ── Auth + secrets (gerar localmente, nao commitar) ──────────────────
       - key: ADMIN_DEFAULT_EMAIL
         sync: false
       - key: ADMIN_DEFAULT_PASSWORD
         sync: false
+      # openssl rand -hex 48
       - key: IGA_SESSION_JWT_SECRET
         sync: false
+      # openssl rand -hex 32
       - key: IGA_SECRETS_KEY
         sync: false
+      - key: SUPER_ADMIN_EMAILS
+        sync: false
+
+      # ── CORS + frontend ───────────────────────────────────────────────────
+      # FRONTEND_URL = URL do deploy Vercel (ex: https://iga-gestao.vercel.app)
+      - key: FRONTEND_URL
+        sync: false
+      # Aceita preview URLs do Vercel (PR deploys) e Render
+      - key: CORS_TENANT_DOMAIN_REGEX
+        value: "^https://(.+\\.vercel\\.app|.+\\.onrender\\.com)$"
+
+      # ── Email transacional (Resend) ───────────────────────────────────────
+      - key: RESEND_API_KEY
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+
+      # ── Anti-bot ──────────────────────────────────────────────────────────
+      - key: TURNSTILE_SECRET
+        sync: false
+
+      # ── Observabilidade (opcional) ────────────────────────────────────────
+      - key: SENTRY_DSN
+        sync: false
+
+      # ── Logs/operacionais ─────────────────────────────────────────────────
       - key: LOG_PROXY_DATA
         value: "0"
+      - key: SECURITY_CONTACT_EMAIL
+        value: security@igagestao.com.br

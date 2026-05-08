@@ -272,6 +272,21 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status, current_period_end);
 `)
+// Migração v9: terms_acceptance (SEC-4.4) — aceite versionado de Termos/Privacidade
+db.exec(`
+  CREATE TABLE IF NOT EXISTS terms_acceptance (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    terms_version TEXT NOT NULL,
+    privacy_version TEXT NOT NULL,
+    document_hash TEXT NOT NULL,
+    accepted_at TEXT NOT NULL,
+    ip_hash TEXT NULL,
+    ua_hash TEXT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_terms_acceptance_user ON terms_acceptance(user_id, accepted_at DESC);
+`)
 try { db.exec("ALTER TABLE tenants ADD COLUMN connector_id TEXT NOT NULL DEFAULT 'sgbr-espuma'") } catch { /* ja existe */ }
 try { db.exec("ALTER TABLE tenants ADD COLUMN plan TEXT NOT NULL DEFAULT 'trial'") } catch { /* ja existe */ }
 try { db.exec("ALTER TABLE tenants ADD COLUMN trial_ends_at TEXT NULL") } catch { /* ja existe */ }

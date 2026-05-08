@@ -36,6 +36,9 @@ import { lgpdRouter } from './routes/lgpd.js'
 import { superAdminRouter } from './routes/superAdmin.js'
 import { securityRouter } from './routes/security.js'
 import { connectorsRouter } from './routes/connectors.js'
+import { webhooksRouter } from './routes/webhooks.js'
+import { legalRouter } from './routes/legal.js'
+import { analyticsRouter } from './routes/analytics.js'
 import { startScheduledReportsJob } from './jobs/scheduledReports.js'
 import { startBackupScheduler } from './jobs/dbBackup.js'
 import { startCopilotRetentionJob } from './jobs/copilotRetention.js'
@@ -84,11 +87,21 @@ export function createApp(options: CreateAppOptions = {}) {
       "font-src 'self' data:",
       `connect-src ${[...new Set(connectSrc)].join(' ')}`,
       "frame-ancestors 'none'",
+      "report-uri /api/v1/security/csp-report",
+      "report-to csp-endpoint",
     ].join('; '))
     next()
   })
   app.use((_req, res, next) => {
+    /** SEC-3.3 — headers cross-origin + Permissions-Policy + Reporting API. */
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()')
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin')
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-origin')
+    /** COEP nao habilitado por default — pode quebrar imagens externas (logos do tenant, charts). */
+    res.setHeader(
+      'Reporting-Endpoints',
+      'csp-endpoint="/api/v1/security/csp-report"',
+    )
     next()
   })
   /** Gzip em todas as respostas — corta JSON do proxy SGBR em ~70-80%, payload de
@@ -102,7 +115,8 @@ export function createApp(options: CreateAppOptions = {}) {
   const isStrictlyDev = process.env.NODE_ENV === 'development'
   const tenantSubdomainRegex = process.env.CORS_TENANT_DOMAIN_REGEX
     ? new RegExp(process.env.CORS_TENANT_DOMAIN_REGEX)
-    : /^https:\/\/[a-z0-9-]+\.igagestao\.com\.br$/
+    /** Aceita: tenant.igagestao.com.br | preview do Vercel | servico no Render. */
+    : /^https:\/\/([a-z0-9-]+\.igagestao\.com\.br|[a-z0-9-]+\.vercel\.app|[a-z0-9-]+\.onrender\.com)$/
   const staticAllowed = new Set(
     isStrictlyDev
       ? [FRONTEND_URL, 'http://localhost:5173', 'http://localhost:4173']
@@ -200,6 +214,11 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/api/v1/lgpd', lgpdRouter)
   app.use('/api/v1/super-admin', superAdminRouter)
   app.use('/api/v1/connectors', connectorsRouter)
+  app.use('/api/v1/webhooks', webhooksRouter)
+  /** Legal antes do gate — modal de aceite precisa funcionar mesmo com billing pendente. */
+  app.use('/api/v1/legal', legalRouter)
+  /** Analytics tambem antes do gate — events de tela precisam fluir mesmo se billing falhou. */
+  app.use('/api/v1/analytics', analyticsRouter)
   /** Gate de billing apos as rotas de auth/billing/onboarding/tenant config. */
   app.use(subscriptionGate)
 

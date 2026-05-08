@@ -61,6 +61,9 @@ const ImportingDataPage = lazy(() =>
 const UsersPage = lazy(() =>
   import('../pages/UsersPage').then((m) => ({ default: m.UsersPage })),
 )
+const SettingsPage = lazy(() =>
+  import('../pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+)
 const AuditPage = lazy(() =>
   import('../pages/AuditPage').then((m) => ({ default: m.AuditPage })),
 )
@@ -82,6 +85,9 @@ const SuperAdminPage = lazy(() =>
 const ConnectorsMarketplacePage = lazy(() =>
   import('../pages/ConnectorsMarketplacePage').then((m) => ({ default: m.ConnectorsMarketplacePage })),
 )
+const WebhooksPage = lazy(() =>
+  import('../pages/WebhooksPage').then((m) => ({ default: m.WebhooksPage })),
+)
 const PrivacyPolicyPage = lazy(() =>
   import('../pages/LegalPages').then((m) => ({ default: m.PrivacyPolicyPage })),
 )
@@ -90,6 +96,9 @@ const TermsOfServicePage = lazy(() =>
 )
 const CookiesPolicyPage = lazy(() =>
   import('../pages/LegalPages').then((m) => ({ default: m.CookiesPolicyPage })),
+)
+const SubProcessorsPage = lazy(() =>
+  import('../pages/LegalPages').then((m) => ({ default: m.SubProcessorsPage })),
 )
 const ProducaoPage = lazy(() =>
   import('../pages/ProducaoPage').then((m) => ({ default: m.ProducaoPage })),
@@ -140,6 +149,7 @@ function moduleForPath(path: string): string {
   if (path.startsWith('/financeiro')) return 'financeiro'
   if (path.startsWith('/relatorios')) return 'relatorios'
   if (path.startsWith('/usuarios')) return 'usuarios'
+  if (path.startsWith('/configuracoes')) return 'usuarios'
   if (path.startsWith('/auditoria')) return 'auditoria'
   if (path.startsWith('/producao')) return 'producao'
   if (path.startsWith('/ficha-tecnica')) return 'ficha_tecnica'
@@ -187,6 +197,7 @@ export function AppRouter() {
             <Route path="/legal/privacidade" element={<PageErrorBoundary><PrivacyPolicyPage /></PageErrorBoundary>} />
             <Route path="/legal/termos" element={<PageErrorBoundary><TermsOfServicePage /></PageErrorBoundary>} />
             <Route path="/legal/cookies" element={<PageErrorBoundary><CookiesPolicyPage /></PageErrorBoundary>} />
+            <Route path="/legal/sub-processors" element={<PageErrorBoundary><SubProcessorsPage /></PageErrorBoundary>} />
             <Route path="/onboarding" element={<RequireAuth><OnboardingPage /></RequireAuth>} />
             <Route path="/importando-dados" element={<RequireAuth><ImportingDataPage /></RequireAuth>} />
             <Route
@@ -258,6 +269,14 @@ export function AppRouter() {
             }
           />
           <Route
+            path="/configuracoes"
+            element={
+              <RequirePermission permission="users:view">
+                <RequireTenantModule path="/configuracoes"><PageErrorBoundary><SettingsPage /></PageErrorBoundary></RequireTenantModule>
+              </RequirePermission>
+            }
+          />
+          <Route
             path="/auditoria"
             element={
               <RequirePermission permission="audit:view">
@@ -284,6 +303,14 @@ export function AppRouter() {
           <Route
             path="/connectors"
             element={<PageErrorBoundary><ConnectorsMarketplacePage /></PageErrorBoundary>}
+          />
+          <Route
+            path="/webhooks"
+            element={
+              <RequirePermission permission="audit:view">
+                <PageErrorBoundary><WebhooksPage /></PageErrorBoundary>
+              </RequirePermission>
+            }
           />
           <Route
             path="/super-admin"

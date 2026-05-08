@@ -23,6 +23,8 @@ export function RegisterPage() {
     try {
       const response = await registerSelfService(values)
       setCreated({ slug: response.tenant.slug, token: response.verification?.token })
+      const { trackEvent } = await import('../services/analytics')
+      trackEvent('auth_register', { connectorId: values.connectorId, slug: response.tenant.slug })
     } finally {
       setSubmitting(false)
     }
@@ -75,6 +77,7 @@ export function RegisterPage() {
               <Form.Item name="connectorId" label="Conector" rules={[{ required: true }]}>
                 <Select options={[
                   { value: 'sgbr-espuma', label: 'SGBR Espuma' },
+                  { value: 'iga-custom-api', label: 'API propria IGA' },
                   { value: 'generic', label: 'Generico' },
                 ]} />
               </Form.Item>
@@ -92,7 +95,7 @@ export function RegisterPage() {
           </Card>
           <aside style={{ padding: 24, borderRadius: 16, background: 'rgba(22,119,255,0.08)', border: '1px solid rgba(22,119,255,0.18)' }}>
             <Typography.Title level={3}>Trial pronto para dados reais</Typography.Title>
-            <Typography.Paragraph>Conecte SGBR BI ou uma API generica, convide a equipe e acompanhe o primeiro processamento no onboarding.</Typography.Paragraph>
+            <Typography.Paragraph>Conecte SGBR BI, API generica ou uma API propria criada pela IGA quando o ERP nao tiver API oficial.</Typography.Paragraph>
             <Typography.Text strong>Inclui:</Typography.Text>
             <ul>
               <li>14 dias de teste</li>

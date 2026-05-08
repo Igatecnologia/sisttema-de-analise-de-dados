@@ -42,6 +42,7 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import { useSearchParams } from 'react-router-dom'
 import {
   listDataSources,
   listDataSourcesFromApi,
@@ -86,6 +87,37 @@ const TRANSFORM_OPTIONS = [
   { value: 'uppercase', label: 'Maiusculas' },
   { value: 'lowercase', label: 'Minusculas' },
 ]
+
+const CONNECTOR_PRESETS: Record<string, Partial<DataSourceCreatePayload> & { name: string }> = {
+  'sgbr-espuma': {
+    name: 'SGBR BI',
+    type: 'sgbr_bi',
+    authMethod: 'jwt',
+    loginEndpoint: '/sgbrbi/usuario/login',
+    dataEndpoint: '/sgbrbi/vendas/analitico',
+    loginFieldUser: 'login',
+    loginFieldPassword: 'senha',
+  },
+  generic: {
+    name: 'API REST generica',
+    type: 'rest_api',
+    authMethod: 'bearer_token',
+    dataEndpoint: '/v1/vendas',
+  },
+  csv: {
+    name: 'CSV / Excel',
+    type: 'custom',
+    authMethod: 'none',
+    dataEndpoint: '/csv/vendas',
+  },
+  'iga-custom-api': {
+    name: 'API propria IGA',
+    type: 'custom',
+    authMethod: 'bearer_token',
+    dataEndpoint: '/iga/v1/vendas',
+    erpEndpoints: ['vendas'],
+  },
+}
 
 const sectionShell: CSSProperties = {
   borderRadius: 12,
@@ -139,6 +171,7 @@ type DataSourceStats = {
 }
 
 export function DataSourceConfigPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [dataSources, setDataSources] = useState<DataSource[]>([])
   const [loading, setLoading] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -248,6 +281,30 @@ export function DataSourceConfigPage() {
     }
     setDrawerOpen(true)
   }
+
+  useEffect(() => {
+    const connectorId = searchParams.get('connector')
+    if (!connectorId || drawerOpen || editingId) return
+    const preset = CONNECTOR_PRESETS[connectorId]
+    if (!preset) return
+    setTestResult(null)
+    setDiagnostic(null)
+    setEditingId(null)
+    form.resetFields()
+    form.setFieldsValue({
+      type: 'rest_api',
+      authMethod: 'none',
+      isAuthSource: false,
+      passwordMode: 'plain',
+      loginFieldUser: 'login',
+      loginFieldPassword: 'senha',
+      erpEndpoints: [],
+      fieldMappings: [],
+      ...preset,
+    })
+    setDrawerOpen(true)
+    setSearchParams({}, { replace: true })
+  }, [drawerOpen, editingId, form, searchParams, setSearchParams])
 
   const handleTest = async () => {
     setTesting(true)

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { TenantContext, DEFAULT_TENANT, defaultBrandLogoUrl, type TenantConfig } from './TenantContext'
 import { setCurrentTenantId } from './tenantStorage'
 import { resolveTenantIdFromLocation } from './resolveTenant'
@@ -65,6 +65,14 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const envConfig = useMemo(() => loadTenantFromEnv(tenantId), [tenantId])
   const [tenant, setTenant] = useState<TenantConfig>(envConfig)
 
+  const refreshTenant = useCallback(async () => {
+    const remote = await fetchTenantConfig(tenantId)
+    if (remote) {
+      setTenant(remote)
+      applyTenantColors(remote)
+    }
+  }, [tenantId])
+
   useEffect(() => {
     setCurrentTenantId(tenantId)
     applyTenantColors(envConfig)
@@ -78,7 +86,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     })
   }, [tenantId, envConfig])
 
-  const value = useMemo(() => ({ tenant }), [tenant])
+  const value = useMemo(() => ({ tenant, refreshTenant }), [tenant, refreshTenant])
 
   return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>
 }

@@ -20,8 +20,6 @@ test.describe('SaaS smoke — backend HTTP', () => {
   test.describe.configure({ mode: 'serial' })
 
   let token: string
-  let csrfCookie: string
-  let sessionCookie: string
 
   test.beforeAll(async () => {
     const ctx = await request.newContext()
@@ -37,8 +35,8 @@ test.describe('SaaS smoke — backend HTTP', () => {
     expect(body.permissions).toContain('dashboard:view')
     /** Captura cookies (httpOnly session + CSRF) — Playwright nao expoe httpOnly direto. */
     const setCookies = res.headersArray().filter((h) => h.name.toLowerCase() === 'set-cookie')
-    sessionCookie = setCookies.find((c) => c.value.startsWith('iga_session='))?.value ?? ''
-    csrfCookie = setCookies.find((c) => c.value.startsWith('XSRF-TOKEN='))?.value ?? ''
+    expect(setCookies.some((c) => c.value.startsWith('iga_session='))).toBeTruthy()
+    expect(setCookies.some((c) => c.value.startsWith('XSRF-TOKEN='))).toBeTruthy()
     await ctx.dispose()
   })
 

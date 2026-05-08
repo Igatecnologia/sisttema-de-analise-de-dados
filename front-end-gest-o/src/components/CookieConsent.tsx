@@ -1,5 +1,6 @@
 import { Button, Modal, Space, Switch, Typography } from 'antd'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { getConsent, saveConsent } from './cookieConsentStore'
 
 /**
  * Banner LGPD de consentimento — 3 categorias (essential / analytics / marketing).
@@ -8,54 +9,11 @@ import { useEffect, useState } from 'react'
  * Uso: outros componentes consultam `getConsent()` para saber se podem disparar
  * GA4/Hotjar/etc.
  */
-const STORAGE_KEY = 'iga.cookieConsent.v1'
-
-export type ConsentChoice = {
-  essential: true
-  analytics: boolean
-  marketing: boolean
-  decidedAt: string
-}
-
-export function getConsent(): ConsentChoice | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as Partial<ConsentChoice>
-    if (parsed && typeof parsed === 'object' && parsed.decidedAt) {
-      return {
-        essential: true,
-        analytics: Boolean(parsed.analytics),
-        marketing: Boolean(parsed.marketing),
-        decidedAt: parsed.decidedAt,
-      }
-    }
-    return null
-  } catch {
-    return null
-  }
-}
-
-function saveConsent(choice: Omit<ConsentChoice, 'essential' | 'decidedAt'>) {
-  const data: ConsentChoice = {
-    essential: true,
-    analytics: choice.analytics,
-    marketing: choice.marketing,
-    decidedAt: new Date().toISOString(),
-  }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-}
-
 export function CookieConsent() {
-  const [visible, setVisible] = useState(false)
+  const [visible, setVisible] = useState(() => getConsent() === null)
   const [details, setDetails] = useState(false)
   const [analytics, setAnalytics] = useState(false)
   const [marketing, setMarketing] = useState(false)
-
-  useEffect(() => {
-    const current = getConsent()
-    if (!current) setVisible(true)
-  }, [])
 
   if (!visible) return null
 

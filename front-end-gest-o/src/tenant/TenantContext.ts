@@ -43,6 +43,7 @@ export type TenantConfig = {
 
 export type TenantContextValue = {
   tenant: TenantConfig
+  refreshTenant: () => Promise<void>
 }
 
 /** Tenant padrão — usado quando nenhum tenant é resolvido */
@@ -90,4 +91,9 @@ export const TenantContext = createContext<TenantContextValue | null>(null)
 export function useTenant(): TenantConfig {
   const ctx = useContext(TenantContext)
   return ctx?.tenant ?? DEFAULT_TENANT
+}
+
+export function useTenantRefresh(): () => Promise<void> {
+  const ctx = useContext(TenantContext)
+  return ctx?.refreshTenant ?? (async () => undefined)
 }

@@ -17,6 +17,7 @@ export const NAV_ROUTES: NavRouteItem[] = [
   { key: 'alertas', path: '/alertas', title: 'Alertas', permission: 'alertas:view' },
   { key: 'financeiro', path: '/financeiro', title: 'Financeiro', permission: 'reports:view' },
   { key: 'relatorios', path: '/relatorios', title: 'Relatórios', permission: 'reports:view' },
+  { key: 'configuracoes', path: '/configuracoes', title: 'Configurações', permission: 'users:view' },
   { key: 'usuarios', path: '/usuarios', title: 'Funcionários', permission: 'users:view' },
   { key: 'auditoria', path: '/auditoria', title: 'Auditoria', permission: 'audit:view' },
   { key: 'producao', path: '/producao', title: 'Produção', permission: 'producao:view' },

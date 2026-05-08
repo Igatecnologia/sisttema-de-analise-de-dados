@@ -1,4 +1,4 @@
-import { Card, Typography } from 'antd'
+import { Card, Table, Tag, Typography } from 'antd'
 import { PageHeaderCard } from '../components/PageHeaderCard'
 
 const today = new Date().toISOString().slice(0, 10)
@@ -66,6 +66,104 @@ export function TermsOfServicePage() {
             Foro de Sao Paulo, SP, Brasil.
           </Typography.Paragraph>
         </Typography>
+      </Card>
+    </div>
+  )
+}
+
+type SubProcessor = {
+  vendor: string
+  purpose: string
+  dataProcessed: string
+  region: string
+  dpa: 'signed' | 'pending' | 'na'
+}
+
+const SUB_PROCESSORS: SubProcessor[] = [
+  {
+    vendor: 'Stripe',
+    purpose: 'Processamento de pagamentos (checkout, faturas, portal de billing)',
+    dataProcessed: 'Nome, email, dados de cartao (tokenizados pela Stripe), historico de assinatura',
+    region: 'Estados Unidos / Irlanda (EU)',
+    dpa: 'pending',
+  },
+  {
+    vendor: 'Cloudflare',
+    purpose: 'CDN, WAF, mitigacao DDoS, DNS',
+    dataProcessed: 'IP, headers HTTP, logs de requisicao (24h)',
+    region: 'Global (anycast)',
+    dpa: 'pending',
+  },
+  {
+    vendor: 'Resend',
+    purpose: 'Envio de emails transacionais (verificacao, convite, alertas)',
+    dataProcessed: 'Email do destinatario, conteudo da mensagem, status de entrega',
+    region: 'Estados Unidos',
+    dpa: 'pending',
+  },
+  {
+    vendor: 'Groq',
+    purpose: 'Inferencia LLM para o Copilot IA',
+    dataProcessed: 'Prompt do usuario (pode conter PII se digitada), resposta do modelo',
+    region: 'Estados Unidos',
+    dpa: 'pending',
+  },
+  {
+    vendor: 'Render',
+    purpose: 'Hospedagem da aplicacao (compute, Postgres gerenciado, Redis)',
+    dataProcessed: 'Todos os dados da aplicacao em repouso',
+    region: 'Estados Unidos (Oregon)',
+    dpa: 'pending',
+  },
+  {
+    vendor: 'Sentry',
+    purpose: 'Error tracking e performance monitoring',
+    dataProcessed: 'Stack traces, breadcrumbs (com PII redactada via beforeSend)',
+    region: 'Estados Unidos / UE',
+    dpa: 'pending',
+  },
+]
+
+export function SubProcessorsPage() {
+  const dpaTag = (status: SubProcessor['dpa']) => {
+    if (status === 'signed') return <Tag color="green">DPA assinado</Tag>
+    if (status === 'pending') return <Tag color="gold">DPA pendente</Tag>
+    return <Tag>NAO se aplica</Tag>
+  }
+  return (
+    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <PageHeaderCard
+        title="Sub-processadores"
+        subtitle={`Ultima atualizacao: ${today}`}
+      />
+      <Card>
+        <Typography.Paragraph>
+          Esta pagina lista todos os sub-processadores que tratam dados pessoais em nome da
+          IGA Gestao, conforme exigido pela LGPD (Art. 39) e GDPR (Art. 28). Notificaremos
+          alteracoes nesta lista com 30 dias de antecedencia via email aos administradores
+          de cada tenant.
+        </Typography.Paragraph>
+        <Table<SubProcessor>
+          dataSource={SUB_PROCESSORS}
+          rowKey="vendor"
+          pagination={false}
+          columns={[
+            { title: 'Provedor', dataIndex: 'vendor', width: 140 },
+            { title: 'Finalidade', dataIndex: 'purpose' },
+            { title: 'Dados tratados', dataIndex: 'dataProcessed' },
+            { title: 'Regiao', dataIndex: 'region', width: 180 },
+            {
+              title: 'DPA',
+              dataIndex: 'dpa',
+              width: 140,
+              render: (value: SubProcessor['dpa']) => dpaTag(value),
+            },
+          ]}
+        />
+        <Typography.Paragraph style={{ marginTop: 16 }}>
+          Para questoes sobre sub-processadores ou para solicitar copia de DPAs assinados,
+          contate <strong>lgpd@igagestao.com.br</strong>.
+        </Typography.Paragraph>
       </Card>
     </div>
   )

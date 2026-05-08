@@ -11,14 +11,14 @@
 
 ### Estado de teste
 
-- **Backend:** 43 vitest pass + 5 RLS skipped (sem DATABASE_URL) → 48 testes
+- **Backend:** 47 vitest pass + 5 RLS skipped (sem DATABASE_URL) → 52 testes
 - **E2E backend SaaS:** 15/15 smokes passando (`--project=api`)
 - **E2E UI:** auth.setup OK; 4 testes legados (bi-reports, rbac-and-crud) com seletores obsoletos
 - **Type-check:** limpo backend + frontend
 
 ### Sprints concluídas
 
-- S0 ✅ S1 ✅ S2 ✅ S3 ✅ S4 ✅ S5 ✅ (95% — falta T8 settings) S7 ✅ (90% — falta impersonation)
+- S0 ✅ S1 ✅ S2 ✅ S3 ✅ S4 ✅ S5 ✅ (100%) S7 ✅ S8 ✅
 - SEC-1 ✅ 95% (1.4 Doppler e 1.7 file upload são operacional/sem feature)
 - SEC-2 ✅ 90% (só falta 2.7 SSO Enterprise — paid)
 - SEC-3 ⚠️ 30% (CORS dinâmico + security.txt feitos; falta SAST/DAST/CSP nonce/WAF)
@@ -26,7 +26,7 @@
 
 ---
 
-## Próximo passo recomendado: **caminho mínimo para 1º pagante (~5 semanas)**
+## Próximo passo recomendado: **caminho mínimo para 1º pagante (~4 semanas)**
 
 Em ordem:
 
@@ -132,13 +132,13 @@ Senha: AdminTeste2026!
 ## Pendências técnicas conhecidas
 
 ### Pequenas (1-2h cada)
-- [ ] **S5 T8** — `SettingsPage` para configurar empresa/equipe/integrações no perfil do tenant
-- [ ] **S5 LGPD export tenant** — `GET /api/v1/tenants/:id/export` (admin do tenant)
-- [ ] **Limites por plano** — middleware que conta users/datasources/copilot calls e bloqueia conforme plan
+- [x] **S5 T8** — `SettingsPage` para configurar empresa/equipe/integrações no perfil do tenant
+- [x] **S5 LGPD export tenant** — `GET /api/v1/tenants/:id/export` (admin do tenant)
+- [x] **Limites por plano** — middleware que conta users/datasources/copilot calls e bloqueia conforme plan
 - [ ] **Atualizar testes E2E legados** — bi-reports.spec.ts e rbac-and-crud.spec.ts têm seletores obsoletos
 
 ### Médias (4-8h)
-- [ ] **S7 impersonation** — super-admin entra como tenant X com banner vermelho fixo + audit
+- [x] **S7 impersonation** — super-admin entra como tenant X com banner vermelho fixo + audit
 - [ ] **OPS-3 a11y** — WCAG 2.2 AA audit + correções (Lighthouse a11y ≥ 95)
 - [ ] **OPS-4 analytics** — PostHog tracking 30+ events + feature flags
 - [ ] **Bling/Tiny/Omie OAuth real** — connectors hoje são stubs; precisam client_id/secret de cada

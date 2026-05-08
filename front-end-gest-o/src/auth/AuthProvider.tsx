@@ -51,10 +51,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const payload = response.data as {
           user: AuthSession['user']
           permissions: AuthSession['permissions']
+          impersonation?: AuthSession['impersonation']
         }
         setSession({
           user: payload.user,
           permissions: payload.permissions,
+          impersonation: payload.impersonation ?? null,
         })
       })
       .catch(() => {
@@ -97,8 +99,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const payload = me.data as {
           user: AuthSession['user']
           permissions: AuthSession['permissions']
+          impersonation?: AuthSession['impersonation']
         }
-        const normalized: AuthSession = { user: payload.user, permissions: payload.permissions }
+        const normalized: AuthSession = { user: payload.user, permissions: payload.permissions, impersonation: payload.impersonation ?? null }
         setSession(normalized)
         setStoredSession(normalized)
       } catch {

@@ -66,6 +66,12 @@ export function createAuthorizedAxios(baseURL: string, timeoutMs = 180_000): Axi
       if (err && typeof err === 'object') {
         ;(err as { contextMessage?: string }).contextMessage = getHttpStatusMessage(status)
       }
+      if (status === 402 && typeof window !== 'undefined') {
+        const data = err?.response?.data as Record<string, unknown> | undefined
+        if (data?.reason === 'plan_limit_reached') {
+          window.dispatchEvent(new CustomEvent('iga:plan-limit-reached', { detail: data }))
+        }
+      }
       return Promise.reject(err)
     },
   )

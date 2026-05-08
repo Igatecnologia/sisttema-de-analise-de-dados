@@ -1,10 +1,41 @@
-import { Router } from 'express'
+import { Router, json } from 'express'
+import { logWarn } from '../services/structuredLog.js'
 
 /**
  * Endpoints publicos de seguranca (RFC 9116 + best practices).
  * Sem auth.
  */
 export const securityRouter = Router()
+
+/**
+ * SEC-3.3 — CSP violation reporting endpoint.
+ * Browsers POSTam relatorios em formato `application/csp-report` ou `application/reports+json`.
+ * Rate limit em memoria: max 10 reports/segundo/IP — evita inundacao por extensao maliciosa.
+ */
+const cspReportCounters = new Map<string, { count: number; windowStart: number }>()
+const CSP_REPORT_WINDOW_MS = 1000
+const CSP_REPORT_MAX_PER_WINDOW = 10
+
+securityRouter.post(
+  '/api/v1/security/csp-report',
+  json({ type: ['application/csp-report', 'application/reports+json', 'application/json'], limit: '32kb' }),
+  (req, res) => {
+    const ip = (req.ip ?? req.socket?.remoteAddress ?? 'unknown').toString()
+    const now = Date.now()
+    const counter = cspReportCounters.get(ip)
+    if (!counter || now - counter.windowStart > CSP_REPORT_WINDOW_MS) {
+      cspReportCounters.set(ip, { count: 1, windowStart: now })
+    } else if (counter.count >= CSP_REPORT_MAX_PER_WINDOW) {
+      return res.status(429).end()
+    } else {
+      counter.count += 1
+    }
+    /** Body pode ser { 'csp-report': {...} } ou um array (Reporting API). */
+    const body = req.body as unknown
+    logWarn('csp.violation', { ip, body })
+    res.status(204).end()
+  },
+)
 
 /** GET /.well-known/security.txt — RFC 9116. */
 securityRouter.get('/.well-known/security.txt', (_req, res) => {

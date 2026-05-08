@@ -1,17 +1,103 @@
 import { Router, type Response } from 'express'
+import { z } from 'zod'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js'
 import { findUserByIdForTenantAsync, readAllUsersAsync } from '../userStorage.js'
-import { findTenantBySlug } from '../tenantStorage.js'
+import { deleteTenant, findTenantBySlug, genTenantId, upsertTenant } from '../tenantStorage.js'
 import { getDb } from '../db/sqlite.js'
 import { getPostgresPool, hasPostgresConfig } from '../db/postgres.js'
 import { logAudit } from '../services/auditLog.js'
+import { readCookieToken } from './auth.js'
+import { registerToken, revokeToken } from '../middleware/auth.js'
+import { signSessionJwt } from '../services/sessionJwt.js'
+import { buildSessionBinding } from '../services/sessionStore.js'
+import { resolveEffectivePermissions } from '../permissions.js'
+import { readAllAsync as readAllDataSourcesAsync } from '../storage.js'
 
 export const superAdminRouter = Router()
 
 const db = getDb()
+const PRICE_BRL: Record<string, number> = { trial: 0, starter: 97, pro: 197, enterprise: 497 }
+const DEFAULT_MODULES = [
+  'dashboard',
+  'financeiro',
+  'relatorios',
+  'usuarios',
+  'auditoria',
+  'datasources',
+  'operations',
+]
+
+const tenantBodySchema = z.object({
+  slug: z.string().min(2).max(64).regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/, 'Slug invalido').optional(),
+  name: z.string().min(1).max(160),
+  subtitle: z.string().min(1).max(160).default('Gestao e Analise de Dados'),
+  logoUrl: z.string().url().max(600).nullable().optional(),
+  primaryColor: z.string().regex(/^#[0-9a-fA-F]{3,8}$/).nullable().optional(),
+  connectorId: z.string().min(2).max(64).default('sgbr-espuma'),
+  plan: z.enum(['trial', 'starter', 'pro', 'enterprise']).default('trial'),
+  trialEndsAt: z.string().datetime().nullable().optional(),
+  enabledModules: z.array(z.string().min(1).max(80)).default(DEFAULT_MODULES),
+  status: z.enum(['active', 'inactive']).default('active'),
+})
 
 function usePostgresStorage(): boolean {
   return process.env.IGA_STORAGE_DRIVER === 'postgres' && hasPostgresConfig()
+}
+
+const useSecureCookie =
+  process.env.NODE_ENV === 'production' && !process.env.ELECTRON_RUN_AS_NODE
+
+function buildCookie(name: string, value: string, maxAgeSeconds: number): string {
+  const parts = [
+    `${name}=${encodeURIComponent(value)}`,
+    'HttpOnly',
+    'Path=/',
+    `Max-Age=${maxAgeSeconds}`,
+    'SameSite=Strict',
+  ]
+  if (useSecureCookie) parts.push('Secure')
+  return parts.join('; ')
+}
+
+function clearCookie(name: string): string {
+  const parts = [
+    `${name}=`,
+    'HttpOnly',
+    'Path=/',
+    'Max-Age=0',
+    'SameSite=Strict',
+  ]
+  if (useSecureCookie) parts.push('Secure')
+  return parts.join('; ')
+}
+
+function authPayload(user: Awaited<ReturnType<typeof findUserByIdForTenantAsync>>, tenantId: string) {
+  if (!user) return null
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      mustChangePassword: user.mustChangePassword ?? false,
+    },
+    permissions: resolveEffectivePermissions(user.role, user.permissions),
+    impersonation: { active: true, tenantId },
+  }
+}
+
+async function loadSubscriptionsByTenant(): Promise<Map<string, { plan: string; status: string }>> {
+  const map = new Map<string, { plan: string; status: string }>()
+  if (usePostgresStorage()) {
+    const result = await getPostgresPool().query<{ tenant_id: string; plan: string; status: string }>(
+      'SELECT tenant_id, plan, status FROM subscriptions',
+    )
+    for (const row of result.rows) map.set(row.tenant_id, { plan: row.plan, status: row.status })
+    return map
+  }
+  const rows = db.prepare('SELECT tenant_id, plan, status FROM subscriptions').all() as Array<{ tenant_id: string; plan: string; status: string }>
+  for (const row of rows) map.set(row.tenant_id, { plan: row.plan, status: row.status })
+  return map
 }
 
 /**
@@ -28,7 +114,7 @@ async function requireSuperAdmin(req: import('express').Request, res: Response, 
       .filter(Boolean)
     const user = await findUserByIdForTenantAsync(authReq.userId, authReq.tenantId)
     if (!user) return res.status(401).json({ message: 'Usuario nao encontrado' })
-    if (allowed.length > 0 && !allowed.includes(user.email.toLowerCase())) {
+    if (allowed.length === 0 || !allowed.includes(user.email.toLowerCase())) {
       logAudit({ userId: authReq.userId, action: 'super_admin_denied', resource: 'super_admin', metadata: { email: user.email } })
       return res.status(403).json({ message: 'Acesso restrito a super-admins.' })
     }
@@ -37,6 +123,28 @@ async function requireSuperAdmin(req: import('express').Request, res: Response, 
     next()
   })
 }
+
+superAdminRouter.post('/impersonation/stop', requireAuth, async (req, res: Response) => {
+  const current = req as unknown as AuthenticatedRequest
+  const impersonatorToken = readCookieToken(req.headers.cookie, 'iga_impersonator')
+  if (!impersonatorToken) return res.status(409).json({ message: 'Nenhuma impersonation ativa.' })
+
+  const currentToken = readCookieToken(req.headers.cookie, 'iga_session')
+  if (currentToken) await revokeToken(currentToken).catch(() => undefined)
+
+  logAudit({
+    userId: current.userId,
+    tenantId: current.tenantId,
+    action: 'super_admin_impersonation_stopped',
+    resource: 'super_admin',
+    metadata: { tenantId: current.tenantId },
+  })
+  res.setHeader('Set-Cookie', [
+    buildCookie('iga_session', impersonatorToken, 28_800),
+    clearCookie('iga_impersonator'),
+  ])
+  res.json({ ok: true, impersonation: null })
+})
 
 superAdminRouter.use(requireSuperAdmin)
 
@@ -53,11 +161,18 @@ superAdminRouter.get('/tenants', async (_req, res) => {
     tenantsRaw = db.prepare('SELECT id, slug, name, plan, status, trial_ends_at, created_at FROM tenants ORDER BY created_at DESC').all() as typeof tenantsRaw
   }
 
-  /** Conta usuarios por tenant. */
-  const allUsers = await readAllUsersAsync()
+  const [allUsers, allDataSources, subscriptions] = await Promise.all([
+    readAllUsersAsync(),
+    readAllDataSourcesAsync(),
+    loadSubscriptionsByTenant(),
+  ])
   const userCount = new Map<string, number>()
   for (const u of allUsers) {
     userCount.set(u.tenantId, (userCount.get(u.tenantId) ?? 0) + 1)
+  }
+  const datasourceCount = new Map<string, number>()
+  for (const ds of allDataSources) {
+    datasourceCount.set(ds.tenantId, (datasourceCount.get(ds.tenantId) ?? 0) + 1)
   }
 
   const tenants = tenantsRaw.map((t) => ({
@@ -69,6 +184,9 @@ superAdminRouter.get('/tenants', async (_req, res) => {
     trialEndsAt: t.trial_ends_at,
     createdAt: t.created_at,
     userCount: userCount.get(t.id) ?? 0,
+    datasourceCount: datasourceCount.get(t.id) ?? 0,
+    subscriptionStatus: subscriptions.get(t.id)?.status ?? (t.plan === 'trial' ? 'trialing' : 'none'),
+    mrrBrlCents: (subscriptions.get(t.id)?.status === 'active' ? PRICE_BRL[subscriptions.get(t.id)?.plan ?? t.plan] ?? 0 : 0) * 100,
   }))
 
   res.json({
@@ -85,6 +203,69 @@ superAdminRouter.get('/tenants', async (_req, res) => {
       }, {}),
     },
   })
+})
+
+superAdminRouter.post('/tenants', async (req, res: Response) => {
+  const authReq = req as unknown as AuthenticatedRequest
+  const parsed = tenantBodySchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
+  const slug = (parsed.data.slug ?? parsed.data.name).trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+  const existing = await findTenantBySlug(slug)
+  if (existing) return res.status(409).json({ message: 'Ja existe um tenant com este slug' })
+  const tenant = await upsertTenant({
+    id: genTenantId(slug),
+    slug,
+    name: parsed.data.name.trim(),
+    subtitle: parsed.data.subtitle.trim(),
+    logoUrl: parsed.data.logoUrl ?? null,
+    primaryColor: parsed.data.primaryColor ?? null,
+    enabledModules: [...new Set(parsed.data.enabledModules)].sort(),
+    connectorId: parsed.data.connectorId,
+    plan: parsed.data.plan,
+    trialEndsAt: parsed.data.trialEndsAt ?? null,
+    status: parsed.data.status,
+  })
+  logAudit({ userId: authReq.userId, tenantId: authReq.tenantId, action: 'super_admin_tenant_created', resource: 'super_admin', metadata: { tenantId: tenant.id, slug: tenant.slug } })
+  res.status(201).json(tenant)
+})
+
+superAdminRouter.put('/tenants/:id', async (req, res: Response) => {
+  const authReq = req as unknown as AuthenticatedRequest
+  const current = await findTenantBySlug(req.params.id)
+  if (!current) return res.status(404).json({ message: 'Tenant nao encontrado' })
+  const parsed = tenantBodySchema.partial().safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
+  const nextSlug = parsed.data.slug?.trim().toLowerCase() ?? current.slug
+  if (nextSlug !== current.slug) {
+    const duplicate = await findTenantBySlug(nextSlug)
+    if (duplicate) return res.status(409).json({ message: 'Ja existe um tenant com este slug' })
+  }
+  const tenant = await upsertTenant({
+    id: current.id,
+    slug: nextSlug,
+    name: parsed.data.name?.trim() ?? current.name,
+    subtitle: parsed.data.subtitle?.trim() ?? current.subtitle,
+    logoUrl: parsed.data.logoUrl === undefined ? current.logoUrl : parsed.data.logoUrl,
+    primaryColor: parsed.data.primaryColor === undefined ? current.primaryColor : parsed.data.primaryColor,
+    enabledModules: parsed.data.enabledModules ? [...new Set(parsed.data.enabledModules)].sort() : current.enabledModules,
+    connectorId: parsed.data.connectorId ?? current.connectorId,
+    plan: parsed.data.plan ?? current.plan,
+    trialEndsAt: parsed.data.trialEndsAt === undefined ? current.trialEndsAt : parsed.data.trialEndsAt,
+    status: parsed.data.status ?? current.status,
+  })
+  logAudit({ userId: authReq.userId, tenantId: authReq.tenantId, action: 'super_admin_tenant_updated', resource: 'super_admin', metadata: { tenantId: tenant.id, slug: tenant.slug } })
+  res.json(tenant)
+})
+
+superAdminRouter.delete('/tenants/:id', async (req, res: Response) => {
+  const authReq = req as unknown as AuthenticatedRequest
+  if (req.params.id === 'default') return res.status(400).json({ message: 'Tenant default nao pode ser excluido' })
+  const tenant = await findTenantBySlug(req.params.id)
+  if (!tenant) return res.status(404).json({ message: 'Tenant nao encontrado' })
+  const ok = await deleteTenant(tenant.id)
+  if (!ok) return res.status(404).json({ message: 'Tenant nao encontrado' })
+  logAudit({ userId: authReq.userId, tenantId: authReq.tenantId, action: 'super_admin_tenant_deleted', resource: 'super_admin', metadata: { tenantId: tenant.id, slug: tenant.slug } })
+  res.json({ ok: true })
 })
 
 /** POST /api/v1/super-admin/tenants/:id/suspend — suspende tenant. */
@@ -119,10 +300,46 @@ superAdminRouter.post('/tenants/:id/activate', async (req, res: Response) => {
   res.json({ ok: true })
 })
 
+superAdminRouter.post('/tenants/:id/impersonate', async (req, res: Response) => {
+  const authReq = req as unknown as AuthenticatedRequest
+  const targetTenantId = req.params.id
+  const tenant = await findTenantBySlug(targetTenantId)
+  if (!tenant || tenant.status !== 'active') return res.status(404).json({ message: 'Tenant ativo nao encontrado' })
+
+  const users = await readAllUsersAsync()
+  const targetUser = users.find(
+    (user) => user.tenantId === targetTenantId && user.role === 'admin' && user.status === 'active',
+  ) ?? users.find((user) => user.tenantId === targetTenantId && user.status === 'active')
+
+  if (!targetUser) return res.status(404).json({ message: 'Tenant sem usuario ativo para impersonation' })
+
+  const currentToken = readCookieToken(req.headers.cookie, 'iga_session')
+  if (!currentToken) return res.status(401).json({ message: 'Sessao original nao encontrada' })
+
+  const token = signSessionJwt({
+    sub: targetUser.id,
+    tid: targetTenantId,
+    role: targetUser.role,
+    plan: tenant.plan,
+  })
+  const userAgent = typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : ''
+  await registerToken(token, targetUser.id, targetTenantId, buildSessionBinding(req.ip ?? '', userAgent))
+  logAudit({
+    userId: authReq.userId,
+    tenantId: authReq.tenantId,
+    action: 'super_admin_impersonation_started',
+    resource: 'super_admin',
+    metadata: { targetTenantId, targetUserId: targetUser.id },
+  })
+  res.setHeader('Set-Cookie', [
+    buildCookie('iga_impersonator', currentToken, 28_800),
+    buildCookie('iga_session', token, 28_800),
+  ])
+  res.json(authPayload(targetUser, targetTenantId))
+})
+
 /** GET /api/v1/super-admin/metrics — MRR, churn estimado, tenants ativos. */
 superAdminRouter.get('/metrics', async (_req, res) => {
-  /** MRR estimado pelos planos ativos x preco hardcoded ate trazer do Stripe. */
-  const PRICE: Record<string, number> = { free: 0, pro: 197, enterprise: 497 }
   let active = 0
   let mrrCents = 0
   let trialing = 0
@@ -136,7 +353,7 @@ superAdminRouter.get('/metrics', async (_req, res) => {
     for (const r of subs.rows) {
       if (r.status === 'active') {
         active++
-        mrrCents += (PRICE[r.plan] ?? 0) * 100
+        mrrCents += (PRICE_BRL[r.plan] ?? 0) * 100
       }
       if (r.status === 'trialing') trialing++
       if (r.status === 'canceled') canceled++
@@ -150,7 +367,7 @@ superAdminRouter.get('/metrics', async (_req, res) => {
     for (const r of subs) {
       if (r.status === 'active') {
         active++
-        mrrCents += (PRICE[r.plan] ?? 0) * 100
+        mrrCents += (PRICE_BRL[r.plan] ?? 0) * 100
       }
       if (r.status === 'trialing') trialing++
       if (r.status === 'canceled') canceled++
@@ -166,5 +383,6 @@ superAdminRouter.get('/metrics', async (_req, res) => {
     trialingTenants: trialing,
     suspendedTenants: suspended,
     canceledSubscriptions: canceled,
+    churnRatePct: active + canceled > 0 ? Number(((canceled / (active + canceled)) * 100).toFixed(2)) : 0,
   })
 })

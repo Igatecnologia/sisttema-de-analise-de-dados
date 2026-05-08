@@ -19,6 +19,7 @@ import {
   updateCopilotConfig,
   type CopilotProviderChoice,
 } from '../services/ai/copilotConfigStore.js'
+import { evaluatePlanLimit } from '../services/planLimits.js'
 
 export const copilotRouter = Router()
 /** Mensagens do copilot ficam em ~4-8KB; 32KB cobre prompts longos com folga. */
@@ -30,19 +31,19 @@ function usePostgresStorage(): boolean {
   return process.env.IGA_STORAGE_DRIVER === 'postgres' && hasPostgresConfig()
 }
 
-async function loadRecentHistoryAsync(userId: string): Promise<ChatMessage[]> {
+async function loadRecentHistoryAsync(userId: string, tenantId: string): Promise<ChatMessage[]> {
   if (usePostgresStorage()) {
     const result = await getPostgresPool().query<{ role: string; content: string }>(
       `SELECT role, content FROM copilot_messages
-       WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2`,
-      [userId, MAX_HISTORY_MESSAGES],
+       WHERE user_id = $1 AND tenant_id = $2 ORDER BY created_at DESC LIMIT $3`,
+      [userId, tenantId, MAX_HISTORY_MESSAGES],
     )
     return result.rows
       .reverse()
       .filter((r) => r.role === 'user' || r.role === 'assistant')
       .map((r) => ({ role: r.role as 'user' | 'assistant', content: r.content }))
   }
-  return loadRecentHistory(userId)
+  return loadRecentHistory(userId, tenantId)
 }
 
 async function readUserPreferencesJson(userId: string): Promise<string | null> {
@@ -59,17 +60,17 @@ async function readUserPreferencesJson(userId: string): Promise<string | null> {
   return row?.preferences_json ?? null
 }
 
-async function insertCopilotMessage(id: string, userId: string, role: string, content: string, createdAt: string) {
+async function insertCopilotMessage(id: string, userId: string, tenantId: string, role: string, content: string, createdAt: string) {
   if (usePostgresStorage()) {
     await getPostgresPool().query(
-      'INSERT INTO copilot_messages (id, user_id, role, content, created_at) VALUES ($1, $2, $3, $4, $5)',
-      [id, userId, role, content, createdAt],
+      'INSERT INTO copilot_messages (id, tenant_id, user_id, role, content, created_at) VALUES ($1, $2, $3, $4, $5, $6)',
+      [id, tenantId, userId, role, content, createdAt],
     )
     return
   }
   db.prepare(
-    'INSERT INTO copilot_messages (id, user_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)',
-  ).run(id, userId, role, content, createdAt)
+    'INSERT INTO copilot_messages (id, tenant_id, user_id, role, content, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+  ).run(id, tenantId, userId, role, content, createdAt)
 }
 
 /** 20 msgs/min por usuário — evita abuso e estouro da free tier do Gemini. */
@@ -107,13 +108,13 @@ function sanitizeForManager(text: string): string {
   return out
 }
 
-function loadRecentHistory(userId: string): ChatMessage[] {
+function loadRecentHistory(userId: string, tenantId: string): ChatMessage[] {
   const rows = db
     .prepare(`
       SELECT role, content FROM copilot_messages
-      WHERE user_id = ? ORDER BY created_at DESC LIMIT ?
+      WHERE user_id = ? AND tenant_id = ? ORDER BY created_at DESC LIMIT ?
     `)
-    .all(userId, MAX_HISTORY_MESSAGES) as Array<{ role: string; content: string }>
+    .all(userId, tenantId, MAX_HISTORY_MESSAGES) as Array<{ role: string; content: string }>
   return rows
     .reverse()
     .filter((r) => r.role === 'user' || r.role === 'assistant')
@@ -128,6 +129,17 @@ copilotRouter.post('/chat', chatLimiter, async (req, res) => {
     return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Payload inválido' })
   }
   const userPrompt = parsed.data.prompt
+  const limit = await evaluatePlanLimit(tenantId, 'copilotMessagesMonthly')
+  if (!limit.allowed) {
+    return res.status(402).json({
+      message: limit.message,
+      reason: 'plan_limit_reached',
+      resource: limit.key,
+      plan: limit.plan,
+      used: limit.used,
+      limit: limit.limit,
+    })
+  }
 
   res.setHeader('Content-Type', 'text/event-stream')
   res.setHeader('Cache-Control', 'no-cache')
@@ -138,7 +150,7 @@ copilotRouter.post('/chat', chatLimiter, async (req, res) => {
   const abort = new AbortController()
   req.on('close', () => abort.abort())
 
-  const history = await loadRecentHistoryAsync(authReq.userId)
+  const history = await loadRecentHistoryAsync(authReq.userId, tenantId)
   const currentUser = (await readAllUsersCachedAsync()).find((u) => u.id === authReq.userId)
   const userName = currentUser?.name?.trim() || 'Usuário'
   const prefix = `${userName}, `
@@ -153,6 +165,7 @@ copilotRouter.post('/chat', chatLimiter, async (req, res) => {
   await insertCopilotMessage(
     `msg_${randomBytes(6).toString('hex')}`,
     authReq.userId,
+    tenantId,
     'user',
     maskPii(userPrompt),
     now,
@@ -200,6 +213,7 @@ copilotRouter.post('/chat', chatLimiter, async (req, res) => {
     await insertCopilotMessage(
       `msg_${randomBytes(6).toString('hex')}`,
       authReq.userId,
+      tenantId,
       'assistant',
       maskPii(assistantFull),
       new Date().toISOString(),
@@ -227,29 +241,31 @@ copilotRouter.get('/mode', async (_req, res) => {
 
 copilotRouter.get('/history', async (req, res) => {
   const authReq = req as AuthenticatedRequest
+  const tenantId = resolveTenantId(req)
   let rows: Array<{ id: string; role: string; content: string; created_at: string }>
   if (usePostgresStorage()) {
     const result = await getPostgresPool().query<{ id: string; role: string; content: string; created_at: string }>(
-      'SELECT id, role, content, created_at FROM copilot_messages WHERE user_id = $1 ORDER BY created_at DESC LIMIT 40',
-      [authReq.userId],
+      'SELECT id, role, content, created_at FROM copilot_messages WHERE user_id = $1 AND tenant_id = $2 ORDER BY created_at DESC LIMIT 40',
+      [authReq.userId, tenantId],
     )
     rows = result.rows
   } else {
     rows = db
       .prepare(
-        'SELECT id, role, content, created_at FROM copilot_messages WHERE user_id = ? ORDER BY created_at DESC LIMIT 40',
+        'SELECT id, role, content, created_at FROM copilot_messages WHERE user_id = ? AND tenant_id = ? ORDER BY created_at DESC LIMIT 40',
       )
-      .all(authReq.userId) as Array<{ id: string; role: string; content: string; created_at: string }>
+      .all(authReq.userId, tenantId) as Array<{ id: string; role: string; content: string; created_at: string }>
   }
   res.json(rows.reverse())
 })
 
 copilotRouter.delete('/history', async (req, res) => {
   const authReq = req as AuthenticatedRequest
+  const tenantId = resolveTenantId(req)
   if (usePostgresStorage()) {
-    await getPostgresPool().query('DELETE FROM copilot_messages WHERE user_id = $1', [authReq.userId])
+    await getPostgresPool().query('DELETE FROM copilot_messages WHERE user_id = $1 AND tenant_id = $2', [authReq.userId, tenantId])
   } else {
-    db.prepare('DELETE FROM copilot_messages WHERE user_id = ?').run(authReq.userId)
+    db.prepare('DELETE FROM copilot_messages WHERE user_id = ? AND tenant_id = ?').run(authReq.userId, tenantId)
   }
   res.status(204).end()
 })

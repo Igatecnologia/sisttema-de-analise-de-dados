@@ -10,6 +10,7 @@ import {
 import { isValidPermission } from '../permissions.js'
 import type { AuthenticatedRequest } from '../middleware/auth.js'
 import { redisRateLimit } from '../middleware/redisRateLimit.js'
+import { evaluatePlanLimit } from '../services/planLimits.js'
 
 export const usersRouter = Router()
 
@@ -68,6 +69,17 @@ usersRouter.post('/', createUserLimiter, async (req, res) => {
   const authReq = req as unknown as AuthenticatedRequest
   const all = await readAllUsersAsync()
   const tenantUsers = all.filter((u) => u.tenantId === authReq.tenantId)
+  const limit = await evaluatePlanLimit(authReq.tenantId, 'users')
+  if (!limit.allowed) {
+    return res.status(402).json({
+      message: limit.message,
+      reason: 'plan_limit_reached',
+      resource: limit.key,
+      plan: limit.plan,
+      used: limit.used,
+      limit: limit.limit,
+    })
+  }
 
   if (tenantUsers.some((u) => u.email.toLowerCase() === email.trim().toLowerCase())) {
     return res.status(409).json({ message: 'Ja existe um usuario com este email' })

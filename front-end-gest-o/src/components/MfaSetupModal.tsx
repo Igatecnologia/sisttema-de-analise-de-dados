@@ -43,6 +43,8 @@ export function MfaSetupModal({ open, onClose, onEnabled }: Props) {
       const result = await confirmMfaSetup(totp.trim())
       setBackupCodes(result.backupCodes)
       setStep('codes')
+      const { trackEvent } = await import('../services/analytics')
+      trackEvent('mfa_enabled')
       onEnabled?.()
     } catch {
       setErrorMsg('Codigo invalido. Confira no app autenticador e tente novamente.')

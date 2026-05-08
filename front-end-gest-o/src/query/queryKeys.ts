@@ -18,6 +18,7 @@ export const queryKeys = {
   audit: (params: { q?: string; action?: string }) => ['audit', params] as const,
   users: (params: { q?: string; role?: string; status?: string }) =>
     ['users', params] as const,
+  tenantSettings: () => ['tenantSettings'] as const,
   vendasAnalitico: (params: { dtDe: string; dtAte: string; sourceId?: string }) =>
     ['vendasAnalitico', params] as const,
 

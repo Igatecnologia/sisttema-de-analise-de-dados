@@ -1,8 +1,9 @@
-import { Alert, Button, Card, Descriptions, Skeleton, Space, Tag, message } from 'antd'
+import { Alert, Button, Card, Descriptions, Skeleton, Space, Tag, Timeline, Typography, message } from 'antd'
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { PageHeaderCard } from '../components/PageHeaderCard'
 import { getBillingStatus, openBillingPortal, type BillingStatus } from '../services/billingService'
+import { UsageBar } from '../components/UsageBar'
 
 const STATUS_COLOR: Record<string, string> = {
   active: 'green',
@@ -102,6 +103,40 @@ export function BillingPortalPage() {
                 </Link>
               </Space>
             </Space>
+          </Card>
+
+          <Card title="Uso do plano">
+            <Space direction="vertical" size={14} style={{ width: '100%' }}>
+              <UsageBar label="Usuarios" used={status.usage?.users ?? 0} limit={status.limits?.users} />
+              <UsageBar label="Fontes de dados" used={status.usage?.datasources ?? 0} limit={status.limits?.datasources} />
+              <UsageBar label="Mensagens do copiloto no mes" used={status.usage?.copilotMessagesMonthly ?? 0} limit={status.limits?.copilotMessagesMonthly} />
+              <Typography.Text type="secondary">
+                Os limites sao aplicados no backend. Ao atingir o limite, novas criacoes ou chamadas ficam bloqueadas ate upgrade do plano.
+              </Typography.Text>
+            </Space>
+          </Card>
+
+          <Card title="Historico e notas fiscais">
+            <Timeline
+              items={[
+                {
+                  color: status.access.allowed ? 'green' : 'red',
+                  children: `Status atual: ${status.status.replace('_', ' ')}`,
+                },
+                ...(status.currentPeriodEnd
+                  ? [{ color: 'blue', children: `Periodo atual ate ${formatDate(status.currentPeriodEnd)}` }]
+                  : []),
+                {
+                  color: 'gray',
+                  children: status.stripeEnabled
+                    ? 'Historico de faturas e notas fiscais disponivel no portal de pagamento.'
+                    : 'Historico de faturas indisponivel enquanto o pagamento online nao estiver configurado.',
+                },
+              ]}
+            />
+            <Button loading={opening} onClick={onOpenPortal} disabled={!status.stripeEnabled}>
+              Ver faturas no portal
+            </Button>
           </Card>
 
           <Card title="Documentos">

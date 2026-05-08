@@ -48,6 +48,11 @@ import {
 import { sendMfaToggleAlert } from '../services/loginAlerts.js'
 import { buildPublicUrl, sendTransactionalEmail } from '../services/transactionalEmail.js'
 import { inviteTemplate, resetPasswordTemplate, welcomeVerificationTemplate } from '../services/emailTemplates.js'
+import {
+  checkRegistrationVelocity,
+  isDisposableEmail,
+  validateMx,
+} from '../services/registrationAntiFraud.js'
 
 export const authRouter = Router()
 
@@ -85,16 +90,20 @@ function clearSessionCookie(): string {
   return parts.join('; ')
 }
 
-function readSessionCookieToken(cookieHeader?: string): string | null {
+export function readCookieToken(cookieHeader: string | undefined, cookieName: string): string | null {
   if (!cookieHeader) return null
   const cookies = cookieHeader.split(';')
   for (const cookie of cookies) {
     const [name, ...valueParts] = cookie.trim().split('=')
-    if (name !== 'iga_session') continue
+    if (name !== cookieName) continue
     const value = valueParts.join('=')
     return value ? decodeURIComponent(value) : null
   }
   return null
+}
+
+function readSessionCookieToken(cookieHeader?: string): string | null {
+  return readCookieToken(cookieHeader, 'iga_session')
 }
 
 /** Rate limit: 20 tentativas de login por IP a cada 15 min — mitiga brute force. */
@@ -457,6 +466,25 @@ authRouter.post('/register', tenantAuthLimiter, requireTurnstile, async (req, re
   if (!parsed.success) {
     return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
   }
+
+  /** SEC-3.9 — anti-fraud: disposable email + MX + velocity por IP. */
+  if (isDisposableEmail(parsed.data.email)) {
+    logAudit({ action: 'register_blocked_disposable', resource: 'auth', metadata: { email: parsed.data.email } })
+    return res.status(400).json({ message: 'Use um email corporativo valido (descartaveis nao sao aceitos)' })
+  }
+  const ip = (req.ip ?? req.socket?.remoteAddress ?? 'unknown').toString()
+  const velocity = checkRegistrationVelocity(ip)
+  if (!velocity.allowed) {
+    logAudit({ action: 'register_blocked_velocity', resource: 'auth', metadata: { ip, retryAfterSec: velocity.retryAfterSec } })
+    res.setHeader('Retry-After', String(velocity.retryAfterSec))
+    return res.status(429).json({ message: 'Muitos registros recentes deste local. Tente novamente em instantes.' })
+  }
+  const mx = await validateMx(parsed.data.email)
+  if (!mx.ok && mx.reason !== 'lookup_failed') {
+    logAudit({ action: 'register_blocked_no_mx', resource: 'auth', metadata: { email: parsed.data.email } })
+    return res.status(400).json({ message: 'Email nao recebe mensagens (dominio sem MX). Verifique e tente novamente.' })
+  }
+
   const passwordError = validateStrongPassword(parsed.data.password)
   if (passwordError) return res.status(400).json({ message: passwordError })
   const pwnedError = await validatePasswordNotPwned(parsed.data.password)
@@ -708,6 +736,7 @@ authRouter.get('/me', requireAuth, async (req, res) => {
   const user = (await readAllUsersAsync()).find((u) => u.id === authReq.userId && u.status === 'active')
   if (!user) return res.status(401).json({ message: 'Sessão inválida' })
   const permissions = resolveEffectivePermissions(user.role, user.permissions)
+  const impersonatorToken = readCookieToken(req.headers.cookie, 'iga_impersonator')
   return res.json({
     user: {
       id: user.id,
@@ -717,6 +746,14 @@ authRouter.get('/me', requireAuth, async (req, res) => {
       mustChangePassword: user.mustChangePassword ?? false,
     },
     permissions,
+    ...(impersonatorToken
+      ? {
+          impersonation: {
+            active: true,
+            tenantId: authReq.tenantId,
+          },
+        }
+      : {}),
   })
 })
 

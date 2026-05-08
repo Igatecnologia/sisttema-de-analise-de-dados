@@ -6,6 +6,7 @@ import { requireAuth } from '../middleware/auth.js'
 import { resolveTenantId } from '../utils/tenant.js'
 import { validateExternalApiUrl } from '../utils/urlSafety.js'
 import { redisRateLimit } from '../middleware/redisRateLimit.js'
+import { evaluatePlanLimit } from '../services/planLimits.js'
 
 export const dataSourceRouter = Router()
 dataSourceRouter.use(requireAuth)
@@ -253,6 +254,17 @@ dataSourceRouter.get('/:id', async (req, res) => {
 // POST / — cria
 dataSourceRouter.post('/', async (req, res) => {
   const tenantId = resolveTenantId(req)
+  const limit = await evaluatePlanLimit(tenantId, 'datasources')
+  if (!limit.allowed) {
+    return res.status(402).json({
+      message: limit.message,
+      reason: 'plan_limit_reached',
+      resource: limit.key,
+      plan: limit.plan,
+      used: limit.used,
+      limit: limit.limit,
+    })
+  }
   const validation = parseDataSourceBody(req.body)
   if (!validation.ok) return res.status(400).json({ message: validation.message })
   const body = validation.data as DataSourceBody

@@ -8,6 +8,16 @@ export type BillingStatus = {
   cancelAtPeriodEnd: boolean
   access: { allowed: boolean; reason: string; trialEndsAt?: string | null; status?: string }
   stripeEnabled: boolean
+  limits?: {
+    users: number | null
+    datasources: number | null
+    copilotMessagesMonthly: number | null
+  }
+  usage?: {
+    users: number
+    datasources: number
+    copilotMessagesMonthly: number
+  }
 }
 
 export async function getBillingStatus(): Promise<BillingStatus> {

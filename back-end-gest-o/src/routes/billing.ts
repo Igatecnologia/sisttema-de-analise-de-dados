@@ -14,6 +14,7 @@ import {
 import { evaluateAccess, getSubscription, upsertSubscription } from '../services/subscriptionStore.js'
 import { logAudit } from '../services/auditLog.js'
 import type Stripe from 'stripe'
+import { getPlanUsageSummary } from '../services/planLimits.js'
 
 export const billingRouter = Router()
 
@@ -22,6 +23,7 @@ billingRouter.get('/status', requireAuth, async (req: Request, res: Response) =>
   const tenant = await findTenantBySlug(authReq.tenantId)
   const subscription = await getSubscription(authReq.tenantId)
   const verdict = evaluateAccess({ trialEndsAt: tenant?.trialEndsAt ?? null, subscription })
+  const usageSummary = await getPlanUsageSummary(authReq.tenantId)
   res.json({
     plan: subscription?.plan ?? tenant?.plan ?? 'trial',
     status: subscription?.status ?? (verdict.allowed ? 'trialing' : 'trial_expired'),
@@ -30,6 +32,8 @@ billingRouter.get('/status', requireAuth, async (req: Request, res: Response) =>
     cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
     access: verdict,
     stripeEnabled: isStripeEnabled(),
+    limits: usageSummary.limits,
+    usage: usageSummary.usage,
   })
 })
 

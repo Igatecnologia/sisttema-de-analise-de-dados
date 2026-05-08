@@ -103,6 +103,9 @@ export function LoginPage() {
       if (values.remember) setRememberedEmail(values.email)
       else setRememberedEmail('')
       recordLoginAttempt(true)
+      const { trackEvent, identifyUser } = await import('../services/analytics')
+      if (sess?.user.id) identifyUser(sess.user.id, { role: sess.user.role })
+      trackEvent('auth_login', { mfa: Boolean(values.totp) })
       navigate(from, { replace: true })
     } catch (err) {
       recordLoginAttempt(false)
@@ -224,7 +227,6 @@ export function LoginPage() {
                   autoComplete="one-time-code"
                   inputMode="numeric"
                   maxLength={16}
-                  autoFocus
                 />
               </Form.Item>
             ) : null}

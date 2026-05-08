@@ -1,4 +1,5 @@
-import { Card, Col, Empty, Input, Row, Skeleton, Space, Tag, Typography } from 'antd'
+import { Button, Card, Col, Empty, Input, Modal, Row, Skeleton, Space, Table, Tag, Typography } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PageHeaderCard } from '../components/PageHeaderCard'
@@ -12,11 +13,37 @@ type ConnectorRow = {
   areas: string[]
   warmTargets: { label: string; area: string }[]
   status: 'ready' | 'coming-soon'
+  schemaUrl: string
+}
+
+type ConnectorSchemaEndpoint = {
+  area: string
+  method: 'GET'
+  path: string
+  description: string
+  requiredFields: string[]
+  optionalFields: string[]
+}
+
+type ConnectorSchema = {
+  id: string
+  name: string
+  status: 'ready' | 'coming-soon'
+  description: string
+  authMethods: string[]
+  responseShape: {
+    preferred: string
+    accepted: string[]
+    pagination: string[]
+  }
+  endpoints: ConnectorSchemaEndpoint[]
 }
 
 export function ConnectorsMarketplacePage() {
   const [connectors, setConnectors] = useState<ConnectorRow[] | null>(null)
   const [search, setSearch] = useState('')
+  const [schema, setSchema] = useState<ConnectorSchema | null>(null)
+  const [schemaLoading, setSchemaLoading] = useState(false)
 
   useEffect(() => {
     http.get<{ connectors: ConnectorRow[] }>('/api/v1/connectors')
@@ -32,6 +59,23 @@ export function ConnectorsMarketplacePage() {
       c.name.toLowerCase().includes(term) || c.id.includes(term),
     )
   }, [connectors, search])
+
+  async function openSchema(connector: ConnectorRow) {
+    setSchemaLoading(true)
+    try {
+      const { data } = await http.get<ConnectorSchema>(connector.schemaUrl)
+      setSchema(data)
+    } finally {
+      setSchemaLoading(false)
+    }
+  }
+
+  const schemaColumns: ColumnsType<ConnectorSchemaEndpoint> = [
+    { title: 'Area', dataIndex: 'area', key: 'area', width: 110 },
+    { title: 'Metodo', dataIndex: 'method', key: 'method', width: 90, render: (v) => <Tag color="blue">{v}</Tag> },
+    { title: 'Path', dataIndex: 'path', key: 'path', render: (v) => <Typography.Text code>{v}</Typography.Text> },
+    { title: 'Campos obrigatorios', dataIndex: 'requiredFields', key: 'requiredFields', render: (v: string[]) => v.join(', ') },
+  ]
 
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -80,7 +124,10 @@ export function ConnectorsMarketplacePage() {
                     </Typography.Text>
                   ) : null}
                   {c.status === 'ready' ? (
-                    <Link to={`/datasources?connector=${encodeURIComponent(c.id)}`}>Configurar</Link>
+                    <Space>
+                      <Link to={`/datasources?connector=${encodeURIComponent(c.id)}`}>Configurar</Link>
+                      <Button size="small" onClick={() => void openSchema(c)}>Ver schema</Button>
+                    </Space>
                   ) : (
                     <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                       Solicite acesso antecipado: <a href="mailto:contato@igagestao.com.br">contato@igagestao.com.br</a>
@@ -92,6 +139,35 @@ export function ConnectorsMarketplacePage() {
           ))}
         </Row>
       )}
+
+      <Modal
+        open={!!schema || schemaLoading}
+        title={schema ? `Schema: ${schema.name}` : 'Carregando schema'}
+        onCancel={() => setSchema(null)}
+        footer={null}
+        width={920}
+      >
+        {schema ? (
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
+              {schema.description}
+            </Typography.Paragraph>
+            <Space wrap>
+              <Tag color="green">Resposta: {schema.responseShape.preferred}</Tag>
+              {schema.authMethods.map((method) => <Tag key={method}>{method}</Tag>)}
+            </Space>
+            <Table
+              rowKey={(row) => row.area}
+              size="small"
+              pagination={false}
+              columns={schemaColumns}
+              dataSource={schema.endpoints}
+            />
+          </Space>
+        ) : (
+          <Skeleton active />
+        )}
+      </Modal>
     </div>
   )
 }

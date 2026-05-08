@@ -1,8 +1,10 @@
-import { Alert, Button, Card, Col, Descriptions, Popconfirm, Row, Skeleton, Space, Statistic, Table, Tag, message } from 'antd'
+import { Alert, Button, Card, Col, Descriptions, Form, Input, Modal, Popconfirm, Row, Select, Skeleton, Space, Statistic, Table, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useEffect, useState } from 'react'
 import { PageHeaderCard } from '../components/PageHeaderCard'
 import { http } from '../services/http'
+import type { AuthSession } from '../auth/authStorage'
+import { setStoredSession } from '../auth/authStorage'
 
 type TenantRow = {
   id: string
@@ -13,6 +15,9 @@ type TenantRow = {
   trialEndsAt: string | null
   createdAt: string
   userCount: number
+  datasourceCount: number
+  subscriptionStatus: string
+  mrrBrlCents: number
 }
 
 type TenantsResponse = {
@@ -27,6 +32,16 @@ type Metrics = {
   trialingTenants: number
   suspendedTenants: number
   canceledSubscriptions: number
+  churnRatePct: number
+}
+
+type TenantForm = {
+  slug?: string
+  name: string
+  subtitle?: string
+  plan: 'trial' | 'starter' | 'pro' | 'enterprise'
+  status: 'active' | 'inactive'
+  connectorId?: string
 }
 
 export function SuperAdminPage() {
@@ -34,6 +49,10 @@ export function SuperAdminPage() {
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [loading, setLoading] = useState(true)
   const [forbidden, setForbidden] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editing, setEditing] = useState<TenantRow | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [form] = Form.useForm<TenantForm>()
 
   async function refresh() {
     setLoading(true)
@@ -77,6 +96,52 @@ export function SuperAdminPage() {
     }
   }
 
+  async function impersonateTenant(id: string) {
+    try {
+      const { data } = await http.post<AuthSession>(`/api/v1/super-admin/tenants/${id}/impersonate`)
+      setStoredSession(data)
+      window.location.assign('/')
+    } catch {
+      message.error('Falha ao iniciar impersonation')
+    }
+  }
+
+  async function saveTenant() {
+    try {
+      const values = await form.validateFields()
+      setSaving(true)
+      const payload = {
+        ...values,
+        subtitle: values.subtitle?.trim() || 'Gestao e Analise de Dados',
+        connectorId: values.connectorId?.trim() || 'sgbr-espuma',
+      }
+      if (editing) {
+        await http.put(`/api/v1/super-admin/tenants/${editing.id}`, payload)
+        message.success('Tenant atualizado')
+      } else {
+        await http.post('/api/v1/super-admin/tenants', payload)
+        message.success('Tenant criado')
+      }
+      setModalOpen(false)
+      void refresh()
+    } catch (err) {
+      if (err && typeof err === 'object' && 'errorFields' in err) return
+      message.error('Falha ao salvar tenant')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function removeTenant(id: string) {
+    try {
+      await http.delete(`/api/v1/super-admin/tenants/${id}`)
+      message.success('Tenant excluido')
+      void refresh()
+    } catch {
+      message.error('Falha ao excluir tenant')
+    }
+  }
+
   if (forbidden) {
     return (
       <div style={{ padding: 16 }}>
@@ -106,6 +171,14 @@ export function SuperAdminPage() {
       render: (s: string) => <Tag color={s === 'active' ? 'green' : s === 'suspended' ? 'red' : 'default'}>{s}</Tag>,
     },
     { title: 'Usuarios', dataIndex: 'userCount', key: 'userCount', align: 'right' },
+    { title: 'Fontes', dataIndex: 'datasourceCount', key: 'datasourceCount', align: 'right' },
+    {
+      title: 'MRR',
+      dataIndex: 'mrrBrlCents',
+      key: 'mrrBrlCents',
+      align: 'right',
+      render: (v: number) => (v / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+    },
     {
       title: 'Trial ate',
       dataIndex: 'trialEndsAt',
@@ -116,28 +189,72 @@ export function SuperAdminPage() {
       title: 'Acoes',
       key: 'actions',
       render: (_, record) =>
-        record.status === 'suspended' ? (
-          <Popconfirm title="Reativar este tenant?" onConfirm={() => activateTenant(record.id)}>
-            <Button size="small" type="link">Ativar</Button>
-          </Popconfirm>
-        ) : (
-          <Popconfirm title="Suspender este tenant? Acesso bloqueado imediatamente." onConfirm={() => suspendTenant(record.id)}>
-            <Button size="small" type="link" danger>Suspender</Button>
-          </Popconfirm>
-        ),
+        <Space>
+          {record.status === 'suspended' ? (
+            <Popconfirm title="Reativar este tenant?" onConfirm={() => activateTenant(record.id)}>
+              <Button size="small" type="link">Ativar</Button>
+            </Popconfirm>
+          ) : (
+            <>
+              <Button size="small" type="link" onClick={() => impersonateTenant(record.id)}>Entrar</Button>
+              <Button
+                size="small"
+                type="link"
+                onClick={() => {
+                  setEditing(record)
+                  form.setFieldsValue({
+                    slug: record.slug,
+                    name: record.name,
+                    subtitle: 'Gestao e Analise de Dados',
+                    plan: record.plan as TenantForm['plan'],
+                    status: record.status === 'inactive' ? 'inactive' : 'active',
+                    connectorId: 'sgbr-espuma',
+                  })
+                  setModalOpen(true)
+                }}
+              >
+                Editar
+              </Button>
+              <Popconfirm title="Suspender este tenant? Acesso bloqueado imediatamente." onConfirm={() => suspendTenant(record.id)}>
+                <Button size="small" type="link" danger>Suspender</Button>
+              </Popconfirm>
+              {record.id !== 'default' ? (
+                <Popconfirm title="Excluir tenant?" description="Use apenas para ambientes de teste." onConfirm={() => removeTenant(record.id)}>
+                  <Button size="small" type="link" danger>Excluir</Button>
+                </Popconfirm>
+              ) : null}
+            </>
+          )}
+        </Space>,
     },
   ]
 
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <PageHeaderCard title="Super Admin" subtitle="Painel cross-tenant — uso restrito." />
+      <PageHeaderCard
+        title="Super Admin"
+        subtitle="Painel cross-tenant — uso restrito."
+        extra={
+          <Button
+            type="primary"
+            onClick={() => {
+              setEditing(null)
+              form.resetFields()
+              form.setFieldsValue({ plan: 'trial', status: 'active', connectorId: 'sgbr-espuma' })
+              setModalOpen(true)
+            }}
+          >
+            Novo tenant
+          </Button>
+        }
+      />
 
       {loading ? <Skeleton active /> : metrics ? (
         <Row gutter={[16, 16]}>
           <Col xs={12} md={6}><Card><Statistic title="MRR" value={metrics.mrrBrlFormatted} /></Card></Col>
           <Col xs={12} md={6}><Card><Statistic title="Ativos" value={metrics.activeSubscriptions} /></Card></Col>
           <Col xs={12} md={6}><Card><Statistic title="Em trial" value={metrics.trialingTenants} /></Card></Col>
-          <Col xs={12} md={6}><Card><Statistic title="Suspensos" value={metrics.suspendedTenants} /></Card></Col>
+          <Col xs={12} md={6}><Card><Statistic title="Churn" value={metrics.churnRatePct} suffix="%" /></Card></Col>
         </Row>
       ) : null}
 
@@ -166,6 +283,46 @@ export function SuperAdminPage() {
           <Button onClick={refresh}>Atualizar</Button>
         </Space>
       </Card>
+
+      <Modal
+        open={modalOpen}
+        title={editing ? 'Editar tenant' : 'Novo tenant'}
+        okText={editing ? 'Salvar' : 'Criar'}
+        cancelText="Cancelar"
+        confirmLoading={saving}
+        onCancel={() => setModalOpen(false)}
+        onOk={saveTenant}
+      >
+        <Form<TenantForm> form={form} layout="vertical">
+          <Form.Item label="Slug" name="slug" rules={[{ required: !editing, message: 'Informe o slug.' }]}>
+            <Input disabled={!!editing} placeholder="acme-industria" />
+          </Form.Item>
+          <Form.Item label="Nome" name="name" rules={[{ required: true, message: 'Informe o nome.' }]}>
+            <Input placeholder="Acme Industria" />
+          </Form.Item>
+          <Form.Item label="Subtitulo" name="subtitle">
+            <Input placeholder="Gestao e Analise de Dados" />
+          </Form.Item>
+          <Space style={{ width: '100%' }} size={12}>
+            <Form.Item label="Plano" name="plan" style={{ flex: 1 }} rules={[{ required: true }]}>
+              <Select
+                options={[
+                  { value: 'trial', label: 'Trial' },
+                  { value: 'starter', label: 'Starter' },
+                  { value: 'pro', label: 'Pro' },
+                  { value: 'enterprise', label: 'Enterprise' },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item label="Status" name="status" style={{ flex: 1 }} rules={[{ required: true }]}>
+              <Select options={[{ value: 'active', label: 'Ativo' }, { value: 'inactive', label: 'Inativo' }]} />
+            </Form.Item>
+          </Space>
+          <Form.Item label="Connector" name="connectorId">
+            <Input placeholder="sgbr-espuma" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }

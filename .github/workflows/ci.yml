@@ -21,7 +21,8 @@ jobs:
       NODE_ENV: test
       IGA_DATA_DIR: ${{ runner.temp }}/iga-backend-data
       ADMIN_DEFAULT_EMAIL: admin@iga.com
-      ADMIN_DEFAULT_PASSWORD: IgaGestao@2026!
+      # Fixed CI test password — match em .gitleaks.toml allowlist. Producao usa secret manager.
+      ADMIN_DEFAULT_PASSWORD: CITestNotASecret2026!
       FRONTEND_URL: http://127.0.0.1:4173
       PROXY_CACHE_TTL_MS: "0"
     steps:

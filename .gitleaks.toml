@@ -1,0 +1,24 @@
+title = "Gitleaks config — IGA Gestao"
+
+# Herda regras default do gitleaks (https://github.com/gitleaks/gitleaks)
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlist global"
+# Senhas fixas do CI/dev sao reconhecidas como naao-secrets (string previsivel,
+# nunca usada em producao real). Producao usa env vars no Render/cloud provider.
+regexes = [
+  '''CITestNotASecret\d{4}!''',
+  '''AdminTeste\d{4}!''',
+  '''IgaGestao@\d{4}!''',  # senha historica em commits <= e46252e (render.yaml antigo)
+]
+paths = [
+  '''(?i)\.env\.example$''',
+  '''package-lock\.json$''',
+  '''(?i)CHANGELOG\.md$''',
+]
+# Commits historicos que ja foram auditados.
+commits = [
+  "e46252e",  # render.yaml com senha de teste (rotacionada)
+]

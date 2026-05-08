@@ -31,6 +31,25 @@ describe('backend app', () => {
     expect(res.body.enabledModules).toContain('dashboard')
   })
 
+  it('GET /api/v1/tenants/current/settings retorna tenant autenticado', async () => {
+    const user = readAllUsersCached()[0]
+    expect(user).toBeDefined()
+    const token = `test-token-tenant-settings-${Date.now()}`
+    await registerToken(token, user.id, user.tenantId)
+
+    const res = await request(app)
+      .get('/api/v1/tenants/current/settings')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({
+      id: user.tenantId,
+      slug: user.tenantId,
+      name: expect.any(String),
+    })
+    expect(res.body.enabledModules).toContain('dashboard')
+  })
+
   it('GET /api/proxy/health com token válido retorna 200', async () => {
     const user = readAllUsersCached()[0]
     expect(user).toBeDefined()
@@ -76,5 +95,89 @@ describe('backend app', () => {
     expect(res.body).toHaveProperty('proxy')
     expect(res.body.proxy).toHaveProperty('stats')
     expect(res.body).toHaveProperty('storage')
+  })
+
+  it('GET /api/v1/connectors inclui API propria IGA e schema', async () => {
+    const user = readAllUsersCached()[0]
+    expect(user).toBeDefined()
+    const token = `test-token-connectors-${Date.now()}`
+    await registerToken(token, user.id, user.tenantId)
+
+    const list = await request(app)
+      .get('/api/v1/connectors')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(list.status).toBe(200)
+    expect(list.body.connectors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'iga-custom-api',
+          status: 'ready',
+          schemaUrl: '/api/v1/connectors/iga-custom-api/schema',
+        }),
+      ]),
+    )
+
+    const schema = await request(app)
+      .get('/api/v1/connectors/iga-custom-api/schema')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(schema.status).toBe(200)
+    expect(schema.body).toMatchObject({
+      id: 'iga-custom-api',
+      responseShape: expect.any(Object),
+    })
+    expect(schema.body.endpoints).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ area: 'vendas', path: '/iga/v1/vendas' }),
+      ]),
+    )
+  })
+
+  it('POST /api/v1/connectors/reload recarrega connectors externos', async () => {
+    const user = readAllUsersCached()[0]
+    expect(user).toBeDefined()
+    const token = `test-token-connectors-reload-${Date.now()}`
+    await registerToken(token, user.id, user.tenantId)
+
+    const res = await request(app)
+      .post('/api/v1/connectors/reload')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({ ok: true, total: expect.any(Number), external: expect.any(Number) })
+  })
+
+  it('POST /api/v1/webhooks registra assinatura enterprise', async () => {
+    const user = readAllUsersCached()[0]
+    expect(user?.role).toBe('admin')
+    const token = `test-token-webhooks-${Date.now()}`
+    await registerToken(token, user.id, user.tenantId)
+
+    const created = await request(app)
+      .post('/api/v1/webhooks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Teste externo',
+        url: 'https://example.com/webhooks/iga',
+        eventTypes: ['tenant.updated'],
+        active: true,
+      })
+
+    expect(created.status).toBe(201)
+    expect(created.body).toMatchObject({
+      name: 'Teste externo',
+      signingSecretPreview: expect.any(String),
+    })
+    expect(created.body.signingSecret).toBeUndefined()
+
+    const list = await request(app)
+      .get('/api/v1/webhooks')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(list.status).toBe(200)
+    expect(list.body.subscriptions).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: created.body.id })]),
+    )
   })
 })

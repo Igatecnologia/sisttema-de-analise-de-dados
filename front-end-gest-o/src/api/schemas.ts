@@ -127,6 +127,31 @@ export const userSchema = z.object({
 
 export const usersResponseSchema = z.array(userSchema)
 
+export const tenantPlanSchema = z.enum(['trial', 'starter', 'pro', 'enterprise'])
+
+export const tenantSettingsSchema = z.object({
+  id: z.string().min(1),
+  slug: z.string().min(1),
+  name: z.string().min(1),
+  subtitle: z.string().min(1),
+  logoUrl: z.string().url().nullable().optional(),
+  primaryColor: z.string().regex(/^#[0-9a-fA-F]{3,8}$/).nullable().optional(),
+  enabledModules: z.array(z.string()),
+  connectorId: z.string().min(1),
+  plan: tenantPlanSchema,
+  trialEndsAt: z.string().nullable().optional(),
+  status: z.enum(['active', 'inactive']),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+})
+
+export const tenantSettingsUpdateSchema = z.object({
+  name: z.string().min(1).max(160),
+  subtitle: z.string().min(1).max(160),
+  logoUrl: z.union([z.string().url().max(600), z.null()]).optional(),
+  primaryColor: z.union([z.string().regex(/^#[0-9a-fA-F]{3,8}$/), z.null()]).optional(),
+})
+
 export const userCreateInputSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),

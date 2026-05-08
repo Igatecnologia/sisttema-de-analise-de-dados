@@ -16,6 +16,8 @@ const ALLOW_PREFIXES = [
   '/api/v1/auth',
   '/api/v1/billing',
   '/api/v1/onboarding',
+  '/api/v1/legal',
+  '/api/v1/analytics',
   '/health',
 ]
 

@@ -7,7 +7,7 @@ import { getBillingStatus, startCheckout, type BillingStatus } from '../services
 type Cycle = 'monthly' | 'yearly'
 
 type Plan = {
-  id: 'free' | 'pro' | 'enterprise'
+  id: 'trial' | 'pro' | 'enterprise'
   name: string
   priceMonthly: number
   priceYearly: number
@@ -18,16 +18,17 @@ type Plan = {
 
 const PLANS: Plan[] = [
   {
-    id: 'free',
-    name: 'Free',
+    id: 'trial',
+    name: 'Trial',
     priceMonthly: 0,
     priceYearly: 0,
     features: [
-      'Dashboards basicos',
-      '1 datasource',
-      'Suporte por email',
+      '14 dias para validar a operação',
+      'Dashboards essenciais',
+      '2 fontes de dados',
+      'Copiloto com 20 mensagens/mês',
     ],
-    limits: { users: '2', datasources: '1', copilot: '20/mes', suporte: 'Email 48h' },
+    limits: { users: '3', datasources: '2', copilot: '20/mes', suporte: 'Email 48h' },
   },
   {
     id: 'pro',
@@ -37,13 +38,13 @@ const PLANS: Plan[] = [
     highlight: true,
     features: [
       'Dashboards completos + alertas',
-      'Ate 5 datasources',
-      'Copiloto IA com 600 chamadas/mes',
+      'Ate 10 fontes de dados',
+      'Copiloto IA com 1000 mensagens/mes',
       'Relatorios agendados (PDF/Excel)',
       'Auditoria completa',
       'Suporte prioritario',
     ],
-    limits: { users: '10', datasources: '5', copilot: '600/mes', suporte: 'Email 12h' },
+    limits: { users: '25', datasources: '10', copilot: '1000/mes', suporte: 'Email 12h' },
   },
   {
     id: 'enterprise',
@@ -103,7 +104,7 @@ export function BillingPlansPage() {
     setLoadingPlan(planId)
     try {
       const { url } = await startCheckout(planId)
-      window.location.href = url
+      window.location.assign(url)
     } catch {
       message.error('Falha ao iniciar checkout. Tente novamente.')
       setLoadingPlan(null)
@@ -168,9 +169,9 @@ export function BillingPlansPage() {
                 <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 16 }}>
                   Usuarios: {plan.limits.users} · Datasources: {plan.limits.datasources} · Copilot: {plan.limits.copilot}
                 </Typography.Text>
-                {plan.id === 'free' ? (
+                {plan.id === 'trial' ? (
                   <Button block disabled={isCurrent}>
-                    {isCurrent ? 'Plano atual' : 'Continuar gratis'}
+                    {isCurrent ? 'Plano atual' : 'Trial ativo'}
                   </Button>
                 ) : (
                   <Button
@@ -204,7 +205,7 @@ export function BillingPlansPage() {
               ['Dashboards', true, true, true],
               ['Alertas', false, true, true],
               ['Relatorios agendados', false, true, true],
-              ['Copiloto IA', '20/mes', '600/mes', 'Ilimitado'],
+              ['Copiloto IA', '20/mes', '1000/mes', 'Ilimitado'],
               ['Auditoria', false, true, true],
               ['SSO/SAML', false, false, true],
               ['SLA', false, false, '99.5%'],

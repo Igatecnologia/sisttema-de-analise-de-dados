@@ -28,15 +28,34 @@ services:
       timeout: 3s
       retries: 10
 
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-dev
+    command: ["sh", "-c", "npm install && npm run db:migrate:pg"]
+    environment:
+      NODE_ENV: development
+      IGA_STORAGE_DRIVER: postgres
+      DATABASE_URL: postgresql://iga:iga_dev_password@postgres:5432/iga_gestao
+    volumes:
+      - ./back-end-gest-o:/app/back-end-gest-o
+      - backend_node_modules:/app/back-end-gest-o/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   backend:
     build:
       context: .
       dockerfile: Dockerfile
       target: backend-dev
+    command: ["sh", "-c", "npm install && npm run dev"]
     environment:
       NODE_ENV: development
       PORT: "3000"
       FRONTEND_URL: http://localhost:5173
+      IGA_STORAGE_DRIVER: postgres
       IGA_DATA_DIR: /app/back-end-gest-o/data
       ADMIN_DEFAULT_EMAIL: admin@iga.com
       ADMIN_DEFAULT_PASSWORD: IgaGestao@2026!
@@ -56,6 +75,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 10s
@@ -69,6 +90,7 @@ services:
       dockerfile: Dockerfile
       target: frontend-dev
     working_dir: /app/front-end-gest-o
+    command: ["sh", "-c", "npm install && npm run dev -- --host 0.0.0.0"]
     environment:
       VITE_API_BASE_URL: http://localhost:3000
       VITE_HTTP_TIMEOUT_MS: "180000"
@@ -92,10 +114,11 @@ services:
       context: .
       dockerfile: Dockerfile
       target: backend-dev
-    command: ["npm", "run", "worker"]
+    command: ["sh", "-c", "npm install && npm run worker"]
     environment:
       NODE_ENV: development
       IGA_PROCESS_ROLE: worker
+      IGA_STORAGE_DRIVER: postgres
       IGA_DATA_DIR: /app/back-end-gest-o/data
       ADMIN_DEFAULT_EMAIL: admin@iga.com
       ADMIN_DEFAULT_PASSWORD: IgaGestao@2026!
@@ -112,6 +135,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   postgres_data:

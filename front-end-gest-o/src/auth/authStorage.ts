@@ -21,6 +21,13 @@ const sessionSchema = z.object({
     mustChangePassword: z.boolean().optional(),
   }),
   permissions: z.array(z.string()),
+  impersonation: z
+    .object({
+      active: z.boolean(),
+      tenantId: z.string().min(1),
+    })
+    .nullable()
+    .optional(),
 })
 
 export type AuthSession = z.infer<typeof sessionSchema>

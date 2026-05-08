@@ -1,9 +1,10 @@
 import { Router, type NextFunction, type Request, type Response } from 'express'
 import { z } from 'zod'
-import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js'
+import { requireAdmin, requireAuth, type AuthenticatedRequest } from '../middleware/auth.js'
 import { deleteTenant, findTenantBySlug, genTenantId, listTenants, upsertTenant, type TenantRecord } from '../tenantStorage.js'
 import { logAudit } from '../services/auditLog.js'
 import { ConnectorRegistry } from '../connectors/connectorRegistry.js'
+import { buildTenantExport } from '../services/tenantExport.js'
 
 export const tenantsRouter = Router()
 
@@ -35,6 +36,13 @@ const tenantSchema = z.object({
   trialEndsAt: z.string().datetime().nullable().optional(),
   enabledModules: z.array(enabledModuleSchema).default(['dashboard']),
   status: z.enum(['active', 'inactive']).default('active'),
+})
+
+const tenantSettingsSchema = z.object({
+  name: z.string().min(1).max(160),
+  subtitle: z.string().min(1).max(160),
+  logoUrl: z.string().url().max(600).nullable().optional(),
+  primaryColor: z.string().regex(/^#[0-9a-fA-F]{3,8}$/, 'Cor primaria invalida').nullable().optional(),
 })
 
 function sanitizeTenant(tenant: TenantRecord) {
@@ -99,6 +107,57 @@ tenantsRouter.get('/:slug/config', async (req, res) => {
     return res.status(404).json({ message: 'Tenant nao encontrado' })
   }
   res.json(sanitizePublicTenantConfig(tenant))
+})
+
+tenantsRouter.get('/current/settings', requireAuth, async (req, res) => {
+  const authReq = req as AuthenticatedRequest
+  const tenant = await findTenantBySlug(authReq.tenantId)
+  if (!tenant) return res.status(404).json({ message: 'Tenant nao encontrado' })
+  res.json(sanitizeTenant(tenant))
+})
+
+tenantsRouter.put('/current/settings', requireAdmin, async (req, res) => {
+  const authReq = req as AuthenticatedRequest
+  const current = await findTenantBySlug(authReq.tenantId)
+  if (!current) return res.status(404).json({ message: 'Tenant nao encontrado' })
+
+  const parsed = tenantSettingsSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
+  }
+
+  const tenant = await upsertTenant({
+    ...current,
+    name: parsed.data.name.trim(),
+    subtitle: parsed.data.subtitle.trim(),
+    logoUrl: parsed.data.logoUrl === undefined ? current.logoUrl : parsed.data.logoUrl,
+    primaryColor: parsed.data.primaryColor === undefined ? current.primaryColor : parsed.data.primaryColor,
+  })
+  logAudit({
+    userId: authReq.userId,
+    tenantId: authReq.tenantId,
+    action: 'tenant_settings_updated',
+    resource: 'tenants',
+    metadata: { tenantId: tenant.id, slug: tenant.slug },
+  })
+  res.json(sanitizeTenant(tenant))
+})
+
+tenantsRouter.get('/:id/export', requireAdmin, async (req, res) => {
+  const authReq = req as AuthenticatedRequest
+  if (req.params.id !== authReq.tenantId) {
+    return res.status(403).json({ message: 'Export permitido apenas para o tenant atual' })
+  }
+  const payload = await buildTenantExport(authReq.tenantId)
+  logAudit({
+    userId: authReq.userId,
+    tenantId: authReq.tenantId,
+    action: 'tenant_export',
+    resource: 'tenants',
+    metadata: { tenantId: authReq.tenantId, userCount: payload.counts.users, dsCount: payload.counts.datasources },
+  })
+  res.setHeader('Content-Disposition', `attachment; filename="iga-tenant-${authReq.tenantId}-${Date.now()}.json"`)
+  res.json(payload)
 })
 
 tenantsRouter.use(requireSuperAdmin)
