@@ -15,9 +15,9 @@ export function FinalCta() {
           <div className="blob size-[400px] -bottom-32 -right-20 grad-blue opacity-40" aria-hidden />
           <div className="blob size-[300px] top-1/2 right-1/3 grad-pink opacity-30" aria-hidden />
 
-          <div className="relative text-center max-w-[20ch] mx-auto">
+          <div className="relative text-center max-w-[22ch] mx-auto">
             <Reveal>
-              <p className="text-white/70 text-sm font-medium mb-6">O próximo passo</p>
+              <p className="text-white/70 text-sm font-medium mb-6">Vamos conversar</p>
             </Reveal>
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
@@ -26,14 +26,14 @@ export function FinalCta() {
               transition={{ duration: 0.9, ease }}
               className="text-display-xl text-white"
             >
-              Pronto para a visão que faltava?
+              Sua próxima segunda começa aqui.
             </motion.h2>
           </div>
 
           <Reveal delay={0.2}>
-            <p className="relative mt-8 mx-auto max-w-[52ch] text-center text-lg text-white/75 leading-relaxed">
-              Trial de 14 dias com Copilot IA + todos os módulos. Sem cartão, sem instalação. Você
-              loga e começa a usar.
+            <p className="relative mt-8 mx-auto max-w-[54ch] text-center text-lg text-white/75 leading-relaxed">
+              Catorze dias com Copilot IA, todos os módulos e suporte de gente. Sem cartão. Se não
+              ajudar, é só fechar a aba — não cobramos nem importunamos.
             </p>
           </Reveal>
 

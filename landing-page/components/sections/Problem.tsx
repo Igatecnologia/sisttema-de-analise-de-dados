@@ -8,18 +8,18 @@ const ease = [0.22, 1, 0.36, 1] as const
 const cards = [
   {
     type: 'bad' as const,
-    title: 'Planilhas',
-    desc: 'Manuais, desatualizadas, sem versionamento. Cada gestor tem a sua e nenhuma fala com a outra.',
+    title: 'Planilha de toda segunda',
+    desc: 'O gerente compila no Excel, manda no grupo, alguém pergunta o número, ninguém sabe se está atualizado. Toda. Santa. Segunda.',
   },
   {
     type: 'bad' as const,
-    title: 'ERP pesado',
-    desc: 'Caro, lento, com 500 telas. Você usa 10% das funcionalidades e paga por 100% delas.',
+    title: 'ERP que ninguém abre',
+    desc: 'Você paga R$ 2 mil por mês e usa 10% das funcionalidades. As 90% restantes? Esperam alguém com 3 dias livres pra aprender.',
   },
   {
     type: 'good' as const,
-    title: 'IGA Gestão',
-    desc: 'Conecta no ERP que você já tem. Dashboard de classe mundial em 10 minutos. IA Copilot inclusa.',
+    title: 'IGA — gestão que aparece pronta',
+    desc: 'Conecta no seu ERP atual, normaliza os dados e te entrega dashboard, alertas e Copilot IA. Em dez minutos.',
   },
 ]
 
@@ -27,11 +27,12 @@ export function Problem() {
   return (
     <section className="py-28 md:py-36 bg-[var(--color-bg-alt)]">
       <Container>
-        <div className="max-w-[40ch] mb-16 md:mb-20">
+        <div className="max-w-[44ch] mb-16 md:mb-20">
           <Reveal>
+            <p className="text-[var(--color-brand)] text-sm font-medium mb-4">O dia a dia</p>
             <h2 className="text-display-lg">
-              Você já tem ERP. <br />
-              <span className="text-[var(--color-fg-muted)]">O problema é usar os dados.</span>
+              Você já paga ERP. <br />
+              <span className="text-[var(--color-fg-muted)]">Mas e os dados, onde estão?</span>
             </h2>
           </Reveal>
         </div>
@@ -81,7 +82,7 @@ export function Problem() {
               </h3>
               <p
                 className={`text-base leading-relaxed ${
-                  card.type === 'good' ? 'text-white/70' : 'text-[var(--color-fg-muted)]'
+                  card.type === 'good' ? 'text-white/75' : 'text-[var(--color-fg-muted)]'
                 }`}
               >
                 {card.desc}

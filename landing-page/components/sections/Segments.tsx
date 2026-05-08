@@ -20,14 +20,14 @@ export function Segments() {
       <Container>
         <div className="max-w-[44ch] mb-16 md:mb-20">
           <Reveal>
-            <p className="text-[var(--color-brand)] text-sm font-medium mb-4">Segmentos</p>
+            <p className="text-[var(--color-brand)] text-sm font-medium mb-4">Para qual indústria?</p>
             <h2 className="text-display-lg">
-              Qualquer indústria. <br />
-              <span className="text-[var(--color-fg-muted)]">Qualquer tamanho.</span>
+              A sua. <br />
+              <span className="text-[var(--color-fg-muted)]">Independente de tamanho.</span>
             </h2>
             <p className="mt-6 text-lg text-[var(--color-fg-muted)] leading-relaxed">
-              O IGA se adapta ao seu segmento via connectors específicos. O que muda? As fórmulas
-              de classificação, os labels e as métricas. O resto é igual.
+              Cada segmento tem suas particularidades — densidade de espuma, lote de alimento, grade
+              de tamanho. A gente cuida disso por baixo dos panos. Você só vê o número certo.
             </p>
           </Reveal>
         </div>

@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { motion } from 'motion/react'
 import { Container, Reveal } from '../primitives'
 
@@ -8,22 +9,22 @@ const ease = [0.22, 1, 0.36, 1] as const
 const steps = [
   {
     n: '01',
-    title: 'Conecte',
-    desc: 'Informe a URL e credenciais do seu ERP. Validamos a conexão na hora.',
+    title: 'Conecte seu ERP',
+    desc: 'Cole a URL e as credenciais. A gente testa a conexão na sua frente. Funcionou? Próximo.',
     badge: '~3 min',
     grad: 'grad-blue',
   },
   {
     n: '02',
-    title: 'Configure',
-    desc: 'Escolha módulos e mapeie campos. Templates prontos por segmento.',
+    title: 'Escolha o que importa',
+    desc: 'Marque os módulos que sua operação usa. Pulamos o resto. Templates prontos por segmento.',
     badge: '~5 min',
     grad: 'grad-violet',
   },
   {
     n: '03',
-    title: 'Use',
-    desc: 'Dashboards, alertas e Copilot — tudo populado em tempo real.',
+    title: 'Comece a usar',
+    desc: 'Dashboards populados, Copilot ativo, equipe convidada. Pronto para a próxima reunião.',
     badge: '~2 min',
     grad: 'grad-pink',
   },
@@ -35,11 +36,15 @@ export function HowItWorks() {
       <Container>
         <div className="max-w-[44ch] mb-16 md:mb-20">
           <Reveal>
-            <p className="text-[var(--color-brand)] text-sm font-medium mb-4">Como funciona</p>
+            <p className="text-[var(--color-brand)] text-sm font-medium mb-4">Onboarding</p>
             <h2 className="text-display-lg">
-              Três passos. <br />
-              <span className="text-[var(--color-fg-muted)]">Dez minutos.</span>
+              Dez minutos. <br />
+              <span className="text-[var(--color-fg-muted)]">Sem TI envolvida.</span>
             </h2>
+            <p className="mt-6 text-lg text-[var(--color-fg-muted)] leading-relaxed">
+              Sem reunião de implantação. Sem pacote de horas. Você loga e configura sozinho — ou
+              chama a gente no WhatsApp.
+            </p>
           </Reveal>
         </div>
 
@@ -71,23 +76,35 @@ export function HowItWorks() {
           ))}
         </div>
 
+        {/* Showcase de tela: Configurações */}
         <Reveal delay={0.4}>
-          <div className="mt-12 rounded-3xl bg-[var(--color-fg)] p-10 md:p-14 text-white grid md:grid-cols-3 items-center gap-8">
+          <div className="mt-12 rounded-3xl bg-[var(--color-fg)] p-8 md:p-10 lg:p-14 text-white grid lg:grid-cols-2 items-center gap-10">
             <div>
-              <p className="text-white/60 text-sm mb-3">Tempo médio de setup</p>
-              <p className="text-display-md text-white">10 min</p>
-            </div>
-            <p className="text-white/80 leading-relaxed md:col-span-1">
-              Sem instalação. Sem migração. Sem treinamento. Você loga e está dentro — com seus
-              dados reais já populando o dashboard.
-            </p>
-            <div className="md:text-right">
+              <p className="text-white/60 text-sm mb-3">Configuração visual</p>
+              <h3 className="text-display-md text-white mb-5">
+                Sem código. <br /> Sem reunião de implantação.
+              </h3>
+              <p className="text-white/75 leading-relaxed mb-8">
+                Você escolhe o connector, cola as credenciais, mapeia os campos com auto-sugestão
+                e testa a conexão na tela. Se travar, o time de suporte assume.
+              </p>
               <a href="#cta" className="inline-flex items-center gap-2 bg-white text-[var(--color-fg)] px-6 py-3 rounded-full font-medium hover:bg-white/90 transition-colors">
                 Começar agora
                 <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M5 12h14M13 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </a>
+            </div>
+            <div className="rounded-2xl border border-white/10 overflow-hidden bg-white">
+              <div className="relative aspect-[16/10]">
+                <Image
+                  src="/screenshots/configuracoes-desktop.png"
+                  alt="Tela de configurações do IGA Gestão"
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 600px"
+                  className="object-cover object-top"
+                />
+              </div>
             </div>
           </div>
         </Reveal>

@@ -1,51 +1,15 @@
 'use client'
 
+import Image from 'next/image'
 import { motion } from 'motion/react'
 import { Container, Reveal } from '../primitives'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
-const features = [
-  {
-    title: 'Dashboard Executivo',
-    desc: 'Faturamento, margem, clientes, top produtos — tudo em uma tela viva.',
-    grad: 'grad-blue',
-    icon: 'chart',
-    span: 'lg:col-span-7',
-    height: 'lg:h-[420px]',
-  },
-  {
-    title: 'Copilot IA',
-    desc: 'Pergunte em português. O copiloto consulta seus dados reais e responde.',
-    grad: 'grad-mesh',
-    icon: 'sparkles',
-    span: 'lg:col-span-5',
-    height: 'lg:h-[420px]',
-  },
-  {
-    title: 'Produção em tempo real',
-    desc: 'O que foi produzido, consumo de matéria-prima, OEE por linha.',
-    grad: 'grad-orange',
-    icon: 'factory',
-    span: 'lg:col-span-4',
-    height: 'lg:h-[380px]',
-  },
-  {
-    title: 'Estoque inteligente',
-    desc: 'Crítico em destaque. Matéria-prima e produto final, alerta automático.',
-    grad: 'grad-cyan',
-    icon: 'box',
-    span: 'lg:col-span-4',
-    height: 'lg:h-[380px]',
-  },
-  {
-    title: 'Financeiro completo',
-    desc: 'Contas a pagar, superávit/déficit, notas fiscais conciliadas.',
-    grad: 'grad-violet',
-    icon: 'cash',
-    span: 'lg:col-span-4',
-    height: 'lg:h-[380px]',
-  },
+const featureSummary = [
+  { t: 'Compras & Fornecedores', d: 'Histórico, ticket médio, top por volume.', icon: 'truck' },
+  { t: 'Relatórios agendados', d: 'PDF/Excel automático no e-mail da liderança.', icon: 'mail' },
+  { t: 'Webhooks & API', d: 'Integração enterprise com retry exponencial.', icon: 'plug' },
 ]
 
 export function Features() {
@@ -60,61 +24,89 @@ export function Features() {
               <span className="text-[var(--color-fg-muted)]">Uma superfície.</span>
             </h2>
             <p className="mt-6 text-lg text-[var(--color-fg-muted)] leading-relaxed">
-              Cada módulo conversa com os outros. Quando você abre o dashboard, está olhando para
-              a verdade do seu ERP — agregada, normalizada e atualizada.
+              Cada módulo conversa com os outros. Você abre o sistema e está olhando para a verdade
+              da sua fábrica — agregada, normalizada e atualizada em tempo real.
             </p>
           </Reveal>
         </div>
 
+        {/* Bento com prints reais */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {features.map((f, i) => (
-            <motion.article
-              key={f.title}
-              initial={{ opacity: 0, y: 32 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.7, ease, delay: i * 0.06 }}
-              className={`relative ${f.span} ${f.height} rounded-3xl ${f.grad} overflow-hidden p-8 md:p-10 text-white group`}
-            >
-              {/* Decorative shape */}
-              <div
-                aria-hidden
-                className="absolute -bottom-20 -right-20 size-72 rounded-full bg-white/10 blur-3xl group-hover:scale-110 transition-transform duration-700 ease-out"
-              />
+          {/* Hero card — Dashboard */}
+          <FeatureCardWithImage
+            className="lg:col-span-7"
+            grad="grad-blue"
+            icon="chart"
+            title="Visão executiva do dia"
+            desc="Faturamento, margem, top clientes, KPIs em tempo real. Você abre e em 3 segundos sabe se hoje está bom ou não."
+            image="/screenshots/dashboard-desktop.png"
+            imageAlt="Tela de visão do gestor com indicadores e atalhos"
+            delay={0}
+          />
 
-              <div className="relative flex flex-col h-full">
-                <div className="size-12 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center text-white mb-6">
-                  <FeatureIcon name={f.icon} />
-                </div>
-
-                <h3 className="text-2xl md:text-3xl font-semibold tracking-tight mb-3 max-w-[16ch]">
-                  {f.title}
-                </h3>
-                <p className="text-white/85 text-base leading-relaxed max-w-[34ch]">{f.desc}</p>
-
-                <div className="mt-auto pt-6">
-                  <a
-                    href="#cta"
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-white hover:gap-2.5 transition-all"
-                  >
-                    Saiba mais
-                    <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M5 12h14M13 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </a>
-                </div>
+          {/* Copilot */}
+          <FeatureCardWithImage
+            className="lg:col-span-5"
+            grad="grad-mesh"
+            icon="sparkles"
+            title="Pergunte. O Copilot responde."
+            desc="IA com tool-calling: busca seus dados reais e responde em português. Sem alucinação — se não achou, ele diz."
+            image={null}
+            imageAlt=""
+            delay={0.1}
+            renderExtra={
+              <div className="mt-6 rounded-2xl bg-white/10 backdrop-blur p-4 border border-white/15">
+                <p className="text-sm text-white/85 mb-2">
+                  &ldquo;Quem foi o cliente que mais cresceu este mês?&rdquo;
+                </p>
+                <p className="text-sm text-white">
+                  <span className="font-medium">Tex Norte</span> cresceu{' '}
+                  <span className="font-semibold text-emerald-300">+34%</span> em faturamento.
+                </p>
               </div>
-            </motion.article>
-          ))}
+            }
+          />
+
+          {/* Produção */}
+          <FeatureCardWithImage
+            className="lg:col-span-4"
+            grad="grad-orange"
+            icon="factory"
+            title="Produção em tempo real"
+            desc="O que foi produzido, consumo de matéria-prima, OEE por linha — sem ligar pra fábrica."
+            image="/screenshots/producao-desktop.png"
+            imageAlt="Tela de produção do IGA Gestão"
+            delay={0.15}
+          />
+
+          {/* Estoque */}
+          <FeatureCardWithImage
+            className="lg:col-span-4"
+            grad="grad-cyan"
+            icon="box"
+            title="Estoque que avisa"
+            desc="Crítico em destaque. Você não descobre que faltou matéria-prima quando o pedido travou."
+            image="/screenshots/estoque-desktop.png"
+            imageAlt="Tela de estoque com itens críticos"
+            delay={0.2}
+          />
+
+          {/* Financeiro */}
+          <FeatureCardWithImage
+            className="lg:col-span-4"
+            grad="grad-violet"
+            icon="cash"
+            title="Financeiro conciliado"
+            desc="Contas a pagar, superávit/déficit, notas fiscais. Sem aquela conferência manual de sexta."
+            image="/screenshots/financeiro-desktop.png"
+            imageAlt="Tela de financeiro com contas e indicadores"
+            delay={0.25}
+          />
         </div>
 
-        {/* Compras + Relatórios + Vendas linha bonus */}
+        {/* Linha bonus */}
         <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            { t: 'Compras & Fornecedores', d: 'Histórico, ticket médio, top por volume.', icon: 'truck' },
-            { t: 'Relatórios agendados', d: 'PDF/Excel automático no e-mail da liderança.', icon: 'mail' },
-            { t: 'Webhooks & API', d: 'Integração enterprise com retry exponencial.', icon: 'plug' },
-          ].map((f, i) => (
+          {featureSummary.map((f, i) => (
             <motion.div
               key={f.t}
               initial={{ opacity: 0, y: 24 }}
@@ -133,6 +125,68 @@ export function Features() {
         </div>
       </Container>
     </section>
+  )
+}
+
+function FeatureCardWithImage({
+  className,
+  grad,
+  icon,
+  title,
+  desc,
+  image,
+  imageAlt,
+  delay,
+  renderExtra,
+}: {
+  className: string
+  grad: string
+  icon: string
+  title: string
+  desc: string
+  image: string | null
+  imageAlt: string
+  delay: number
+  renderExtra?: React.ReactNode
+}) {
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 32 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-60px' }}
+      transition={{ duration: 0.7, ease, delay }}
+      className={`group relative ${className} rounded-3xl ${grad} overflow-hidden text-white`}
+    >
+      <div
+        aria-hidden
+        className="absolute -bottom-20 -right-20 size-72 rounded-full bg-white/10 blur-3xl group-hover:scale-110 transition-transform duration-700 ease-out"
+      />
+
+      <div className="relative p-8 md:p-10">
+        <div className="size-12 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center text-white mb-6">
+          <FeatureIcon name={icon} />
+        </div>
+        <h3 className="text-2xl md:text-3xl font-semibold tracking-tight mb-3 max-w-[18ch]">
+          {title}
+        </h3>
+        <p className="text-white/85 text-base leading-relaxed max-w-[36ch]">{desc}</p>
+        {renderExtra}
+      </div>
+
+      {image && (
+        <div className="relative mx-8 md:mx-10 mb-0 mt-2 rounded-t-2xl border border-white/15 overflow-hidden bg-white">
+          <div className="relative aspect-[16/9] md:aspect-[16/8]">
+            <Image
+              src={image}
+              alt={imageAlt}
+              fill
+              sizes="(max-width: 1024px) 100vw, 600px"
+              className="object-cover object-top"
+            />
+          </div>
+        </div>
+      )}
+    </motion.article>
   )
 }
 

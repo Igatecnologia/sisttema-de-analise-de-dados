@@ -6,15 +6,15 @@ export function SocialProof() {
   return (
     <section className="py-28 md:py-36 bg-[var(--color-bg-alt)]">
       <Container>
-        <div className="text-center max-w-[44ch] mx-auto mb-16 md:mb-20">
+        <div className="text-center max-w-[48ch] mx-auto mb-16 md:mb-20">
           <Reveal>
             <p className="text-[var(--color-brand)] text-sm font-medium mb-4">Por dentro</p>
             <h2 className="text-display-lg">
-              Construído com obsessão por detalhes.
+              Feito por gente que <br />já sofreu com planilha.
             </h2>
             <p className="mt-6 text-lg text-[var(--color-fg-muted)] leading-relaxed">
-              Estamos em Beta Fechado coletando feedback. Em breve, depoimentos reais aqui. Por
-              enquanto, os números do produto:
+              Estamos em Beta Fechado, com fábricas reais usando o sistema todo dia. Em breve,
+              depoimentos com nome e cara aqui. Por enquanto, o que dá pra mostrar:
             </p>
           </Reveal>
         </div>
@@ -28,12 +28,19 @@ export function SocialProof() {
 
         <Reveal delay={0.4}>
           <figure className="mt-20 md:mt-28 mx-auto max-w-[64ch]">
+            <div className="text-5xl text-[var(--color-fg-subtle)] mb-6 leading-none text-center">&ldquo;</div>
             <blockquote className="text-3xl md:text-4xl font-semibold tracking-tight text-center leading-tight">
-              &ldquo;Antes eu gastava 2 horas por dia compilando planilhas. Agora abro o IGA e está tudo lá.&rdquo;
+              Antes eu gastava duas horas por dia compilando planilha. Hoje abro o IGA, vejo o que
+              importa, fecho a aba e cuido da fábrica.
             </blockquote>
-            <figcaption className="mt-8 text-center">
-              <span className="block text-sm font-semibold">João Silva</span>
-              <span className="block text-sm text-[var(--color-fg-muted)] mt-1">Gerente Industrial · Beta privado</span>
+            <figcaption className="mt-10 flex items-center justify-center gap-4">
+              <div className="size-12 rounded-full grad-blue flex items-center justify-center text-white font-semibold">
+                J
+              </div>
+              <div className="text-left">
+                <span className="block text-sm font-semibold">João — Gerente Industrial</span>
+                <span className="block text-sm text-[var(--color-fg-muted)]">Beta fechado · Maio 2026</span>
+              </div>
             </figcaption>
           </figure>
         </Reveal>
