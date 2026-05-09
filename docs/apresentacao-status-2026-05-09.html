@@ -1,0 +1,1318 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IGA Gestão · Status do Projeto · Reunião 09/05/2026</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --brand: #2563eb;
+      --brand-dark: #1d4ed8;
+      --gold: #f59e0b;
+      --success: #10b981;
+      --danger: #ef4444;
+      --ink: #0a0e14;
+      --muted: #64748b;
+      --line: rgba(15, 23, 42, 0.08);
+    }
+    * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    body { font-family: 'Inter', system-ui, sans-serif; color: #0f172a; background: #f8fafc; }
+    h1, h2, h3, .display { font-family: 'Sora', 'Inter', sans-serif; letter-spacing: -0.02em; }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; padding: 2px 6px; border-radius: 6px; background: #0f172a; color: #e2e8f0; }
+    .gradient-hero {
+      background:
+        radial-gradient(60% 80% at 80% 0%, rgba(245, 158, 11, 0.18) 0%, transparent 60%),
+        radial-gradient(70% 80% at 0% 100%, rgba(37, 99, 235, 0.32) 0%, transparent 60%),
+        linear-gradient(160deg, #0a0e14 0%, #0f172a 100%);
+    }
+    .text-gradient {
+      background: linear-gradient(135deg, #2563eb 0%, #f59e0b 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .card { background: #fff; border: 1px solid var(--line); border-radius: 16px; transition: all 200ms ease; }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 12px 32px -16px rgba(15, 23, 42, 0.12); }
+    .badge { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; }
+    .dot { width: 6px; height: 6px; border-radius: 999px; display: inline-block; }
+    .grid-pattern {
+      background-image:
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+    .stat-num {
+      font-family: 'Sora', sans-serif;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 0.95;
+    }
+    .check { color: var(--success); }
+    .hero-screenshot {
+      box-shadow:
+        0 50px 100px -20px rgba(0, 0, 0, 0.45),
+        0 30px 60px -30px rgba(0, 0, 0, 0.5),
+        inset 0 -2px 6px rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+    }
+    .timeline-line { background: linear-gradient(180deg, var(--brand), var(--gold)); }
+    .scroll-x { scrollbar-width: thin; }
+    .scroll-x::-webkit-scrollbar { height: 8px; }
+    .scroll-x::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    @media print {
+      body { background: white; }
+      .no-print { display: none !important; }
+      .card { break-inside: avoid; }
+      section { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─────────────────────────── HERO ─────────────────────────── -->
+<header class="gradient-hero text-white relative overflow-hidden">
+  <div class="grid-pattern absolute inset-0 opacity-30"></div>
+  <div class="relative max-w-7xl mx-auto px-6 lg:px-12 pt-12 pb-20 lg:pt-20 lg:pb-28">
+
+    <div class="flex items-center justify-between mb-12">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: linear-gradient(135deg, #fbbf24, #f59e0b);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-900">
+            <path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
+          </svg>
+        </div>
+        <span class="font-bold text-lg tracking-tight">IGA Gestão</span>
+      </div>
+      <div class="hidden md:flex items-center gap-3 text-sm text-slate-300">
+        <span>Reunião de status</span>
+        <span class="text-slate-500">•</span>
+        <span class="font-medium text-white">09 de Maio de 2026</span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 mb-6">
+      <span class="badge" style="background: rgba(245, 158, 11, 0.18); color: #fbbf24;">
+        <span class="dot" style="background: #fbbf24;"></span> Beta Fechada · Pré-lançamento
+      </span>
+      <span class="badge" style="background: rgba(16, 185, 129, 0.18); color: #34d399;">
+        <span class="dot" style="background: #34d399;"></span> Build verde
+      </span>
+    </div>
+
+    <h1 class="display text-5xl md:text-7xl font-extrabold leading-[0.95] mb-6 max-w-4xl">
+      Status do projeto<br/>
+      <span class="text-gradient">IGA Gestão</span>
+    </h1>
+
+    <p class="text-xl text-slate-300 max-w-2xl mb-12 leading-relaxed">
+      SaaS multi-tenant de Business Intelligence operacional pronto para o lançamento.
+      Conecta a ERPs, entrega dashboards em tempo real e responde perguntas em linguagem natural.
+    </p>
+
+    <!-- Stats principais -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl">
+      <div class="rounded-xl p-5 border border-white/10 backdrop-blur" style="background: rgba(255,255,255,0.04);">
+        <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Páginas auditadas</div>
+        <div class="stat-num text-5xl text-white">43</div>
+        <div class="text-xs text-slate-400 mt-2">100% com screenshot</div>
+      </div>
+      <div class="rounded-xl p-5 border border-white/10 backdrop-blur" style="background: rgba(255,255,255,0.04);">
+        <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Endpoints OK</div>
+        <div class="stat-num text-5xl" style="color: #34d399;">33<span class="text-2xl text-slate-400">/34</span></div>
+        <div class="text-xs text-slate-400 mt-2">Smoke 97% green</div>
+      </div>
+      <div class="rounded-xl p-5 border border-white/10 backdrop-blur" style="background: rgba(255,255,255,0.04);">
+        <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Testes unitários</div>
+        <div class="stat-num text-5xl text-white">110</div>
+        <div class="text-xs text-slate-400 mt-2">76 back · 34 front · 5 e2e</div>
+      </div>
+      <div class="rounded-xl p-5 border border-white/10 backdrop-blur" style="background: rgba(255,255,255,0.04);">
+        <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Segmentos</div>
+        <div class="stat-num text-5xl" style="color: #fbbf24;">4</div>
+        <div class="text-xs text-slate-400 mt-2">Indústria · Comércio · Serviços · Distribuição</div>
+      </div>
+    </div>
+
+    <!-- Hero screenshot -->
+    <div class="mt-16 relative">
+      <img src="apresentacao-assets/dashboard.png" alt="Dashboard IGA Gestão" class="hero-screenshot w-full max-w-5xl mx-auto" />
+      <div aria-hidden class="absolute -inset-12 pointer-events-none" style="background: radial-gradient(60% 60% at 50% 100%, rgba(37, 99, 235, 0.2) 0%, transparent 60%); z-index: -1;"></div>
+    </div>
+  </div>
+</header>
+
+<!-- ─────────────────────────── O QUE É ─────────────────────────── -->
+<section class="max-w-7xl mx-auto px-6 lg:px-12 py-20">
+  <div class="grid lg:grid-cols-3 gap-8 items-start">
+    <div class="lg:col-span-1">
+      <div class="badge mb-4" style="background: #eff6ff; color: var(--brand);">VISÃO GERAL</div>
+      <h2 class="text-4xl font-extrabold mb-4">O que é o IGA Gestão</h2>
+      <p class="text-slate-600 leading-relaxed">
+        Plataforma SaaS multi-tenant que <strong>substitui planilhas e dashboards genéricos</strong>
+        do ERP por uma camada moderna de BI operacional. Cada cliente conecta seu ERP via proxy de
+        API e ganha dashboards em tempo real, alertas, relatórios agendados, copilot de IA e
+        muito mais — tudo isolado por tenant via Postgres RLS.
+      </p>
+    </div>
+    <div class="lg:col-span-2 grid sm:grid-cols-2 gap-4">
+      <div class="card p-5">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: #eff6ff;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          </div>
+          <h3 class="font-semibold">Multi-segmento</h3>
+        </div>
+        <p class="text-sm text-slate-600">4 perfis de negócio com módulos, conectores e templates pré-configurados.</p>
+      </div>
+      <div class="card p-5">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: #fef3c7;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </div>
+          <h3 class="font-semibold">Copilot IA</h3>
+        </div>
+        <p class="text-sm text-slate-600">Multi-provider (OpenAI, Anthropic, Gemini, Groq, Ollama). RAG via pgvector.</p>
+      </div>
+      <div class="card p-5">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: #ecfdf5;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3 class="font-semibold">Multi-tenant real</h3>
+        </div>
+        <p class="text-sm text-slate-600">Postgres RLS, RBAC com 19 permissões, MFA/TOTP, audit log com hash chain.</p>
+      </div>
+      <div class="card p-5">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: #faf5ff;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          </div>
+          <h3 class="font-semibold">Billing pronto</h3>
+        </div>
+        <p class="text-sm text-slate-600">Stripe checkout + portal + webhook validado. Trial de 14 dias.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── O QUE TEM DENTRO ─────────────────────────── -->
+<section class="bg-slate-50 py-20 border-y border-slate-200">
+  <div class="max-w-7xl mx-auto px-6 lg:px-12">
+    <div class="badge mb-4" style="background: #eff6ff; color: var(--brand);">SISTEMA COMPLETO</div>
+    <h2 class="text-4xl font-extrabold mb-2">Tudo que está construído hoje</h2>
+    <p class="text-slate-600 mb-12">Inventário completo de módulos, conectores, integrações e funcionalidades em produção.</p>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+      <!-- Módulos por segmento -->
+      <div class="card p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: #eff6ff;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M3 9h18M9 21V9"/></svg>
+          </div>
+          <h3 class="font-bold">Módulos do produto</h3>
+        </div>
+        <ul class="text-sm text-slate-600 space-y-1.5">
+          <li>📊 Dashboard operacional + BI Análises</li>
+          <li>📈 Vendas analítico (cohorts, ABC, ranking)</li>
+          <li>🏭 Produção (OEE, paradas, eficiência)</li>
+          <li>📦 Estoque (multi-aba por segmento)</li>
+          <li>🛒 Compras + fornecedores</li>
+          <li>📋 Notas fiscais (entrada/saída)</li>
+          <li>🔧 Ficha técnica (BoM hierárquica)</li>
+          <li>💰 Financeiro (contas a pagar/receber)</li>
+          <li>👥 Clientes (CRM + segmentação)</li>
+          <li>🔔 Alertas + notificações in-app</li>
+        </ul>
+      </div>
+
+      <!-- Conectores -->
+      <div class="card p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: #ecfdf5;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </div>
+          <h3 class="font-bold">7 Conectores plugáveis</h3>
+        </div>
+        <ul class="text-sm text-slate-600 space-y-1.5">
+          <li class="flex items-center gap-2"><span class="dot" style="background: #10b981;"></span> <strong>SGBR Espuma</strong> · ativo (industry)</li>
+          <li class="flex items-center gap-2"><span class="dot" style="background: #10b981;"></span> <strong>IGA Custom API</strong> · ativo (todos)</li>
+          <li class="flex items-center gap-2"><span class="dot" style="background: #10b981;"></span> <strong>CSV Upload</strong> · ativo (todos)</li>
+          <li class="flex items-center gap-2"><span class="dot" style="background: #10b981;"></span> <strong>Generic REST API</strong> · ativo</li>
+          <li class="flex items-center gap-2"><span class="dot" style="background: #f59e0b;"></span> <strong>Bling</strong> · coming-soon</li>
+          <li class="flex items-center gap-2"><span class="dot" style="background: #f59e0b;"></span> <strong>Tiny ERP</strong> · coming-soon</li>
+          <li class="flex items-center gap-2"><span class="dot" style="background: #f59e0b;"></span> <strong>Omie</strong> · coming-soon</li>
+        </ul>
+      </div>
+
+      <!-- Segurança -->
+      <div class="card p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: #fef3c7;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3 class="font-bold">Segurança hard</h3>
+        </div>
+        <ul class="text-sm text-slate-600 space-y-1.5">
+          <li>🔐 JWT cookie httpOnly + CSRF</li>
+          <li>🛡️ Postgres RLS 100% das tabelas tenant</li>
+          <li>🔑 Argon2id + HIBP pwned check + lockout</li>
+          <li>📱 MFA TOTP RFC 6238 + backup codes</li>
+          <li>🗝️ API Keys SHA-256 com 4 escopos</li>
+          <li>📜 Audit log com hash chain SHA-256</li>
+          <li>🔒 AES-256-GCM at rest (credenciais)</li>
+          <li>🚫 Rate limiting Redis + slow-down</li>
+          <li>👁️ CodeQL + Snyk + npm audit no CI</li>
+        </ul>
+      </div>
+
+      <!-- RBAC -->
+      <div class="card p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: #faf5ff;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <h3 class="font-bold">RBAC granular</h3>
+        </div>
+        <ul class="text-sm text-slate-600 space-y-1.5">
+          <li><strong>3 roles:</strong> admin, manager, viewer</li>
+          <li><strong>19 permissões</strong> granulares:</li>
+          <li class="text-xs font-mono text-slate-500 ml-2">dashboard:view · finance:view · finance:edit ·<br/>users:view · users:edit · datasources:view ·<br/>datasources:edit · alerts:view · alerts:edit ·<br/>reports:view · reports:edit · audit:view ·<br/>billing:manage · webhooks:manage · ...</li>
+          <li class="pt-2 border-t mt-2">+ permissões custom por usuário</li>
+          <li>+ Super-admin cross-tenant via env</li>
+        </ul>
+      </div>
+
+      <!-- Bilhões -->
+      <div class="card p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: #f0fdf4;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <h3 class="font-bold">Billing Stripe</h3>
+        </div>
+        <ul class="text-sm text-slate-600 space-y-1.5">
+          <li>💳 Stripe Checkout integrado</li>
+          <li>🌐 Customer Portal (auto-serviço)</li>
+          <li>🔁 Webhooks validados com signature</li>
+          <li>⏱️ Trial 14 dias com extensão pelo super-admin</li>
+          <li>📊 4 planos: Trial · Starter · Pro · Enterprise</li>
+          <li>🔓 Bypass <span class="kbd">BILLING_GATE_DISABLED</span> só em DEV</li>
+          <li>🏦 Stripe live precisa CNPJ + KYC (pendente)</li>
+        </ul>
+      </div>
+
+      <!-- Ops & Jobs -->
+      <div class="card p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: #fdf2f8;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </div>
+          <h3 class="font-bold">Operação & Jobs</h3>
+        </div>
+        <ul class="text-sm text-slate-600 space-y-1.5">
+          <li>⚙️ BullMQ + Redis (com fallback setInterval)</li>
+          <li>📧 Relatórios agendados via cron + Nodemailer</li>
+          <li>🔄 Sync periódico de fontes de dados</li>
+          <li>🚨 Alertas automáticos (estoque baixo, OEE caindo)</li>
+          <li>💾 DB backup workflow no GitHub Actions</li>
+          <li>🏥 Health checks (live/ready) + system status</li>
+          <li>📊 PostHog analytics + custom events</li>
+          <li>🔍 Lighthouse CI + budget no PR</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── ARQUITETURA ─────────────────────────── -->
+<section class="bg-slate-900 text-white py-20">
+  <div class="max-w-7xl mx-auto px-6 lg:px-12">
+    <div class="badge mb-4" style="background: rgba(37, 99, 235, 0.2); color: #93c5fd;">ARQUITETURA</div>
+    <h2 class="text-4xl font-extrabold mb-12">Stack distribuída e modular</h2>
+
+    <div class="grid lg:grid-cols-2 gap-12 items-start">
+
+      <!-- Diagrama -->
+      <div class="rounded-xl p-8 font-mono text-sm leading-relaxed" style="background: #0a0e14; border: 1px solid rgba(255,255,255,0.08);">
+<pre class="text-slate-300 text-xs md:text-sm whitespace-pre overflow-x-auto">
+┌─────────────────┐    proxy     ┌──────────────────┐
+│  ERP do cliente │◄────────────►│   services/api   │
+│   (SGBR/Bling/  │  REST/JWT    │  Express + RLS   │
+│    Tiny/Omie)   │              │   + BullMQ       │
+└─────────────────┘              └────────┬─────────┘
+                                          │
+                                ┌─────────┴──────────┐
+                                │  Postgres+pgvector │
+                                │       + Redis      │
+                                └─────────┬──────────┘
+                                          │
+                ┌─────────────────────────┼─────────────────────────┐
+                ▼                         ▼                         ▼
+         ┌──────────────┐         ┌──────────────┐         ┌──────────────┐
+         │   apps/web   │         │  apps/admin  │         │  services/ai │
+         │ React + AntD │         │   Next.js    │         │   FastAPI    │
+         │   (cliente)  │         │ (super-admin)│         │  (Copilot)   │
+         └──────────────┘         └──────────────┘         └──────────────┘
+</pre>
+      </div>
+
+      <!-- Componentes -->
+      <div class="space-y-4">
+        <div class="rounded-xl p-5 border border-white/10" style="background: rgba(255,255,255,0.03);">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="dot" style="background: #34d399;"></span>
+            <span class="font-mono text-xs text-emerald-400">services/api</span>
+          </div>
+          <div class="font-semibold mb-1">Backend Express + TypeScript</div>
+          <div class="text-sm text-slate-400">Postgres RLS, Redis BullMQ, Argon2id, MFA, 19 permissões granulares, 7 connectors, audit hash chain.</div>
+        </div>
+        <div class="rounded-xl p-5 border border-white/10" style="background: rgba(255,255,255,0.03);">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="dot" style="background: #60a5fa;"></span>
+            <span class="font-mono text-xs text-blue-400">apps/web</span>
+          </div>
+          <div class="font-semibold mb-1">Frontend cliente · React 19</div>
+          <div class="text-sm text-slate-400">Vite 8, AntD v6, TanStack Query v5, React Router 7 lazy, Recharts, virtual scrolling, dark/light com tokens.</div>
+        </div>
+        <div class="rounded-xl p-5 border border-white/10" style="background: rgba(255,255,255,0.03);">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="dot" style="background: #fbbf24;"></span>
+            <span class="font-mono text-xs text-amber-400">apps/admin</span>
+          </div>
+          <div class="font-semibold mb-1">Super Admin · Next.js 15</div>
+          <div class="text-sm text-slate-400">Cross-tenant: Beta Fechada, Tenants, Usuários, Assinaturas, IA Usage, Auditoria, Saúde, Connectors.</div>
+        </div>
+        <div class="rounded-xl p-5 border border-white/10" style="background: rgba(255,255,255,0.03);">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="dot" style="background: #c084fc;"></span>
+            <span class="font-mono text-xs text-purple-400">services/ai</span>
+          </div>
+          <div class="font-semibold mb-1">Copilot V2 · Python FastAPI</div>
+          <div class="text-sm text-slate-400">Multi-provider LLM, RAG híbrido (pgvector + tsvector), JWT shared HS256, eval suite com 30 casos.</div>
+        </div>
+        <div class="rounded-xl p-5 border border-white/10" style="background: rgba(255,255,255,0.03);">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="dot" style="background: #fb7185;"></span>
+            <span class="font-mono text-xs text-rose-400">apps/landing</span>
+          </div>
+          <div class="font-semibold mb-1">Site institucional · Next.js 15</div>
+          <div class="text-sm text-slate-400">Tailwind 4, editorial light, 14 screenshots reais do produto, captura de leads.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── ENTREGAS RECENTES ─────────────────────────── -->
+<section class="max-w-7xl mx-auto px-6 lg:px-12 py-20">
+  <div class="badge mb-4" style="background: #ecfdf5; color: var(--success);">ENTREGAS DA SEMANA</div>
+  <h2 class="text-4xl font-extrabold mb-2">O que evoluiu até hoje</h2>
+  <p class="text-slate-600 mb-12">Últimos commits do branch <span class="kbd">master</span> · pronto para a Beta.</p>
+
+  <div class="grid md:grid-cols-2 gap-6">
+    <div class="card p-6">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="badge" style="background: #eff6ff; color: var(--brand);">UI</span>
+        <span class="text-xs text-slate-500">design system + 13 páginas</span>
+      </div>
+      <h3 class="text-lg font-bold mb-2">Sistema redesenhado em estilo Linear / Vercel</h3>
+      <ul class="text-sm text-slate-600 space-y-1.5">
+        <li class="flex gap-2"><span class="check">✓</span> Tokens premium light/dark com paleta <span class="kbd">#2563eb</span></li>
+        <li class="flex gap-2"><span class="check">✓</span> Polish global em cards, inputs, tabelas, modais e alerts</li>
+        <li class="flex gap-2"><span class="check">✓</span> Sidebar v2 com user card, dropdown, scroll fades, busca rápida <span class="kbd">/</span></li>
+        <li class="flex gap-2"><span class="check">✓</span> 17+ páginas com novo PageHeader (ícone Lucide + breadcrumbs)</li>
+        <li class="flex gap-2"><span class="check">✓</span> CookieConsent compacto + TrialBanner amarelo + Tour desabilitado</li>
+      </ul>
+    </div>
+
+    <div class="card p-6">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="badge" style="background: #fef3c7; color: var(--gold);">BETA</span>
+        <span class="text-xs text-slate-500">CNPJ via BrasilAPI</span>
+      </div>
+      <h3 class="text-lg font-bold mb-2">Página Beta Fechada para o super-admin</h3>
+      <ul class="text-sm text-slate-600 space-y-1.5">
+        <li class="flex gap-2"><span class="check">✓</span> Nova rota <span class="kbd">/beta</span> no admin com cards premium</li>
+        <li class="flex gap-2"><span class="check">✓</span> 4 stats: Total Beta · Ativos · Vencendo 7d · Expirados</li>
+        <li class="flex gap-2"><span class="check">✓</span> CNPJ lookup automático (BrasilAPI) preenche nome/slug/contato</li>
+        <li class="flex gap-2"><span class="check">✓</span> Filtro por nome/slug/CNPJ/email + busca</li>
+        <li class="flex gap-2"><span class="check">✓</span> Notas internas + extensão de trial em 1 click</li>
+      </ul>
+    </div>
+
+    <div class="card p-6">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="badge" style="background: #faf5ff; color: #8b5cf6;">ADMIN</span>
+        <span class="text-xs text-slate-500">login premium</span>
+      </div>
+      <h3 class="text-lg font-bold mb-2">Super admin com login redesenhado</h3>
+      <ul class="text-sm text-slate-600 space-y-1.5">
+        <li class="flex gap-2"><span class="check">✓</span> Split-screen com hero gradient dourado/preto e mesh pattern</li>
+        <li class="flex gap-2"><span class="check">✓</span> Password toggle, glow focus rings e features grid</li>
+        <li class="flex gap-2"><span class="check">✓</span> Build limpo: 13 páginas geradas pelo Next.js 15</li>
+        <li class="flex gap-2"><span class="check">✓</span> TenantFormModal redesenhado com 3 seções organizadas</li>
+      </ul>
+    </div>
+
+    <div class="card p-6">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="badge" style="background: #ecfdf5; color: var(--success);">BACKEND</span>
+        <span class="text-xs text-slate-500">stability + smoke</span>
+      </div>
+      <h3 class="text-lg font-bold mb-2">Backend estabilizado e validado</h3>
+      <ul class="text-sm text-slate-600 space-y-1.5">
+        <li class="flex gap-2"><span class="check">✓</span> Bug do <span class="kbd">/super-admin/ai-usage</span> corrigido (ORDER BY alias)</li>
+        <li class="flex gap-2"><span class="check">✓</span> Migration 017: 4 colunas beta em <span class="kbd">tenants</span> (sem tabela nova)</li>
+        <li class="flex gap-2"><span class="check">✓</span> Smoke test 33/34 endpoints (97%)</li>
+        <li class="flex gap-2"><span class="check">✓</span> Vite proxy fix (não colidir com <span class="kbd">/api-keys</span>, <span class="kbd">/dashboard</span>)</li>
+        <li class="flex gap-2"><span class="check">✓</span> CNPJ persistido end-to-end (validado via curl)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── BETA FECHADA DESTAQUE ─────────────────────────── -->
+<section class="bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 py-20 border-y border-amber-100">
+  <div class="max-w-7xl mx-auto px-6 lg:px-12">
+    <div class="grid lg:grid-cols-2 gap-12 items-center">
+      <div>
+        <div class="badge mb-4" style="background: rgba(245, 158, 11, 0.18); color: #b45309;">DESTAQUE DA SEMANA</div>
+        <h2 class="text-4xl font-extrabold mb-4">Beta Fechada operada<br/>via super-admin</h2>
+        <p class="text-slate-700 leading-relaxed mb-6">
+          Cadastro manual de clientes pré-lançamento direto pelo painel administrativo.
+          O super-admin digita o CNPJ, a Razão Social vem automaticamente da BrasilAPI,
+          o trial de 14 dias é criado e o cliente entra no sistema imediatamente.
+        </p>
+        <ul class="space-y-3 mb-8">
+          <li class="flex items-start gap-3">
+            <div class="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center flex-shrink-0 mt-0.5 text-xs font-bold">1</div>
+            <div>
+              <div class="font-semibold text-slate-900">Digite o CNPJ</div>
+              <div class="text-sm text-slate-600">Validação com dígitos verificadores + máscara em tempo real.</div>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <div class="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center flex-shrink-0 mt-0.5 text-xs font-bold">2</div>
+            <div>
+              <div class="font-semibold text-slate-900">BrasilAPI preenche tudo</div>
+              <div class="text-sm text-slate-600">Razão social, nome fantasia, slug, email, telefone, CNAE, município/UF, situação cadastral.</div>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <div class="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center flex-shrink-0 mt-0.5 text-xs font-bold">3</div>
+            <div>
+              <div class="font-semibold text-slate-900">Cliente entra no sistema</div>
+              <div class="text-sm text-slate-600">Trial 14 dias, conector recomendado por segmento, módulos ativos.</div>
+            </div>
+          </li>
+        </ul>
+        <div class="flex flex-wrap items-center gap-3 text-sm">
+          <span class="badge" style="background: white; color: var(--brand);">Sem tabela nova</span>
+          <span class="badge" style="background: white; color: var(--success);">Sem migration extra</span>
+          <span class="badge" style="background: white; color: #8b5cf6;">Apenas 4 colunas em <span class="kbd">tenants</span></span>
+        </div>
+      </div>
+      <div class="card p-2 shadow-2xl">
+        <img src="apresentacao-assets/clientes.png" alt="Painel Beta Fechada" class="rounded-lg w-full" />
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── GALERIA SCREENSHOTS ─────────────────────────── -->
+<section class="max-w-7xl mx-auto px-6 lg:px-12 py-20">
+  <div class="badge mb-4" style="background: #eff6ff; color: var(--brand);">GALERIA DO PRODUTO</div>
+  <h2 class="text-4xl font-extrabold mb-2">Telas em produção</h2>
+  <p class="text-slate-600 mb-12">43 rotas auditadas com screenshots automáticos via Playwright.</p>
+
+  <!-- Hero featured -->
+  <div class="grid lg:grid-cols-3 gap-6 mb-6">
+    <div class="lg:col-span-2 card overflow-hidden">
+      <img src="apresentacao-assets/dashboard.png" alt="Dashboard" class="w-full" />
+      <div class="p-4 flex items-center justify-between">
+        <div>
+          <div class="font-semibold">Dashboard principal</div>
+          <div class="text-xs text-slate-500">/dashboard · KPIs operacionais em tempo real</div>
+        </div>
+        <span class="badge" style="background: #eff6ff; color: var(--brand);">Cliente</span>
+      </div>
+    </div>
+    <div class="card overflow-hidden">
+      <img src="apresentacao-assets/dashboard_vendas-analitico.png" alt="Vendas analítico" class="w-full" />
+      <div class="p-4 flex items-center justify-between">
+        <div>
+          <div class="font-semibold">Vendas analítico</div>
+          <div class="text-xs text-slate-500">Curvas, ranking ABC e cohorts</div>
+        </div>
+        <span class="badge" style="background: #ecfdf5; color: var(--success);">BI</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grid de telas -->
+  <h3 class="text-xl font-bold mt-12 mb-4">📊 Operacional</h3>
+  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/financeiro.png" alt="Financeiro" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Financeiro</strong><br/><span class="text-slate-500">Contas a pagar/receber</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/producao.png" alt="Produção" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Produção</strong><br/><span class="text-slate-500">OEE, paradas, produzido</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/estoque.png" alt="Estoque" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Estoque</strong><br/><span class="text-slate-500">Por SKU + abas por segmento</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/compras.png" alt="Compras" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Compras</strong><br/><span class="text-slate-500">Pedidos e fornecedores</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/notas-fiscais.png" alt="Notas fiscais" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Notas fiscais</strong><br/><span class="text-slate-500">Listagem + exportação</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/ficha-tecnica.png" alt="Ficha técnica" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Ficha técnica</strong><br/><span class="text-slate-500">BoM hierárquica</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/clientes.png" alt="Clientes" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Clientes</strong><br/><span class="text-slate-500">CRM + segmentação ABC</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/alertas.png" alt="Alertas" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Alertas</strong><br/><span class="text-slate-500">Estoque baixo, OEE caindo</span></figcaption>
+    </figure>
+  </div>
+
+  <h3 class="text-xl font-bold mt-12 mb-4">📈 Análises e relatórios</h3>
+  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/dashboard_analises.png" alt="BI Análises" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>BI Análises</strong><br/><span class="text-slate-500">Drill-down avançado</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/relatorios.png" alt="Relatórios" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Relatórios</strong><br/><span class="text-slate-500">Builder + exportação</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/relatorios_galeria.png" alt="Galeria" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Galeria</strong><br/><span class="text-slate-500">Templates prontos</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/relatorios_agendados.png" alt="Agendados" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Agendados</strong><br/><span class="text-slate-500">Cron + email automático</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/visoes-salvas.png" alt="Visões salvas" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Visões salvas</strong><br/><span class="text-slate-500">Filtros e layout custom</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/gestao.png" alt="Gestão executiva" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Gestão executiva</strong><br/><span class="text-slate-500">Visão consolidada C-level</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/notificacoes.png" alt="Notificações" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Notificações</strong><br/><span class="text-slate-500">Inbox + push</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/novidades.png" alt="Novidades" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Changelog</strong><br/><span class="text-slate-500">Releases visíveis</span></figcaption>
+    </figure>
+  </div>
+
+  <h3 class="text-xl font-bold mt-12 mb-4">🔐 Administração</h3>
+  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/usuarios.png" alt="Usuários" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Usuários</strong><br/><span class="text-slate-500">RBAC + 19 permissões</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/configuracoes.png" alt="Configurações" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Configurações</strong><br/><span class="text-slate-500">Tenant settings</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/seguranca.png" alt="Segurança" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Segurança</strong><br/><span class="text-slate-500">MFA, sessões, lockout</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/seguranca_lgpd.png" alt="LGPD" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>LGPD</strong><br/><span class="text-slate-500">Direitos do titular</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/api-keys.png" alt="API Keys" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>API Keys</strong><br/><span class="text-slate-500">4 escopos · SHA-256</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/webhooks.png" alt="Webhooks" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Webhooks</strong><br/><span class="text-slate-500">Eventos out-bound</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/auditoria.png" alt="Auditoria" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Auditoria</strong><br/><span class="text-slate-500">Hash chain · search</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/integracoes_saude.png" alt="Saúde" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Saúde das integrações</strong><br/><span class="text-slate-500">Status connectors</span></figcaption>
+    </figure>
+  </div>
+
+  <h3 class="text-xl font-bold mt-12 mb-4">🔌 Integrações e dados</h3>
+  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/fontes-de-dados.png" alt="Fontes de dados" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Fontes de dados</strong><br/><span class="text-slate-500">Wizard + sugestões IA</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/connectors.png" alt="Connectors" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Marketplace</strong><br/><span class="text-slate-500">Bling, Tiny, Omie...</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/orgs.png" alt="Organizações" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Organizações</strong><br/><span class="text-slate-500">Multi-org switcher</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/planos.png" alt="Planos" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Planos</strong><br/><span class="text-slate-500">Stripe + comparativo</span></figcaption>
+    </figure>
+  </div>
+
+  <h3 class="text-xl font-bold mt-12 mb-4">🆘 Suporte e onboarding</h3>
+  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/login.png" alt="Login" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Login</strong><br/><span class="text-slate-500">MFA + lockout</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/register.png" alt="Cadastro" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Cadastro</strong><br/><span class="text-slate-500">CNPJ via BrasilAPI</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/boas-vindas.png" alt="Boas-vindas" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Onboarding</strong><br/><span class="text-slate-500">5 passos guiados</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/perfil.png" alt="Perfil" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Perfil</strong><br/><span class="text-slate-500">Preferências + tema</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/ajuda.png" alt="Ajuda" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Help Center</strong><br/><span class="text-slate-500">Artigos + busca</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/suporte_fale-conosco.png" alt="Suporte" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Fale conosco</strong><br/><span class="text-slate-500">Tickets + email</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/billing.png" alt="Billing" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Billing</strong><br/><span class="text-slate-500">Stripe customer portal</span></figcaption>
+    </figure>
+    <figure class="card overflow-hidden">
+      <img src="apresentacao-assets/admin_operacao.png" alt="Operação admin" class="w-full" />
+      <figcaption class="p-3 text-xs"><strong>Admin operação</strong><br/><span class="text-slate-500">Status do sistema</span></figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ─────────────────────────── DESKTOP × MOBILE ─────────────────────────── -->
+<section class="bg-slate-50 py-20 border-y border-slate-200">
+  <div class="max-w-7xl mx-auto px-6 lg:px-12">
+    <div class="badge mb-4" style="background: #eff6ff; color: var(--brand);">RESPONSIVO</div>
+    <h2 class="text-4xl font-extrabold mb-2">Desktop e mobile, mesmo design system</h2>
+    <p class="text-slate-600 mb-12">Tokens CSS unificados, layout fluído e tabelas com scroll horizontal nativo.</p>
+
+    <div class="grid md:grid-cols-2 gap-8">
+      <div class="card p-2">
+        <img src="apresentacao-assets/dashboard-desktop.png" alt="Dashboard desktop" class="w-full rounded-lg" />
+        <div class="p-4 text-center text-sm text-slate-600">Dashboard · Desktop</div>
+      </div>
+      <div class="card p-2 max-w-xs mx-auto">
+        <img src="apresentacao-assets/dashboard-mobile.png" alt="Dashboard mobile" class="w-full rounded-lg" />
+        <div class="p-4 text-center text-sm text-slate-600">Dashboard · Mobile</div>
+      </div>
+      <div class="card p-2">
+        <img src="apresentacao-assets/financeiro-desktop.png" alt="Financeiro desktop" class="w-full rounded-lg" />
+        <div class="p-4 text-center text-sm text-slate-600">Financeiro · Desktop</div>
+      </div>
+      <div class="card p-2 max-w-xs mx-auto">
+        <img src="apresentacao-assets/financeiro-mobile.png" alt="Financeiro mobile" class="w-full rounded-lg" />
+        <div class="p-4 text-center text-sm text-slate-600">Financeiro · Mobile</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── MÉTRICAS ─────────────────────────── -->
+<section class="max-w-7xl mx-auto px-6 lg:px-12 py-20">
+  <div class="badge mb-4" style="background: #ecfdf5; color: var(--success);">QUALIDADE</div>
+  <h2 class="text-4xl font-extrabold mb-12">Métricas verificadas hoje</h2>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+    <div class="card p-6 text-center">
+      <div class="stat-num text-6xl text-gradient mb-2">110</div>
+      <div class="font-semibold text-slate-900 mb-1">Testes unitários</div>
+      <div class="text-xs text-slate-500">Vitest · 22 arquivos · Verde no CI</div>
+    </div>
+    <div class="card p-6 text-center">
+      <div class="stat-num text-6xl mb-2" style="color: var(--success);">97%</div>
+      <div class="font-semibold text-slate-900 mb-1">Smoke 33/34</div>
+      <div class="text-xs text-slate-500">Único fail é POST /lgpd (CSRF esperado)</div>
+    </div>
+    <div class="card p-6 text-center">
+      <div class="stat-num text-6xl text-gradient mb-2">43</div>
+      <div class="font-semibold text-slate-900 mb-1">Rotas auditadas</div>
+      <div class="text-xs text-slate-500">Playwright · screenshots automáticos</div>
+    </div>
+    <div class="card p-6 text-center">
+      <div class="stat-num text-6xl mb-2" style="color: var(--brand);">5</div>
+      <div class="font-semibold text-slate-900 mb-1">E2E specs</div>
+      <div class="text-xs text-slate-500">a11y · BI · admin · RBAC · smoke</div>
+    </div>
+  </div>
+
+  <div class="card p-8 mt-8">
+    <h3 class="font-semibold mb-4">SLOs alvo (GA)</h3>
+    <div class="grid md:grid-cols-3 gap-6">
+      <div>
+        <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Latência</div>
+        <div class="font-mono text-sm space-y-1 text-slate-700">
+          <div>POST /auth/login &lt; <strong>500ms</strong> (p95)</div>
+          <div>GET /data/* &lt; <strong>2s</strong> (p95)</div>
+          <div>POST /copilot/chat &lt; <strong>1.5s</strong> (TTFT)</div>
+        </div>
+      </div>
+      <div>
+        <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Web Vitals</div>
+        <div class="font-mono text-sm space-y-1 text-slate-700">
+          <div>LCP &lt; <strong>2.0s</strong></div>
+          <div>INP &lt; <strong>200ms</strong></div>
+          <div>CLS &lt; <strong>0.1</strong></div>
+        </div>
+      </div>
+      <div>
+        <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Carga</div>
+        <div class="font-mono text-sm space-y-1 text-slate-700">
+          <div><strong>500</strong> tenants concurrent</div>
+          <div><strong>200</strong> req/s sem degradação</div>
+          <div>k6 baseline disponível</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── IA & OPENAI ─────────────────────────── -->
+<section class="bg-gradient-to-br from-blue-50 via-cyan-50 to-violet-50 py-20 border-y border-blue-100">
+  <div class="max-w-7xl mx-auto px-6 lg:px-12">
+    <div class="badge mb-4" style="background: rgba(37, 99, 235, 0.18); color: var(--brand);">INTELIGÊNCIA ARTIFICIAL</div>
+    <h2 class="text-4xl font-extrabold mb-2">Copilot IA com OpenAI no core</h2>
+    <p class="text-slate-700 mb-12 max-w-3xl">
+      Chat conversacional com tool-calling integrado ao backend. <strong>OpenAI gpt-4o-mini é o default</strong>
+      em produção pelo melhor custo/latência/qualidade. Multi-provider plugável e RAG via pgvector já no scaffold.
+    </p>
+
+    <!-- Arquitetura IA -->
+    <div class="grid lg:grid-cols-3 gap-6 mb-12">
+      <div class="card p-6 lg:col-span-2">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="badge" style="background: #ecfdf5; color: var(--success);">EM PRODUÇÃO</span>
+        </div>
+        <h3 class="text-2xl font-bold mb-4">Como o Copilot funciona hoje</h3>
+        <pre class="text-xs md:text-sm bg-slate-900 text-slate-100 rounded-lg p-5 overflow-x-auto font-mono leading-relaxed">
+Usuário (chat)
+    │ "Qual a produção da semana e o OEE da linha 2?"
+    ▼
+Backend services/api ──► Tool-calling loop ──► OpenAI gpt-4o-mini
+    │                         │                       │
+    │                         │ tool: get_producao   │
+    │                         │ tool: get_oee_by_line│
+    │                         ▼                       │
+    │                    Internal /v1/_internal/tools/*
+    │                         │                       │
+    │                         ▼                       │
+    │                    Postgres (RLS aplicado)     │
+    │                         │                       │
+    │                         └───── resposta ────────┘
+    ▼
+Resposta com gráficos + tabelas + ações sugeridas
+</pre>
+        <div class="grid sm:grid-cols-2 gap-4 mt-6 text-sm">
+          <div>
+            <div class="font-semibold text-slate-900 mb-1">Tool-calling V1 (TypeScript)</div>
+            <ul class="text-slate-600 space-y-1">
+              <li>• Multi-provider: OpenAI · Anthropic · Gemini · Groq · OpenRouter · Ollama/LM Studio</li>
+              <li>• Cada tenant pode setar API key própria (cifrada AES-256-GCM)</li>
+              <li>• Rate limiting + budget alerts por tenant</li>
+            </ul>
+          </div>
+          <div>
+            <div class="font-semibold text-slate-900 mb-1">V2 Python (services/ai)</div>
+            <ul class="text-slate-600 space-y-1">
+              <li>• FastAPI + uvicorn, JWT shared HS256</li>
+              <li>• OpenAI default · Anthropic Claude fallback</li>
+              <li>• RAG híbrido pgvector + tsvector</li>
+              <li>• Eval suite: 30 casos automáticos</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-6">
+        <div class="badge mb-4" style="background: rgba(34, 197, 94, 0.15); color: #15803d;">DEFAULT</div>
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #10b981, #059669);">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073z"/></svg>
+          </div>
+          <div>
+            <div class="font-bold">OpenAI</div>
+            <div class="text-xs text-slate-500">Provider primário</div>
+          </div>
+        </div>
+        <ul class="text-sm text-slate-600 space-y-2">
+          <li class="flex justify-between">
+            <span>Modelo</span>
+            <span class="font-mono text-xs">gpt-4o-mini</span>
+          </li>
+          <li class="flex justify-between">
+            <span>Input/1M</span>
+            <span class="font-mono text-xs">$0.15</span>
+          </li>
+          <li class="flex justify-between">
+            <span>Output/1M</span>
+            <span class="font-mono text-xs">$0.60</span>
+          </li>
+          <li class="flex justify-between">
+            <span>Embeddings</span>
+            <span class="font-mono text-xs">text-embedding-3-small</span>
+          </li>
+          <li class="flex justify-between">
+            <span>Latência</span>
+            <span class="font-mono text-xs">&lt; 1.5s TTFT</span>
+          </li>
+        </ul>
+        <div class="mt-4 pt-4 border-t text-xs text-slate-500">
+          <strong>Fallback:</strong> Anthropic Claude Haiku 4.5 quando OpenAI falha ou para queries complexas.
+        </div>
+      </div>
+    </div>
+
+    <!-- Custo OpenAI estimado -->
+    <h3 class="text-2xl font-bold mb-4">💰 Custo OpenAI por cliente Beta</h3>
+    <p class="text-slate-600 mb-6">Estimativa baseada em uso real medido no <span class="kbd">/super-admin/ai-usage</span>.</p>
+
+    <div class="card overflow-hidden mb-8">
+      <table class="w-full text-sm">
+        <thead style="background: #f8fafc;">
+          <tr class="text-left">
+            <th class="p-4 font-semibold">Perfil de uso</th>
+            <th class="p-4 font-semibold">Mensagens/mês</th>
+            <th class="p-4 font-semibold">Tokens médios</th>
+            <th class="p-4 font-semibold">Custo OpenAI</th>
+            <th class="p-4 font-semibold">Custo BRL ≈</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-t border-slate-100">
+            <td class="p-4">
+              <div class="font-semibold">Light · explorador</div>
+              <div class="text-xs text-slate-500">Pergunta esporádica</div>
+            </td>
+            <td class="p-4">~50</td>
+            <td class="p-4">2k in / 1k out</td>
+            <td class="p-4 font-mono text-emerald-600">$0.05</td>
+            <td class="p-4 font-mono">R$ 0,25</td>
+          </tr>
+          <tr class="border-t border-slate-100" style="background: #f0fdf4;">
+            <td class="p-4">
+              <div class="font-semibold">Médio · operacional</div>
+              <div class="text-xs text-slate-500">Uso diário moderado</div>
+            </td>
+            <td class="p-4">~500</td>
+            <td class="p-4">3k in / 1.5k out</td>
+            <td class="p-4 font-mono text-emerald-600">$0.69</td>
+            <td class="p-4 font-mono">R$ 3,45</td>
+          </tr>
+          <tr class="border-t border-slate-100">
+            <td class="p-4">
+              <div class="font-semibold">Heavy · analista</div>
+              <div class="text-xs text-slate-500">Uso intensivo + RAG</div>
+            </td>
+            <td class="p-4">~3.000</td>
+            <td class="p-4">5k in / 2k out</td>
+            <td class="p-4 font-mono text-amber-600">$5.85</td>
+            <td class="p-4 font-mono">R$ 29,25</td>
+          </tr>
+          <tr class="border-t border-slate-100">
+            <td class="p-4">
+              <div class="font-semibold">Power · automação</div>
+              <div class="text-xs text-slate-500">Heavy + scheduled reports</div>
+            </td>
+            <td class="p-4">~10.000</td>
+            <td class="p-4">8k in / 3k out</td>
+            <td class="p-4 font-mono text-rose-600">$30.00</td>
+            <td class="p-4 font-mono">R$ 150,00</td>
+          </tr>
+        </tbody>
+        <tfoot style="background: #eff6ff;">
+          <tr>
+            <td class="p-4 font-bold" colspan="3">Estimativa Beta (5 clientes médios) · OpenAI mensal</td>
+            <td class="p-4 font-mono font-bold text-blue-700">~$3.45</td>
+            <td class="p-4 font-mono font-bold text-blue-700">~R$ 17/mês</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <p class="text-xs text-slate-500 mb-12">
+      USD→BRL = 5.00. Custos reais podem variar ±30%. Embeddings RAG estimados separadamente
+      (~$0.02 por 1M tokens · negligível para volume Beta). Margem de segurança aplicada.
+    </p>
+
+    <!-- AI usage stats e governance -->
+    <div class="grid md:grid-cols-3 gap-6">
+      <div class="card p-6">
+        <div class="text-3xl mb-2">📊</div>
+        <h4 class="font-bold mb-2">Telemetria por tenant</h4>
+        <p class="text-sm text-slate-600">Tabela <span class="kbd">ai_usage</span> com tokens in/out, custo USD, latência, erro, modelo. Consultável em <span class="kbd">/super-admin/ai-usage</span>.</p>
+      </div>
+      <div class="card p-6">
+        <div class="text-3xl mb-2">🛡️</div>
+        <h4 class="font-bold mb-2">Budget alerts</h4>
+        <p class="text-sm text-slate-600">Tenant pode setar limite mensal. Webhook + email quando ultrapassa 80% e bloqueio em 100%. Evita surpresas no faturamento.</p>
+      </div>
+      <div class="card p-6">
+        <div class="text-3xl mb-2">🔒</div>
+        <h4 class="font-bold mb-2">Privacidade</h4>
+        <p class="text-sm text-slate-600">Sem OptIn de treinamento OpenAI (default). Dados sensíveis filtrados antes do prompt. RLS garante isolamento entre tenants no RAG.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── GASTOS FUTUROS ─────────────────────────── -->
+<section class="max-w-7xl mx-auto px-6 lg:px-12 py-20">
+  <div class="badge mb-4" style="background: #fef3c7; color: #b45309;">GASTOS FUTUROS</div>
+  <h2 class="text-4xl font-extrabold mb-2">💰 Investimento previsto até GA</h2>
+  <p class="text-slate-600 mb-12 max-w-3xl">
+    Levantamento completo de custos para chegar ao lançamento geral, separados por categoria.
+    Valores em BRL; algumas linhas em USD com câmbio R$ 5,00 aplicado.
+  </p>
+
+  <!-- Recorrente mensal -->
+  <h3 class="text-xl font-bold mb-4">📅 Custos recorrentes mensais (em produção)</h3>
+  <div class="card overflow-hidden mb-12">
+    <table class="w-full text-sm">
+      <thead style="background: #f8fafc;">
+        <tr class="text-left">
+          <th class="p-4 font-semibold">Item</th>
+          <th class="p-4 font-semibold">Provider</th>
+          <th class="p-4 font-semibold">Plano</th>
+          <th class="p-4 font-semibold text-right">Mensal</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="border-t border-slate-100"><td class="p-4">Backend hosting</td><td class="p-4">Render</td><td class="p-4">Standard 2GB</td><td class="p-4 font-mono text-right">R$ 125 <span class="text-xs text-slate-400">($25)</span></td></tr>
+        <tr class="border-t border-slate-100"><td class="p-4">Frontend + admin + landing</td><td class="p-4">Vercel</td><td class="p-4">Pro</td><td class="p-4 font-mono text-right">R$ 100 <span class="text-xs text-slate-400">($20)</span></td></tr>
+        <tr class="border-t border-slate-100"><td class="p-4">Postgres + pgvector</td><td class="p-4">Supabase</td><td class="p-4">Pro 8GB</td><td class="p-4 font-mono text-right">R$ 125 <span class="text-xs text-slate-400">($25)</span></td></tr>
+        <tr class="border-t border-slate-100"><td class="p-4">Redis (jobs + cache)</td><td class="p-4">Upstash</td><td class="p-4">Pay-as-you-go</td><td class="p-4 font-mono text-right">R$ 50 <span class="text-xs text-slate-400">($10)</span></td></tr>
+        <tr class="border-t border-slate-100"><td class="p-4">Email transacional</td><td class="p-4">Resend</td><td class="p-4">Pro 50k/mês</td><td class="p-4 font-mono text-right">R$ 100 <span class="text-xs text-slate-400">($20)</span></td></tr>
+        <tr class="border-t border-slate-100"><td class="p-4">Domínio + DNS</td><td class="p-4">Cloudflare</td><td class="p-4">Free + domínio</td><td class="p-4 font-mono text-right">R$ 15</td></tr>
+        <tr class="border-t border-slate-100"><td class="p-4">Stripe (taxa por transação)</td><td class="p-4">Stripe BR</td><td class="p-4">3.99% + R$ 0.39</td><td class="p-4 font-mono text-right text-slate-400">% sobre faturamento</td></tr>
+        <tr class="border-t border-slate-100"><td class="p-4">Sentry (errors)</td><td class="p-4">Sentry</td><td class="p-4">Team</td><td class="p-4 font-mono text-right">R$ 130 <span class="text-xs text-slate-400">($26)</span></td></tr>
+        <tr class="border-t border-slate-100"><td class="p-4">PostHog (analytics)</td><td class="p-4">PostHog</td><td class="p-4">Cloud free tier</td><td class="p-4 font-mono text-right">R$ 0</td></tr>
+        <tr class="border-t border-slate-100" style="background: #eff6ff;"><td class="p-4 font-semibold">OpenAI (5 clientes Beta)</td><td class="p-4">OpenAI</td><td class="p-4">gpt-4o-mini · pay-as-you-go</td><td class="p-4 font-mono text-right font-semibold">R$ 17 <span class="text-xs text-slate-400">($3.45)</span></td></tr>
+        <tr class="border-t border-slate-100" style="background: #fef3c7;"><td class="p-4 font-semibold">OpenAI (50 clientes médios)</td><td class="p-4">OpenAI</td><td class="p-4">Projeção GA</td><td class="p-4 font-mono text-right font-semibold">R$ 170 <span class="text-xs text-slate-400">($34.50)</span></td></tr>
+      </tbody>
+      <tfoot style="background: #f0fdf4;">
+        <tr><td class="p-4 font-bold" colspan="3">Total mensal Beta (5 clientes)</td><td class="p-4 font-mono text-right font-bold text-emerald-700">~R$ 660/mês</td></tr>
+        <tr style="background: #fef3c7;"><td class="p-4 font-bold" colspan="3">Total mensal GA (50 clientes)</td><td class="p-4 font-mono text-right font-bold text-amber-700">~R$ 1.150/mês</td></tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- One-time -->
+  <h3 class="text-xl font-bold mb-4">🚀 Investimento one-time até o GA</h3>
+  <div class="card overflow-hidden mb-12">
+    <table class="w-full text-sm">
+      <thead style="background: #f8fafc;">
+        <tr class="text-left">
+          <th class="p-4 font-semibold">Item</th>
+          <th class="p-4 font-semibold">Categoria</th>
+          <th class="p-4 font-semibold">Prazo</th>
+          <th class="p-4 font-semibold">Bloqueador?</th>
+          <th class="p-4 font-semibold text-right">Investimento</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="border-t border-slate-100" style="background: #fef2f2;">
+          <td class="p-4 font-semibold">Pentest externo</td>
+          <td class="p-4">Segurança</td>
+          <td class="p-4">2-4 semanas</td>
+          <td class="p-4"><span class="badge" style="background: #fee2e2; color: #b91c1c;">SIM (GA)</span></td>
+          <td class="p-4 font-mono text-right">R$ 10.000 - 30.000</td>
+        </tr>
+        <tr class="border-t border-slate-100" style="background: #fef2f2;">
+          <td class="p-4 font-semibold">DPIA + DPA + Termos</td>
+          <td class="p-4">Compliance LGPD</td>
+          <td class="p-4">1-2 semanas</td>
+          <td class="p-4"><span class="badge" style="background: #fee2e2; color: #b91c1c;">SIM (GA)</span></td>
+          <td class="p-4 font-mono text-right">R$ 5.000 - 15.000</td>
+        </tr>
+        <tr class="border-t border-slate-100">
+          <td class="p-4">CNPJ + Stripe live KYC</td>
+          <td class="p-4">Operacional</td>
+          <td class="p-4">1-2 semanas</td>
+          <td class="p-4"><span class="badge" style="background: #fee2e2; color: #b91c1c;">SIM (cobrar)</span></td>
+          <td class="p-4 font-mono text-right">R$ 0 - 1.000</td>
+        </tr>
+        <tr class="border-t border-slate-100">
+          <td class="p-4">Logo profissional + brand guidelines</td>
+          <td class="p-4">Branding</td>
+          <td class="p-4">2 semanas</td>
+          <td class="p-4 text-slate-400">Não</td>
+          <td class="p-4 font-mono text-right">R$ 1.500 - 4.000</td>
+        </tr>
+        <tr class="border-t border-slate-100">
+          <td class="p-4">Cloudflare WAF Pro (1º ano)</td>
+          <td class="p-4">Segurança</td>
+          <td class="p-4">Imediato</td>
+          <td class="p-4 text-slate-400">Não</td>
+          <td class="p-4 font-mono text-right">R$ 1.200 ($240)</td>
+        </tr>
+        <tr class="border-t border-slate-100">
+          <td class="p-4">DAST managed (1 cycle)</td>
+          <td class="p-4">Segurança</td>
+          <td class="p-4">2 semanas</td>
+          <td class="p-4 text-slate-400">Não</td>
+          <td class="p-4 font-mono text-right">R$ 3.000 - 8.000</td>
+        </tr>
+        <tr class="border-t border-slate-100">
+          <td class="p-4">Conteúdo landing (vídeo + casos)</td>
+          <td class="p-4">Marketing</td>
+          <td class="p-4">3 semanas</td>
+          <td class="p-4 text-slate-400">Não</td>
+          <td class="p-4 font-mono text-right">R$ 3.000 - 8.000</td>
+        </tr>
+        <tr class="border-t border-slate-100">
+          <td class="p-4">Onboarding cliente Beta (consultoria 1:1)</td>
+          <td class="p-4">Customer Success</td>
+          <td class="p-4">5 sessões/cliente</td>
+          <td class="p-4 text-slate-400">Não</td>
+          <td class="p-4 font-mono text-right">R$ 0 (interno)</td>
+        </tr>
+      </tbody>
+      <tfoot style="background: #fef3c7;">
+        <tr>
+          <td class="p-4 font-bold" colspan="4">Total one-time (mínimo bloqueadores GA)</td>
+          <td class="p-4 font-mono text-right font-bold text-amber-700">R$ 15.000 - 46.000</td>
+        </tr>
+        <tr style="background: #fef3c7;">
+          <td class="p-4 font-bold" colspan="4">Total one-time (com extras desejáveis)</td>
+          <td class="p-4 font-mono text-right font-bold text-amber-700">R$ 24.000 - 67.000</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- Opcional avançado -->
+  <h3 class="text-xl font-bold mb-4">💼 Opcionais pós-PMF (quando faturar +R$ 30k MRR)</h3>
+  <div class="grid md:grid-cols-3 gap-4 mb-12">
+    <div class="card p-5">
+      <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">SSO Enterprise</div>
+      <div class="font-bold mb-1">WorkOS</div>
+      <div class="text-sm text-slate-600 mb-2">SAML/OIDC para clientes corporate.</div>
+      <div class="font-mono text-sm text-amber-700">R$ 250/conexão · enterprise tier</div>
+    </div>
+    <div class="card p-5">
+      <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">CDN premium</div>
+      <div class="font-bold mb-1">Cloudflare R2</div>
+      <div class="text-sm text-slate-600 mb-2">Storage para CSV/PDFs sem egress fee.</div>
+      <div class="font-mono text-sm text-amber-700">R$ 75/mês ($15)</div>
+    </div>
+    <div class="card p-5">
+      <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Equipe</div>
+      <div class="font-bold mb-1">+ 1 dev pleno</div>
+      <div class="text-sm text-slate-600 mb-2">CLT ou PJ para acelerar roadmap pós-GA.</div>
+      <div class="font-mono text-sm text-amber-700">R$ 12k - 18k/mês</div>
+    </div>
+  </div>
+
+  <!-- Resumo -->
+  <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-8 md:p-12">
+    <h3 class="text-2xl font-bold mb-6">📊 Resumo executivo de gastos</h3>
+    <div class="grid md:grid-cols-4 gap-6">
+      <div>
+        <div class="text-xs uppercase tracking-wider text-slate-400 mb-2">Beta (hoje)</div>
+        <div class="stat-num text-4xl text-white mb-1">R$ 660</div>
+        <div class="text-sm text-slate-400">infra mensal · 5 clientes</div>
+      </div>
+      <div>
+        <div class="text-xs uppercase tracking-wider text-slate-400 mb-2">GA esperado</div>
+        <div class="stat-num text-4xl text-emerald-400 mb-1">R$ 1.150</div>
+        <div class="text-sm text-slate-400">infra mensal · 50 clientes</div>
+      </div>
+      <div>
+        <div class="text-xs uppercase tracking-wider text-slate-400 mb-2">Bloqueadores GA</div>
+        <div class="stat-num text-4xl text-amber-400 mb-1">~R$ 25k</div>
+        <div class="text-sm text-slate-400">pentest + LGPD + KYC</div>
+      </div>
+      <div>
+        <div class="text-xs uppercase tracking-wider text-slate-400 mb-2">Break-even</div>
+        <div class="stat-num text-4xl text-cyan-400 mb-1">~6</div>
+        <div class="text-sm text-slate-400">clientes Pro (R$ 197/mês cada)</div>
+      </div>
+    </div>
+    <div class="mt-8 pt-6 border-t border-slate-700 text-sm text-slate-300">
+      <strong class="text-white">Conclusão:</strong> infraestrutura é barata (R$ 600-1.200/mês) e escala bem.
+      O grande gasto é one-time pré-GA (pentest + compliance), <strong class="text-amber-400">~R$ 25k</strong>,
+      pago uma única vez. Após break-even (~6 clientes Pro), operação fica <strong class="text-emerald-400">positiva</strong>.
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── ROADMAP ─────────────────────────── -->
+<section class="bg-slate-900 text-white py-20">
+  <div class="max-w-7xl mx-auto px-6 lg:px-12">
+    <div class="badge mb-4" style="background: rgba(245, 158, 11, 0.18); color: #fbbf24;">PRÓXIMOS PASSOS</div>
+    <h2 class="text-4xl font-extrabold mb-12">Roadmap de lançamento</h2>
+
+    <div class="relative">
+      <div class="absolute left-4 md:left-6 top-2 bottom-2 w-0.5 timeline-line opacity-40"></div>
+
+      <div class="space-y-8">
+        <!-- ✓ Concluído -->
+        <div class="flex gap-6">
+          <div class="w-8 h-8 md:w-12 md:h-12 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 z-10">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="flex-1 pb-2">
+            <div class="badge mb-2" style="background: rgba(16,185,129,0.18); color: #34d399;">CONCLUÍDO</div>
+            <h3 class="text-xl font-bold mb-1">Beta Fechada operacional</h3>
+            <p class="text-slate-400 text-sm">Página /beta no admin com CNPJ lookup, cards premium, filtros, extensão de trial. Cliente entra no sistema em &lt;30s.</p>
+          </div>
+        </div>
+
+        <!-- ↻ Em andamento -->
+        <div class="flex gap-6">
+          <div class="w-8 h-8 md:w-12 md:h-12 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0 z-10 animate-pulse">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+          </div>
+          <div class="flex-1 pb-2">
+            <div class="badge mb-2" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;">EM ANDAMENTO</div>
+            <h3 class="text-xl font-bold mb-1">Convidar primeiros 5 clientes Beta</h3>
+            <p class="text-slate-400 text-sm">Cadastro manual via super-admin. Acompanhamento próximo (semanal). Coleta de feedback antes do lançamento.</p>
+          </div>
+        </div>
+
+        <!-- ◯ Próximo -->
+        <div class="flex gap-6">
+          <div class="w-8 h-8 md:w-12 md:h-12 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0 z-10">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="flex-1 pb-2">
+            <div class="badge mb-2" style="background: rgba(245,158,11,0.18); color: #fbbf24;">PRÓXIMO</div>
+            <h3 class="text-xl font-bold mb-1">Pentest externo + DPIA + DPA</h3>
+            <p class="text-slate-400 text-sm">Pentest é bloqueador de GA. Compliance LGPD com advogado (Termos, DPA, RoPA). Estimativa R$ 15-45k · 4-6 semanas.</p>
+          </div>
+        </div>
+
+        <!-- ◯ Médio prazo -->
+        <div class="flex gap-6">
+          <div class="w-8 h-8 md:w-12 md:h-12 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0 z-10">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+          </div>
+          <div class="flex-1 pb-2">
+            <div class="badge mb-2" style="background: rgba(255,255,255,0.1); color: #cbd5e1;">PÓS-GA</div>
+            <h3 class="text-xl font-bold mb-1">Mapping Studio + INT-2/3</h3>
+            <p class="text-slate-400 text-sm">UI visual para field-mapping. OAuth2 PKCE. Sync incremental com watermarks e dead-letter queue.</p>
+          </div>
+        </div>
+
+        <div class="flex gap-6">
+          <div class="w-8 h-8 md:w-12 md:h-12 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0 z-10">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="flex-1 pb-2">
+            <div class="badge mb-2" style="background: rgba(255,255,255,0.1); color: #cbd5e1;">PÓS-GA</div>
+            <h3 class="text-xl font-bold mb-1">Smart Onboarding com IA</h3>
+            <p class="text-slate-400 text-sm">Detectar schema do ERP automaticamente. Sugerir mappings com base em amostras. RAG do schema para perguntas técnicas.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── DECISÕES ─────────────────────────── -->
+<section class="max-w-7xl mx-auto px-6 lg:px-12 py-20">
+  <div class="badge mb-4" style="background: #eff6ff; color: var(--brand);">PARA DECIDIR HOJE</div>
+  <h2 class="text-4xl font-extrabold mb-12">Pontos da reunião</h2>
+
+  <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="card p-6 border-l-4" style="border-left-color: var(--brand);">
+      <div class="text-xs font-semibold text-slate-500 mb-1">DECISÃO 1</div>
+      <h3 class="font-bold mb-2">Quais 5 clientes para o Beta?</h3>
+      <p class="text-sm text-slate-600">Lista de candidatos · perfil ideal · timing de cada um. Cadastrar nesta semana via /beta.</p>
+    </div>
+    <div class="card p-6 border-l-4" style="border-left-color: var(--gold);">
+      <div class="text-xs font-semibold text-slate-500 mb-1">DECISÃO 2</div>
+      <h3 class="font-bold mb-2">Pentest: provider e budget</h3>
+      <p class="text-sm text-slate-600">Bloqueador GA. Cotações: R$ 10k-30k. Definir hoje para iniciar próxima semana.</p>
+    </div>
+    <div class="card p-6 border-l-4" style="border-left-color: var(--success);">
+      <div class="text-xs font-semibold text-slate-500 mb-1">DECISÃO 3</div>
+      <h3 class="font-bold mb-2">Plano Stripe ativo no Beta?</h3>
+      <p class="text-sm text-slate-600">Beta com pagamento (commit) ou trial gratuito 60 dias? Trade-off: friction × validação.</p>
+    </div>
+    <div class="card p-6 border-l-4" style="border-left-color: #8b5cf6;">
+      <div class="text-xs font-semibold text-slate-500 mb-1">DECISÃO 4</div>
+      <h3 class="font-bold mb-2">Cadência de feedback</h3>
+      <p class="text-sm text-slate-600">Call semanal individual com cada cliente Beta? Form NPS automatizado? Mix?</p>
+    </div>
+    <div class="card p-6 border-l-4" style="border-left-color: #fb7185;">
+      <div class="text-xs font-semibold text-slate-500 mb-1">DECISÃO 5</div>
+      <h3 class="font-bold mb-2">Status do CNPJ + KYC Stripe</h3>
+      <p class="text-sm text-slate-600">Stripe live precisa de CNPJ + KYC. Andamento? Bloqueador para cobrar em produção.</p>
+    </div>
+    <div class="card p-6 border-l-4" style="border-left-color: var(--ink);">
+      <div class="text-xs font-semibold text-slate-500 mb-1">DECISÃO 6</div>
+      <h3 class="font-bold mb-2">Comunicação do lançamento</h3>
+      <p class="text-sm text-slate-600">Landing já está pronta. Definir copy do email Beta + post LinkedIn + cronograma.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── FOOTER ─────────────────────────── -->
+<footer class="bg-slate-900 text-slate-400 py-12 border-t border-slate-800">
+  <div class="max-w-7xl mx-auto px-6 lg:px-12 flex flex-col md:flex-row items-center justify-between gap-6">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-md flex items-center justify-center" style="background: linear-gradient(135deg, #fbbf24, #f59e0b);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0a0e14" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-5v12L3 14v-3z"/></svg>
+      </div>
+      <div>
+        <div class="font-bold text-white text-sm">IGA Gestão</div>
+        <div class="text-xs">Status do projeto · 09/05/2026</div>
+      </div>
+    </div>
+    <div class="text-xs flex flex-wrap items-center gap-4">
+      <span>Branch <span class="kbd">master</span></span>
+      <span>Último commit <span class="kbd">298a895</span></span>
+      <span>43 telas · 110 testes · 33/34 endpoints</span>
+      <span>Build <span class="text-emerald-400">●</span> verde</span>
+    </div>
+    <button onclick="window.print()" class="no-print text-xs px-4 py-2 rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors">
+      Imprimir / PDF
+    </button>
+  </div>
+</footer>
+
+</body>
+</html>

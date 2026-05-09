@@ -347,6 +347,6 @@ Severidade de incidentes:
 
 <div align="center">
 
-Feito com ❤️ por **[Iga Tecnologia](https://igagestao.com.br)** · Powered by Claude Code
+Desenvolvido por **[Iga Tecnologia](https://igagestao.com.br)** · Powered by IGA TECNOLOGIA LTDA
 
 </div>

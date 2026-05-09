@@ -44,7 +44,8 @@ installer/
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 *.html
-# docs/ contém runbook de deploy + planos vivos (PLANO-IGA-IA) — versionar.
+# docs/ contém runbook de deploy + planos vivos + apresentações — versionar.
+!docs/**/*.html
 
 # Python runtime (iga-ai)
 __pycache__/
