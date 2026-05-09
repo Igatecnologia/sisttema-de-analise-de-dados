@@ -373,6 +373,24 @@ db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_tenant_email_unique
     ON customers(tenant_id, lower(email)) WHERE email IS NOT NULL;
 `)
+
+// Migracao v12: production_targets — metas de producao para calculo OEE
+db.exec(`
+  CREATE TABLE IF NOT EXISTS production_targets (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    sku TEXT NULL,                           -- NULL = meta agregada do tenant
+    target_type TEXT NOT NULL DEFAULT 'monthly',  -- daily | weekly | monthly
+    target_value REAL NOT NULL,
+    unit TEXT NOT NULL DEFAULT 'un',
+    valid_from TEXT NOT NULL,                -- YYYY-MM-DD
+    valid_to TEXT NULL,                      -- YYYY-MM-DD opcional
+    notes TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_production_targets_tenant ON production_targets(tenant_id, sku, valid_from DESC);
+`)
 try { db.exec("CREATE TABLE IF NOT EXISTS tenant_onboarding (tenant_id TEXT PRIMARY KEY, status TEXT NOT NULL DEFAULT 'pending', company_profile_json TEXT NOT NULL DEFAULT '{}', data_setup_json TEXT NOT NULL DEFAULT '{}', team_invites_json TEXT NOT NULL DEFAULT '[]', import_status TEXT NOT NULL DEFAULT 'idle', import_progress INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)") } catch { /* ja existe */ }
 db.exec('CREATE INDEX IF NOT EXISTS idx_users_tenant_email ON users(tenant_id, email)')
 db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tenant_email_unique ON users(tenant_id, lower(email))')

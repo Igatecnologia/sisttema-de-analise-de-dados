@@ -538,4 +538,34 @@ CREATE POLICY tenant_isolation_customers ON customers
 GRANT SELECT, INSERT, UPDATE, DELETE ON customers TO iga_app;
 `,
   },
+  {
+    id: '014_production_targets',
+    sql: `
+CREATE TABLE IF NOT EXISTS production_targets (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  sku TEXT NULL,
+  target_type TEXT NOT NULL DEFAULT 'monthly',
+  target_value DOUBLE PRECISION NOT NULL,
+  unit TEXT NOT NULL DEFAULT 'un',
+  valid_from DATE NOT NULL,
+  valid_to DATE NULL,
+  notes TEXT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_production_targets_tenant
+  ON production_targets(tenant_id, sku, valid_from DESC);
+
+ALTER TABLE production_targets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE production_targets FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation_production_targets ON production_targets;
+CREATE POLICY tenant_isolation_production_targets ON production_targets
+  USING (tenant_id = current_setting('app.current_tenant_id', true))
+  WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true));
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON production_targets TO iga_app;
+`,
+  },
 ]

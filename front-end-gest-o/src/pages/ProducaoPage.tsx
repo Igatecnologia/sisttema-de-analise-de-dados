@@ -1,14 +1,19 @@
 import { RangePickerBR } from '../components/DatePickerPtBR'
 import {
   Alert,
+  App,
   Button,
   Card,
   Col,
   Descriptions,
   Drawer,
+  Form,
   Input,
+  InputNumber,
+  Modal,
   Progress,
   Row,
+  Select,
   Skeleton,
   Space,
   Table,
@@ -21,11 +26,15 @@ import { getErrorMessage } from '../api/httpError'
 import type { ColumnsType } from 'antd/es/table'
 import {
   BarChartOutlined,
+  DashboardOutlined,
+  DeleteOutlined,
   ExperimentOutlined,
   EyeOutlined,
   FilterOutlined,
+  PlusOutlined,
 } from '@ant-design/icons'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { createTarget, deleteTarget, getOee, listTargets } from '../services/productionService'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -425,9 +434,343 @@ export function ProducaoPage() {
           items={[
             { key: 'producao', label: <span><ExperimentOutlined /> O que foi Produzido</span>, children: <ProducaoSgbrTab /> },
             { key: 'consumo', label: <span><BarChartOutlined /> Consumo de Blocos</span>, children: <ConsumoMPTab /> },
+            { key: 'oee', label: <span><DashboardOutlined /> OEE / Meta</span>, children: <OeeTab /> },
           ]}
         />
       </Card>
     </Space>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   OEE Tab — meta de produção + comparativo produzido vs meta
+   Simplificação: Performance score apenas (= produzido / meta).
+   Disponibilidade e Qualidade exigem fontes que ERPs SMB raramente expõem.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const OEE_STATUS_COLOR: Record<string, string> = {
+  critico: 'red',
+  atencao: 'orange',
+  ok: 'green',
+  acima: 'cyan',
+  'sem-meta': 'default',
+}
+
+const OEE_STATUS_LABEL: Record<string, string> = {
+  critico: 'Crítico',
+  atencao: 'Atenção',
+  ok: 'OK',
+  acima: 'Acima',
+  'sem-meta': 'Sem meta',
+}
+
+function OeeTab() {
+  const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('monthly')
+  const [targetModalOpen, setTargetModalOpen] = useState(false)
+  const qc = useQueryClient()
+  const { message: msg } = App.useApp()
+
+  const oeeQuery = useQuery({
+    queryKey: ['oee', period],
+    queryFn: () => getOee(period),
+    staleTime: 5 * 60_000,
+  })
+
+  const targetsQuery = useQuery({
+    queryKey: ['production-targets'],
+    queryFn: () => listTargets(),
+    staleTime: 60_000,
+  })
+
+  return (
+    <div style={{ padding: 16 }}>
+      <Space style={{ marginBottom: 16 }} wrap>
+        <Typography.Text>Período:</Typography.Text>
+        <select
+          value={period}
+          onChange={(e) => setPeriod(e.target.value as 'daily' | 'weekly' | 'monthly')}
+          style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--qc-border)' }}
+        >
+          <option value="daily">Hoje</option>
+          <option value="weekly">Semana corrente</option>
+          <option value="monthly">Mês corrente</option>
+        </select>
+        <Button icon={<PlusOutlined />} onClick={() => setTargetModalOpen(true)}>
+          Nova meta
+        </Button>
+      </Space>
+
+      {oeeQuery.isLoading ? (
+        <Skeleton active paragraph={{ rows: 5 }} />
+      ) : !oeeQuery.data || !oeeQuery.data.ok ? (
+        <Alert
+          type="info"
+          showIcon
+          message="Sem dados de produção"
+          description={
+            oeeQuery.data && 'message' in oeeQuery.data
+              ? oeeQuery.data.message
+              : 'Configure uma fonte de produção em Configurações → Fontes de Dados.'
+          }
+        />
+      ) : (
+        <>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+            <Col xs={24} sm={8}>
+              <Card size="small" style={{ borderLeft: '3px solid #1677ff' }}>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  Total produzido — {oeeQuery.data.periodLabel}
+                </Typography.Text>
+                <div>
+                  <Typography.Title level={3} style={{ margin: '4px 0 0' }}>
+                    {oeeQuery.data.totalProduced.toLocaleString('pt-BR')}{' '}
+                    <Typography.Text type="secondary" style={{ fontSize: 14 }}>
+                      {oeeQuery.data.aggregateTarget?.unit ?? 'un'}
+                    </Typography.Text>
+                  </Typography.Title>
+                </div>
+              </Card>
+            </Col>
+            {oeeQuery.data.aggregateTarget ? (
+              <>
+                <Col xs={24} sm={8}>
+                  <Card size="small" style={{ borderLeft: '3px solid #722ed1' }}>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      Meta agregada
+                    </Typography.Text>
+                    <div>
+                      <Typography.Title level={3} style={{ margin: '4px 0 0' }}>
+                        {oeeQuery.data.aggregateTarget.value.toLocaleString('pt-BR')}{' '}
+                        <Typography.Text type="secondary" style={{ fontSize: 14 }}>
+                          {oeeQuery.data.aggregateTarget.unit}
+                        </Typography.Text>
+                      </Typography.Title>
+                    </div>
+                  </Card>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <Card size="small" style={{ borderLeft: '3px solid #52c41a' }}>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      Performance
+                    </Typography.Text>
+                    <div>
+                      <Typography.Title
+                        level={3}
+                        style={{
+                          margin: '4px 0 0',
+                          color:
+                            (oeeQuery.data.aggregateTarget.performancePct ?? 0) >= 90
+                              ? '#52c41a'
+                              : (oeeQuery.data.aggregateTarget.performancePct ?? 0) >= 70
+                                ? '#fa8c16'
+                                : '#cf1322',
+                        }}
+                      >
+                        {oeeQuery.data.aggregateTarget.performancePct?.toFixed(1) ?? '—'}%
+                      </Typography.Title>
+                    </div>
+                    {oeeQuery.data.aggregateTarget.performancePct != null ? (
+                      <Progress
+                        percent={Math.min(oeeQuery.data.aggregateTarget.performancePct, 100)}
+                        showInfo={false}
+                        size="small"
+                        style={{ marginTop: 4, marginBottom: 0 }}
+                      />
+                    ) : null}
+                  </Card>
+                </Col>
+              </>
+            ) : (
+              <Col xs={24} sm={16}>
+                <Alert
+                  type="info"
+                  showIcon
+                  message="Sem meta agregada cadastrada"
+                  description="Cadastre uma meta com SKU vazio para ver Performance agregada do plant."
+                  action={
+                    <Button size="small" onClick={() => setTargetModalOpen(true)}>
+                      Criar meta
+                    </Button>
+                  }
+                />
+              </Col>
+            )}
+          </Row>
+
+          <Table
+            rowKey="sku"
+            dataSource={oeeQuery.data.items}
+            pagination={{ pageSize: 50, showSizeChanger: false }}
+            size="middle"
+            columns={[
+              { title: 'SKU', dataIndex: 'sku', key: 'sku', width: 120 },
+              { title: 'Produto', dataIndex: 'name', key: 'name' },
+              {
+                title: 'Produzido',
+                dataIndex: 'produced',
+                key: 'produced',
+                align: 'right',
+                width: 120,
+                render: (v: number, r) => `${v.toLocaleString('pt-BR')} ${r.unit}`,
+              },
+              {
+                title: 'Meta',
+                dataIndex: 'target',
+                key: 'target',
+                align: 'right',
+                width: 120,
+                render: (v: number | null, r) => (v == null ? '—' : `${v.toLocaleString('pt-BR')} ${r.unit}`),
+              },
+              {
+                title: 'Performance',
+                dataIndex: 'performancePct',
+                key: 'performancePct',
+                align: 'right',
+                width: 130,
+                render: (v: number | null) => (v == null ? '—' : `${v.toFixed(1)}%`),
+                sorter: (a, b) => (a.performancePct ?? 0) - (b.performancePct ?? 0),
+              },
+              {
+                title: 'Status',
+                dataIndex: 'status',
+                key: 'status',
+                width: 110,
+                render: (v: string) => <Tag color={OEE_STATUS_COLOR[v] ?? 'default'}>{OEE_STATUS_LABEL[v] ?? v}</Tag>,
+              },
+            ]}
+          />
+
+          <Typography.Paragraph type="secondary" style={{ marginTop: 12, fontSize: 12 }}>
+            {oeeQuery.data.note}
+          </Typography.Paragraph>
+        </>
+      )}
+
+      {targetsQuery.data && targetsQuery.data.length > 0 ? (
+        <Card title="Metas cadastradas" size="small" style={{ marginTop: 16 }}>
+          <Table
+            rowKey="id"
+            size="small"
+            dataSource={targetsQuery.data}
+            pagination={false}
+            columns={[
+              { title: 'SKU', dataIndex: 'sku', render: (v: string | null) => v ?? <Tag>Agregada</Tag> },
+              { title: 'Tipo', dataIndex: 'targetType' },
+              { title: 'Valor', dataIndex: 'targetValue', align: 'right', render: (v: number, r: { unit: string }) => `${v.toLocaleString('pt-BR')} ${r.unit}` },
+              { title: 'Vigência', key: 'validity', render: (_: unknown, r: { validFrom: string; validTo: string | null }) => `${r.validFrom}${r.validTo ? ` → ${r.validTo}` : ''}` },
+              {
+                title: '',
+                key: 'actions',
+                width: 60,
+                render: (_: unknown, r: { id: string }) => (
+                  <Button
+                    type="text"
+                    size="small"
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={async () => {
+                      await deleteTarget(r.id)
+                      msg.success('Meta removida.')
+                      qc.invalidateQueries({ queryKey: ['production-targets'] })
+                      qc.invalidateQueries({ queryKey: ['oee'] })
+                    }}
+                  />
+                ),
+              },
+            ]}
+          />
+        </Card>
+      ) : null}
+
+      <NewTargetModal
+        open={targetModalOpen}
+        onClose={() => setTargetModalOpen(false)}
+        onCreated={() => {
+          qc.invalidateQueries({ queryKey: ['production-targets'] })
+          qc.invalidateQueries({ queryKey: ['oee'] })
+        }}
+      />
+    </div>
+  )
+}
+
+function NewTargetModal({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
+  const { message: msg } = App.useApp()
+  const [form] = Form.useForm()
+  const [submitting, setSubmitting] = useState(false)
+
+  return (
+    <Modal
+      open={open}
+      onCancel={onClose}
+      title="Nova meta de produção"
+      onOk={async () => {
+        try {
+          const v = await form.validateFields()
+          setSubmitting(true)
+          await createTarget({
+            sku: v.sku?.trim() || null,
+            targetType: v.targetType,
+            targetValue: Number(v.targetValue),
+            unit: v.unit?.trim() || 'un',
+            validFrom: v.validFrom,
+            validTo: v.validTo || null,
+            notes: v.notes?.trim() || null,
+          })
+          msg.success('Meta criada.')
+          form.resetFields()
+          onCreated()
+          onClose()
+        } catch (err) {
+          if ((err as Error)?.message) msg.error((err as Error).message)
+        } finally {
+          setSubmitting(false)
+        }
+      }}
+      okButtonProps={{ loading: submitting }}
+      okText="Criar"
+    >
+      <Form form={form} layout="vertical" initialValues={{ targetType: 'monthly', unit: 'un', validFrom: dayjs().format('YYYY-MM-DD') }}>
+        <Form.Item name="sku" label="SKU (vazio = meta agregada)">
+          <Input placeholder="ex.: PROD-001 ou deixar vazio" />
+        </Form.Item>
+        <Row gutter={12}>
+          <Col xs={12}>
+            <Form.Item name="targetType" label="Tipo" rules={[{ required: true }]}>
+              <Select
+                options={[
+                  { value: 'daily', label: 'Diária' },
+                  { value: 'weekly', label: 'Semanal' },
+                  { value: 'monthly', label: 'Mensal' },
+                ]}
+              />
+            </Form.Item>
+          </Col>
+          <Col xs={12}>
+            <Form.Item name="unit" label="Unidade">
+              <Input placeholder="un, kg, m³, ..." />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Form.Item name="targetValue" label="Valor da meta" rules={[{ required: true, message: 'Informe o valor' }]}>
+          <InputNumber style={{ width: '100%' }} min={0} decimalSeparator="," precision={2} />
+        </Form.Item>
+        <Row gutter={12}>
+          <Col xs={12}>
+            <Form.Item name="validFrom" label="Vigente a partir de" rules={[{ required: true }]}>
+              <Input type="date" />
+            </Form.Item>
+          </Col>
+          <Col xs={12}>
+            <Form.Item name="validTo" label="Vigente até (opcional)">
+              <Input type="date" />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Form.Item name="notes" label="Notas">
+          <Input.TextArea rows={2} maxLength={500} />
+        </Form.Item>
+      </Form>
+    </Modal>
   )
 }
