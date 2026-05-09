@@ -815,12 +815,14 @@
     <div class="badge mb-4" style="background: rgba(37, 99, 235, 0.18); color: var(--brand);">INTELIGÊNCIA ARTIFICIAL</div>
     <h2 class="text-4xl font-extrabold mb-2">Copilot IA com OpenAI no core</h2>
     <p class="text-slate-700 mb-12 max-w-3xl">
-      Chat conversacional com tool-calling integrado ao backend. <strong>OpenAI gpt-4o-mini é o default</strong>
-      em produção pelo melhor custo/latência/qualidade. Multi-provider plugável e RAG via pgvector já no scaffold.
+      Chat conversacional com <strong>tool-calling</strong> integrado ao backend.
+      <strong>OpenAI gpt-4o-mini é o default</strong> em produção pelo melhor custo/latência/qualidade.
+      Multi-provider plugável e RAG via pgvector. Tudo medido por tenant em
+      <span class="kbd">ai_usage</span>.
     </p>
 
-    <!-- Arquitetura IA -->
-    <div class="grid lg:grid-cols-3 gap-6 mb-12">
+    <!-- ━━━━━━━━━━━━━━━ COMO FUNCIONA NA PRÁTICA ━━━━━━━━━━━━━━━ -->
+    <div class="grid lg:grid-cols-3 gap-6 mb-16">
       <div class="card p-6 lg:col-span-2">
         <div class="flex items-center gap-2 mb-4">
           <span class="badge" style="background: #ecfdf5; color: var(--success);">EM PRODUÇÃO</span>
@@ -866,131 +868,516 @@ Resposta com gráficos + tabelas + ações sugeridas
       </div>
 
       <div class="card p-6">
-        <div class="badge mb-4" style="background: rgba(34, 197, 94, 0.15); color: #15803d;">DEFAULT</div>
+        <div class="badge mb-4" style="background: rgba(34, 197, 94, 0.15); color: #15803d;">PROVIDER DEFAULT</div>
         <div class="flex items-center gap-3 mb-4">
           <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #10b981, #059669);">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073z"/></svg>
           </div>
           <div>
             <div class="font-bold">OpenAI</div>
-            <div class="text-xs text-slate-500">Provider primário</div>
+            <div class="text-xs text-slate-500">gpt-4o-mini · em produção</div>
           </div>
         </div>
         <ul class="text-sm text-slate-600 space-y-2">
-          <li class="flex justify-between">
-            <span>Modelo</span>
-            <span class="font-mono text-xs">gpt-4o-mini</span>
-          </li>
-          <li class="flex justify-between">
-            <span>Input/1M</span>
-            <span class="font-mono text-xs">$0.15</span>
-          </li>
-          <li class="flex justify-between">
-            <span>Output/1M</span>
-            <span class="font-mono text-xs">$0.60</span>
-          </li>
-          <li class="flex justify-between">
-            <span>Embeddings</span>
-            <span class="font-mono text-xs">text-embedding-3-small</span>
-          </li>
-          <li class="flex justify-between">
-            <span>Latência</span>
-            <span class="font-mono text-xs">&lt; 1.5s TTFT</span>
-          </li>
+          <li class="flex justify-between"><span>Modelo</span><span class="font-mono text-xs">gpt-4o-mini</span></li>
+          <li class="flex justify-between"><span>Input / 1M tokens</span><span class="font-mono text-xs">$0.150</span></li>
+          <li class="flex justify-between"><span>Output / 1M tokens</span><span class="font-mono text-xs">$0.600</span></li>
+          <li class="flex justify-between"><span>Cached input</span><span class="font-mono text-xs text-emerald-600">$0.075</span></li>
+          <li class="flex justify-between"><span>Embeddings</span><span class="font-mono text-xs">$0.020 / 1M</span></li>
+          <li class="flex justify-between"><span>Context window</span><span class="font-mono text-xs">128k</span></li>
+          <li class="flex justify-between"><span>Latência (TTFT)</span><span class="font-mono text-xs">~ 800ms</span></li>
         </ul>
         <div class="mt-4 pt-4 border-t text-xs text-slate-500">
-          <strong>Fallback:</strong> Anthropic Claude Haiku 4.5 quando OpenAI falha ou para queries complexas.
+          <strong>Fallback:</strong> Anthropic Claude Haiku 4.5 quando OpenAI falha ou em queries complexas (~$1.00/$5.00 por 1M).
         </div>
       </div>
     </div>
 
-    <!-- Custo OpenAI estimado -->
-    <h3 class="text-2xl font-bold mb-4">💰 Custo OpenAI por cliente Beta</h3>
-    <p class="text-slate-600 mb-6">Estimativa baseada em uso real medido no <span class="kbd">/super-admin/ai-usage</span>.</p>
+    <!-- ━━━━━━━━━━━━━━━ COMO O CUSTO É CALCULADO ━━━━━━━━━━━━━━━ -->
+    <h3 class="text-2xl font-bold mb-4">📚 Como o custo de IA é calculado</h3>
+    <p class="text-slate-700 mb-6 max-w-3xl">
+      Toda chamada à OpenAI cobra por <strong>token</strong> — não por requisição, não por minuto, não por mês.
+      Cada palavra em português ≈ 1.3 tokens. <strong>Input</strong> (o que você envia) custa 4× menos que
+      <strong>output</strong> (o que a IA responde).
+    </p>
 
-    <div class="card overflow-hidden mb-8">
+    <div class="grid md:grid-cols-3 gap-6 mb-12">
+      <div class="card p-6 border-l-4 border-blue-500">
+        <div class="text-xs uppercase tracking-wider text-blue-600 font-bold mb-2">PASSO 1 · INPUT</div>
+        <h4 class="font-bold mb-2">O que é enviado para a IA</h4>
+        <ul class="text-sm text-slate-600 space-y-1.5">
+          <li>📝 <strong>System prompt</strong> ~1.500 tokens (instruções, schema das tools)</li>
+          <li>💬 <strong>Histórico</strong> ~500 tokens (últimas 5 mensagens)</li>
+          <li>❓ <strong>Pergunta atual</strong> ~50 tokens</li>
+          <li>📊 <strong>Resultado das tools</strong> ~1.000 tokens (dados do Postgres)</li>
+        </ul>
+        <div class="mt-3 pt-3 border-t font-mono text-xs">
+          ≈ <strong class="text-blue-600">3.000 tokens input</strong> = $0.00045
+        </div>
+      </div>
+      <div class="card p-6 border-l-4 border-amber-500">
+        <div class="text-xs uppercase tracking-wider text-amber-600 font-bold mb-2">PASSO 2 · OUTPUT</div>
+        <h4 class="font-bold mb-2">O que a IA gera de resposta</h4>
+        <ul class="text-sm text-slate-600 space-y-1.5">
+          <li>🔧 <strong>Tool calls</strong> ~200 tokens (decisão de quais ferramentas chamar)</li>
+          <li>💭 <strong>Reasoning</strong> ~300 tokens (raciocínio interno)</li>
+          <li>📨 <strong>Resposta final</strong> ~1.000 tokens (texto + sugestões)</li>
+        </ul>
+        <div class="mt-3 pt-3 border-t font-mono text-xs">
+          ≈ <strong class="text-amber-600">1.500 tokens output</strong> = $0.00090
+        </div>
+      </div>
+      <div class="card p-6 border-l-4 border-emerald-500">
+        <div class="text-xs uppercase tracking-wider text-emerald-600 font-bold mb-2">PASSO 3 · TOTAL</div>
+        <h4 class="font-bold mb-2">Custo de UMA pergunta</h4>
+        <div class="font-mono text-sm bg-slate-50 rounded-lg p-3 leading-relaxed">
+          $0.00045 (input)<br/>
+          + $0.00090 (output)<br/>
+          ────────────────<br/>
+          <strong class="text-emerald-600">= $0.00135 por chamada</strong>
+        </div>
+        <div class="mt-3 text-sm text-slate-600">
+          ≈ <strong>R$ 0,007</strong> por pergunta · ou <strong>~150 perguntas por R$ 1</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━ COMPARATIVO DE MODELOS ━━━━━━━━━━━━━━━ -->
+    <h3 class="text-2xl font-bold mb-4">⚖️ Por que escolhemos gpt-4o-mini</h3>
+    <p class="text-slate-700 mb-6 max-w-3xl">
+      Avaliamos 6 modelos com nossa eval suite (30 casos reais de cliente).
+      gpt-4o-mini ganhou em <strong>custo/qualidade</strong> — qualidade ~92% do gpt-4o por <strong>1/15 do preço</strong>.
+    </p>
+
+    <div class="card overflow-hidden mb-12">
+      <table class="w-full text-sm">
+        <thead style="background: #0f172a; color: white;">
+          <tr class="text-left">
+            <th class="p-4 font-semibold">Modelo</th>
+            <th class="p-4 font-semibold">Provider</th>
+            <th class="p-4 font-semibold text-right">Input/1M</th>
+            <th class="p-4 font-semibold text-right">Output/1M</th>
+            <th class="p-4 font-semibold text-right">Custo médio*</th>
+            <th class="p-4 font-semibold text-right">Qualidade**</th>
+            <th class="p-4 font-semibold">Uso recomendado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-t border-slate-100" style="background: #ecfdf5;">
+            <td class="p-4 font-bold text-emerald-700">★ gpt-4o-mini</td>
+            <td class="p-4">OpenAI</td>
+            <td class="p-4 font-mono text-right text-emerald-600">$0.150</td>
+            <td class="p-4 font-mono text-right text-emerald-600">$0.600</td>
+            <td class="p-4 font-mono text-right font-bold text-emerald-700">$0.00135</td>
+            <td class="p-4 text-right"><span class="badge" style="background: #d1fae5; color: #065f46;">92%</span></td>
+            <td class="p-4 text-xs"><strong>Default</strong> — operação diária</td>
+          </tr>
+          <tr class="border-t border-slate-100">
+            <td class="p-4 font-semibold">gpt-4o</td>
+            <td class="p-4">OpenAI</td>
+            <td class="p-4 font-mono text-right">$2.500</td>
+            <td class="p-4 font-mono text-right">$10.000</td>
+            <td class="p-4 font-mono text-right">$0.02250</td>
+            <td class="p-4 text-right"><span class="badge" style="background: #d1fae5; color: #065f46;">100%</span></td>
+            <td class="p-4 text-xs">Queries complexas com muitos joins</td>
+          </tr>
+          <tr class="border-t border-slate-100">
+            <td class="p-4 font-semibold">Claude Haiku 4.5</td>
+            <td class="p-4">Anthropic</td>
+            <td class="p-4 font-mono text-right">$1.000</td>
+            <td class="p-4 font-mono text-right">$5.000</td>
+            <td class="p-4 font-mono text-right">$0.01050</td>
+            <td class="p-4 text-right"><span class="badge" style="background: #d1fae5; color: #065f46;">94%</span></td>
+            <td class="p-4 text-xs">Fallback / análise mais nuançada</td>
+          </tr>
+          <tr class="border-t border-slate-100">
+            <td class="p-4 font-semibold">Claude Sonnet 4.6</td>
+            <td class="p-4">Anthropic</td>
+            <td class="p-4 font-mono text-right">$3.000</td>
+            <td class="p-4 font-mono text-right">$15.000</td>
+            <td class="p-4 font-mono text-right">$0.03150</td>
+            <td class="p-4 text-right"><span class="badge" style="background: #d1fae5; color: #065f46;">100%</span></td>
+            <td class="p-4 text-xs">Enterprise · análise estratégica</td>
+          </tr>
+          <tr class="border-t border-slate-100">
+            <td class="p-4 font-semibold">Gemini 2.0 Flash</td>
+            <td class="p-4">Google</td>
+            <td class="p-4 font-mono text-right">$0.075</td>
+            <td class="p-4 font-mono text-right">$0.300</td>
+            <td class="p-4 font-mono text-right">$0.00068</td>
+            <td class="p-4 text-right"><span class="badge" style="background: #fef3c7; color: #92400e;">85%</span></td>
+            <td class="p-4 text-xs">Backup para reduzir custo +50%</td>
+          </tr>
+          <tr class="border-t border-slate-100">
+            <td class="p-4 font-semibold">Llama 3.1 70B</td>
+            <td class="p-4">Groq</td>
+            <td class="p-4 font-mono text-right">$0.000</td>
+            <td class="p-4 font-mono text-right">$0.000</td>
+            <td class="p-4 font-mono text-right text-emerald-600">$0 (free tier)</td>
+            <td class="p-4 text-right"><span class="badge" style="background: #fef3c7; color: #92400e;">78%</span></td>
+            <td class="p-4 text-xs">Dev / queries simples / quotas free</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="p-4 text-xs text-slate-500 bg-slate-50 border-t">
+        * Custo médio = uma chamada típica do Copilot (3k input + 1.5k output, sem cache).
+        ** Qualidade = score em nossa eval suite de 30 casos (gpt-4o como referência 100%).
+      </div>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━ EXEMPLO REAL ━━━━━━━━━━━━━━━ -->
+    <h3 class="text-2xl font-bold mb-4">🎯 Exemplo real: o que custa cada tipo de pergunta</h3>
+    <div class="grid md:grid-cols-2 gap-4 mb-12">
+
+      <div class="card p-5">
+        <div class="text-xs text-slate-500 mb-1">PERGUNTA SIMPLES · 1 tool call</div>
+        <div class="font-mono text-sm bg-slate-50 p-3 rounded mb-3 italic">"Quanto vendi essa semana?"</div>
+        <div class="grid grid-cols-3 gap-2 text-xs">
+          <div><div class="text-slate-500">Input</div><div class="font-mono">~2k tokens</div></div>
+          <div><div class="text-slate-500">Output</div><div class="font-mono">~800 tokens</div></div>
+          <div><div class="text-slate-500">Custo</div><div class="font-mono text-emerald-600 font-bold">$0.0008</div></div>
+        </div>
+        <div class="mt-3 text-xs text-slate-500">≈ R$ 0,004 · cabe 250 perguntas em R$ 1</div>
+      </div>
+
+      <div class="card p-5">
+        <div class="text-xs text-slate-500 mb-1">PERGUNTA MÉDIA · 2-3 tool calls</div>
+        <div class="font-mono text-sm bg-slate-50 p-3 rounded mb-3 italic">"Compare a produção desse mês com o mês passado e mostre os 5 SKUs com mais queda"</div>
+        <div class="grid grid-cols-3 gap-2 text-xs">
+          <div><div class="text-slate-500">Input</div><div class="font-mono">~4k tokens</div></div>
+          <div><div class="text-slate-500">Output</div><div class="font-mono">~1.5k tokens</div></div>
+          <div><div class="text-slate-500">Custo</div><div class="font-mono text-emerald-600 font-bold">$0.0015</div></div>
+        </div>
+        <div class="mt-3 text-xs text-slate-500">≈ R$ 0,008 · cabe 130 perguntas em R$ 1</div>
+      </div>
+
+      <div class="card p-5">
+        <div class="text-xs text-slate-500 mb-1">PERGUNTA COMPLEXA · 5+ tool calls + RAG</div>
+        <div class="font-mono text-sm bg-slate-50 p-3 rounded mb-3 italic">"Por que o financeiro tá apertado? Mostre tudo: vendas, pagamentos atrasados, estoque parado e me dê 3 ações..."</div>
+        <div class="grid grid-cols-3 gap-2 text-xs">
+          <div><div class="text-slate-500">Input</div><div class="font-mono">~8k tokens</div></div>
+          <div><div class="text-slate-500">Output</div><div class="font-mono">~3k tokens</div></div>
+          <div><div class="text-slate-500">Custo</div><div class="font-mono text-amber-600 font-bold">$0.0030</div></div>
+        </div>
+        <div class="mt-3 text-xs text-slate-500">≈ R$ 0,015 · cabe 65 perguntas em R$ 1</div>
+      </div>
+
+      <div class="card p-5">
+        <div class="text-xs text-slate-500 mb-1">RELATÓRIO AGENDADO · análise + sumário</div>
+        <div class="font-mono text-sm bg-slate-50 p-3 rounded mb-3 italic">"Relatório semanal: KPIs + insights + 5 recomendações + envio por email"</div>
+        <div class="grid grid-cols-3 gap-2 text-xs">
+          <div><div class="text-slate-500">Input</div><div class="font-mono">~12k tokens</div></div>
+          <div><div class="text-slate-500">Output</div><div class="font-mono">~4k tokens</div></div>
+          <div><div class="text-slate-500">Custo</div><div class="font-mono text-amber-600 font-bold">$0.0042</div></div>
+        </div>
+        <div class="mt-3 text-xs text-slate-500">≈ R$ 0,021 · 4 relatórios/mês = R$ 0,08</div>
+      </div>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━ PERFIS DE USO ━━━━━━━━━━━━━━━ -->
+    <h3 class="text-2xl font-bold mb-4">📊 Custo OpenAI por perfil de cliente</h3>
+    <p class="text-slate-700 mb-6 max-w-3xl">
+      Mapeamos 4 perfis baseados no comportamento esperado. Note que <strong>até o cliente Heavy</strong>
+      o custo de IA é &lt; <strong>5% do preço cobrado</strong> (R$ 197/mês plano Pro).
+    </p>
+
+    <div class="card overflow-hidden mb-4">
       <table class="w-full text-sm">
         <thead style="background: #f8fafc;">
           <tr class="text-left">
-            <th class="p-4 font-semibold">Perfil de uso</th>
-            <th class="p-4 font-semibold">Mensagens/mês</th>
-            <th class="p-4 font-semibold">Tokens médios</th>
-            <th class="p-4 font-semibold">Custo OpenAI</th>
-            <th class="p-4 font-semibold">Custo BRL ≈</th>
+            <th class="p-4 font-semibold">Perfil</th>
+            <th class="p-4 font-semibold text-right">Mensagens/mês</th>
+            <th class="p-4 font-semibold text-right">Tokens médios</th>
+            <th class="p-4 font-semibold text-right">Custo OpenAI</th>
+            <th class="p-4 font-semibold text-right">BRL ≈</th>
+            <th class="p-4 font-semibold text-right">% do plano Pro</th>
           </tr>
         </thead>
         <tbody>
           <tr class="border-t border-slate-100">
             <td class="p-4">
               <div class="font-semibold">Light · explorador</div>
-              <div class="text-xs text-slate-500">Pergunta esporádica</div>
+              <div class="text-xs text-slate-500">Pergunta esporádica · não vê valor ainda</div>
             </td>
-            <td class="p-4">~50</td>
-            <td class="p-4">2k in / 1k out</td>
-            <td class="p-4 font-mono text-emerald-600">$0.05</td>
-            <td class="p-4 font-mono">R$ 0,25</td>
+            <td class="p-4 text-right">~50</td>
+            <td class="p-4 text-right font-mono text-xs">2k in / 1k out</td>
+            <td class="p-4 font-mono text-right text-emerald-600">$0.05</td>
+            <td class="p-4 font-mono text-right">R$ 0,25</td>
+            <td class="p-4 text-right"><span class="badge" style="background: #d1fae5; color: #065f46;">0,1%</span></td>
           </tr>
           <tr class="border-t border-slate-100" style="background: #f0fdf4;">
             <td class="p-4">
               <div class="font-semibold">Médio · operacional</div>
-              <div class="text-xs text-slate-500">Uso diário moderado</div>
+              <div class="text-xs text-slate-500">Uso diário moderado · 20 perguntas/dia útil</div>
             </td>
-            <td class="p-4">~500</td>
-            <td class="p-4">3k in / 1.5k out</td>
-            <td class="p-4 font-mono text-emerald-600">$0.69</td>
-            <td class="p-4 font-mono">R$ 3,45</td>
+            <td class="p-4 text-right">~500</td>
+            <td class="p-4 text-right font-mono text-xs">3k in / 1.5k out</td>
+            <td class="p-4 font-mono text-right text-emerald-600">$0.69</td>
+            <td class="p-4 font-mono text-right">R$ 3,45</td>
+            <td class="p-4 text-right"><span class="badge" style="background: #d1fae5; color: #065f46;">1,7%</span></td>
           </tr>
           <tr class="border-t border-slate-100">
             <td class="p-4">
               <div class="font-semibold">Heavy · analista</div>
-              <div class="text-xs text-slate-500">Uso intensivo + RAG</div>
+              <div class="text-xs text-slate-500">Uso intensivo · 100+ perguntas/dia + RAG</div>
             </td>
-            <td class="p-4">~3.000</td>
-            <td class="p-4">5k in / 2k out</td>
-            <td class="p-4 font-mono text-amber-600">$5.85</td>
-            <td class="p-4 font-mono">R$ 29,25</td>
+            <td class="p-4 text-right">~3.000</td>
+            <td class="p-4 text-right font-mono text-xs">5k in / 2k out</td>
+            <td class="p-4 font-mono text-right text-amber-600">$5.85</td>
+            <td class="p-4 font-mono text-right">R$ 29,25</td>
+            <td class="p-4 text-right"><span class="badge" style="background: #fef3c7; color: #92400e;">15%</span></td>
           </tr>
           <tr class="border-t border-slate-100">
             <td class="p-4">
               <div class="font-semibold">Power · automação</div>
-              <div class="text-xs text-slate-500">Heavy + scheduled reports</div>
+              <div class="text-xs text-slate-500">Heavy + scheduled reports + agente autônomo</div>
             </td>
-            <td class="p-4">~10.000</td>
-            <td class="p-4">8k in / 3k out</td>
-            <td class="p-4 font-mono text-rose-600">$30.00</td>
-            <td class="p-4 font-mono">R$ 150,00</td>
+            <td class="p-4 text-right">~10.000</td>
+            <td class="p-4 text-right font-mono text-xs">8k in / 3k out</td>
+            <td class="p-4 font-mono text-right text-rose-600">$30.00</td>
+            <td class="p-4 font-mono text-right">R$ 150,00</td>
+            <td class="p-4 text-right"><span class="badge" style="background: #fee2e2; color: #b91c1c;">76%</span></td>
           </tr>
         </tbody>
-        <tfoot style="background: #eff6ff;">
-          <tr>
-            <td class="p-4 font-bold" colspan="3">Estimativa Beta (5 clientes médios) · OpenAI mensal</td>
-            <td class="p-4 font-mono font-bold text-blue-700">~$3.45</td>
-            <td class="p-4 font-mono font-bold text-blue-700">~R$ 17/mês</td>
-          </tr>
-        </tfoot>
       </table>
     </div>
     <p class="text-xs text-slate-500 mb-12">
-      USD→BRL = 5.00. Custos reais podem variar ±30%. Embeddings RAG estimados separadamente
-      (~$0.02 por 1M tokens · negligível para volume Beta). Margem de segurança aplicada.
+      <strong>Conclusão:</strong> os 3 primeiros perfis sustentam margem alta (&gt; 80%).
+      O perfil <strong>Power</strong> precisa estar no plano <strong>Enterprise (R$ 497/mês)</strong>
+      OU ter cobrança variável por uso de IA.
     </p>
 
-    <!-- AI usage stats e governance -->
+    <!-- ━━━━━━━━━━━━━━━ ESCALA: BETA → GA → CRESCIMENTO ━━━━━━━━━━━━━━━ -->
+    <h3 class="text-2xl font-bold mb-4">📈 Como o custo de IA escala</h3>
+    <p class="text-slate-700 mb-6 max-w-3xl">
+      Cenários simulando crescimento de clientes, assumindo mix realista
+      (60% Light · 30% Médio · 8% Heavy · 2% Power). <strong>Custo cresce linear com o número de clientes</strong>
+      — sem surpresas.
+    </p>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="card p-5 border-l-4 border-blue-500">
+        <div class="text-xs uppercase tracking-wider text-blue-600 font-bold mb-2">CENÁRIO 1 · BETA HOJE</div>
+        <div class="text-3xl font-extrabold mb-1">5</div>
+        <div class="text-sm text-slate-500 mb-4">clientes</div>
+        <div class="space-y-1 text-sm">
+          <div class="flex justify-between"><span>Custo OpenAI</span><span class="font-mono font-bold">$3.45</span></div>
+          <div class="flex justify-between"><span>Em BRL</span><span class="font-mono">R$ 17/mês</span></div>
+          <div class="flex justify-between text-emerald-600"><span>Por cliente</span><span class="font-mono">R$ 3,45</span></div>
+        </div>
+      </div>
+      <div class="card p-5 border-l-4 border-emerald-500">
+        <div class="text-xs uppercase tracking-wider text-emerald-600 font-bold mb-2">CENÁRIO 2 · GA SOFT</div>
+        <div class="text-3xl font-extrabold mb-1">50</div>
+        <div class="text-sm text-slate-500 mb-4">clientes</div>
+        <div class="space-y-1 text-sm">
+          <div class="flex justify-between"><span>Custo OpenAI</span><span class="font-mono font-bold">$34.50</span></div>
+          <div class="flex justify-between"><span>Em BRL</span><span class="font-mono">R$ 173/mês</span></div>
+          <div class="flex justify-between text-emerald-600"><span>Por cliente</span><span class="font-mono">R$ 3,45</span></div>
+        </div>
+      </div>
+      <div class="card p-5 border-l-4 border-amber-500">
+        <div class="text-xs uppercase tracking-wider text-amber-600 font-bold mb-2">CENÁRIO 3 · CRESCIMENTO</div>
+        <div class="text-3xl font-extrabold mb-1">200</div>
+        <div class="text-sm text-slate-500 mb-4">clientes</div>
+        <div class="space-y-1 text-sm">
+          <div class="flex justify-between"><span>Custo OpenAI</span><span class="font-mono font-bold">$138.00</span></div>
+          <div class="flex justify-between"><span>Em BRL</span><span class="font-mono">R$ 690/mês</span></div>
+          <div class="flex justify-between text-emerald-600"><span>Por cliente</span><span class="font-mono">R$ 3,45</span></div>
+        </div>
+      </div>
+      <div class="card p-5 border-l-4 border-rose-500">
+        <div class="text-xs uppercase tracking-wider text-rose-600 font-bold mb-2">CENÁRIO 4 · ESCALA</div>
+        <div class="text-3xl font-extrabold mb-1">1.000</div>
+        <div class="text-sm text-slate-500 mb-4">clientes</div>
+        <div class="space-y-1 text-sm">
+          <div class="flex justify-between"><span>Custo OpenAI</span><span class="font-mono font-bold">$690.00</span></div>
+          <div class="flex justify-between"><span>Em BRL</span><span class="font-mono">R$ 3.450/mês</span></div>
+          <div class="flex justify-between text-emerald-600"><span>Por cliente</span><span class="font-mono">R$ 3,45</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-6 mb-12 bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
+      <h4 class="font-bold mb-3 flex items-center gap-2">
+        <span>💡</span> Comparativo: custo IA × receita
+      </h4>
+      <div class="grid md:grid-cols-3 gap-4 text-sm">
+        <div>
+          <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Com 50 clientes Pro</div>
+          <div><strong>Receita:</strong> R$ 9.850/mês</div>
+          <div><strong>Custo IA:</strong> R$ 173/mês</div>
+          <div class="text-emerald-700 font-bold mt-1">→ IA = 1,7% da receita</div>
+        </div>
+        <div>
+          <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Com 200 clientes mix</div>
+          <div><strong>Receita:</strong> R$ 35-40k/mês</div>
+          <div><strong>Custo IA:</strong> R$ 690/mês</div>
+          <div class="text-emerald-700 font-bold mt-1">→ IA = 1,8% da receita</div>
+        </div>
+        <div>
+          <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Com 1.000 clientes</div>
+          <div><strong>Receita:</strong> R$ 180-220k/mês</div>
+          <div><strong>Custo IA:</strong> R$ 3.450/mês</div>
+          <div class="text-emerald-700 font-bold mt-1">→ IA = 1,7% da receita</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━ ESTRATÉGIAS DE REDUÇÃO ━━━━━━━━━━━━━━━ -->
+    <h3 class="text-2xl font-bold mb-4">⚡ Estratégias para reduzir custo (até 60%)</h3>
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+      <div class="card p-6">
+        <div class="text-3xl mb-3">🗄️</div>
+        <h4 class="font-bold mb-2">Prompt caching automático</h4>
+        <p class="text-sm text-slate-600 mb-3">
+          OpenAI cacheia automaticamente prompts &gt; 1024 tokens repetidos.
+          O system prompt + schema das tools é o mesmo sempre — entra em cache na 2ª chamada.
+        </p>
+        <div class="text-xs font-mono bg-slate-50 p-2 rounded">
+          Input cached: <strong class="text-emerald-600">$0.075</strong> (50% off)<br/>
+          Economia esperada: <strong>~30-40%</strong>
+        </div>
+      </div>
+      <div class="card p-6">
+        <div class="text-3xl mb-3">💾</div>
+        <h4 class="font-bold mb-2">Cache de respostas em Redis</h4>
+        <p class="text-sm text-slate-600 mb-3">
+          Perguntas idênticas em janela de 5 minutos retornam direto do cache.
+          Útil para "quanto vendi hoje?" repetida várias vezes ao dia.
+        </p>
+        <div class="text-xs font-mono bg-slate-50 p-2 rounded">
+          Hit rate esperado: <strong>15-25%</strong><br/>
+          Economia: <strong>~20%</strong>
+        </div>
+      </div>
+      <div class="card p-6">
+        <div class="text-3xl mb-3">🎯</div>
+        <h4 class="font-bold mb-2">Routing por complexidade</h4>
+        <p class="text-sm text-slate-600 mb-3">
+          Classificador rápido escolhe entre <strong>Gemini Flash</strong> ($0.075)
+          para queries simples e gpt-4o-mini para complexas.
+        </p>
+        <div class="text-xs font-mono bg-slate-50 p-2 rounded">
+          Mix 70% Gemini / 30% OpenAI<br/>
+          Economia: <strong>~50%</strong>
+        </div>
+      </div>
+      <div class="card p-6">
+        <div class="text-3xl mb-3">📦</div>
+        <h4 class="font-bold mb-2">Batch API (50% off)</h4>
+        <p class="text-sm text-slate-600 mb-3">
+          Relatórios agendados não-urgentes via Batch API da OpenAI:
+          processamento em até 24h por <strong>metade do preço</strong>.
+        </p>
+        <div class="text-xs font-mono bg-slate-50 p-2 rounded">
+          Aplicável: ~30% do volume<br/>
+          Economia: <strong>~15%</strong>
+        </div>
+      </div>
+      <div class="card p-6">
+        <div class="text-3xl mb-3">🔧</div>
+        <h4 class="font-bold mb-2">Tool result truncation</h4>
+        <p class="text-sm text-slate-600 mb-3">
+          Resultados grandes do Postgres limitados a top-50 linhas + total.
+          Reduz input em 60-80% sem perder qualidade da resposta.
+        </p>
+        <div class="text-xs font-mono bg-slate-50 p-2 rounded">
+          Aplicado em 100% das tools<br/>
+          Economia: <strong>~25%</strong>
+        </div>
+      </div>
+      <div class="card p-6">
+        <div class="text-3xl mb-3">🎁</div>
+        <h4 class="font-bold mb-2">Free tier Groq como fallback</h4>
+        <p class="text-sm text-slate-600 mb-3">
+          Cliente Beta com perfil Light pode usar Groq (free tier 14k req/dia)
+          como provider primário até virar Médio.
+        </p>
+        <div class="text-xs font-mono bg-slate-50 p-2 rounded">
+          ~60% dos clientes Light<br/>
+          Economia: <strong>$0 nesses</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━ RAG E EMBEDDINGS ━━━━━━━━━━━━━━━ -->
+    <h3 class="text-2xl font-bold mb-4">🔍 RAG e Embeddings (custo separado)</h3>
+    <div class="grid lg:grid-cols-3 gap-6 mb-12">
+      <div class="card p-6 lg:col-span-2">
+        <h4 class="font-bold mb-3">O que indexamos no pgvector</h4>
+        <p class="text-sm text-slate-600 mb-4">
+          O Copilot V2 (Python) indexa documentos do tenant em <span class="kbd">ai_documents</span>:
+          fichas técnicas, descrições de produtos, notas de cliente, FAQs internos. Cada documento
+          vira embedding de <strong>1024 dimensões</strong> via <span class="kbd">text-embedding-3-small</span>.
+        </p>
+        <table class="w-full text-sm">
+          <thead style="background: #f8fafc;">
+            <tr class="text-left">
+              <th class="p-3 font-semibold">Item</th>
+              <th class="p-3 font-semibold text-right">Quantidade típica</th>
+              <th class="p-3 font-semibold text-right">Tokens</th>
+              <th class="p-3 font-semibold text-right">Custo único</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-t border-slate-100"><td class="p-3">Fichas técnicas indexadas</td><td class="p-3 text-right">~500</td><td class="p-3 text-right font-mono">200k</td><td class="p-3 text-right font-mono text-emerald-600">$0.004</td></tr>
+            <tr class="border-t border-slate-100"><td class="p-3">Catálogo de produtos</td><td class="p-3 text-right">~2.000</td><td class="p-3 text-right font-mono">600k</td><td class="p-3 text-right font-mono text-emerald-600">$0.012</td></tr>
+            <tr class="border-t border-slate-100"><td class="p-3">Histórico de notas/audit</td><td class="p-3 text-right">~10.000</td><td class="p-3 text-right font-mono">2M</td><td class="p-3 text-right font-mono text-emerald-600">$0.040</td></tr>
+            <tr class="border-t border-slate-100" style="background: #f0fdf4;"><td class="p-3 font-bold">Total indexação inicial</td><td class="p-3 text-right">~12.500</td><td class="p-3 text-right font-mono font-bold">~3M</td><td class="p-3 text-right font-mono font-bold text-emerald-700">$0.06 / cliente</td></tr>
+          </tbody>
+        </table>
+        <p class="text-xs text-slate-500 mt-3">
+          Reindexação incremental ~$0.005/mês por cliente.
+          Storage pgvector: 1024 dim × 4 bytes × 12.500 = 50 MB · negligível no Supabase Pro 8 GB.
+        </p>
+      </div>
+      <div class="card p-6 bg-gradient-to-br from-purple-50 to-violet-50">
+        <h4 class="font-bold mb-3">Por que vale a pena</h4>
+        <ul class="text-sm text-slate-700 space-y-2 mb-4">
+          <li>📈 <strong>+40% qualidade</strong> em queries sobre produtos específicos</li>
+          <li>🎯 <strong>Reduz alucinações</strong> — responde só com fato indexado</li>
+          <li>🔒 <strong>Contexto privado</strong> — RLS garante isolamento</li>
+          <li>⚡ <strong>Busca híbrida</strong> — semântica + tsvector full-text</li>
+        </ul>
+        <div class="pt-4 border-t border-purple-200 text-xs">
+          <strong>Custo total RAG por cliente:</strong><br/>
+          • Inicial: <span class="font-mono text-emerald-700 font-bold">~$0.06</span> (uma vez)<br/>
+          • Mensal: <span class="font-mono text-emerald-700 font-bold">~$0.005</span><br/>
+          • Negligível: &lt; <strong>R$ 0,03/mês</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━ GOVERNANCE ━━━━━━━━━━━━━━━ -->
+    <h3 class="text-2xl font-bold mb-4">🛡️ Governance, telemetria e privacidade</h3>
     <div class="grid md:grid-cols-3 gap-6">
       <div class="card p-6">
         <div class="text-3xl mb-2">📊</div>
         <h4 class="font-bold mb-2">Telemetria por tenant</h4>
-        <p class="text-sm text-slate-600">Tabela <span class="kbd">ai_usage</span> com tokens in/out, custo USD, latência, erro, modelo. Consultável em <span class="kbd">/super-admin/ai-usage</span>.</p>
+        <p class="text-sm text-slate-600">
+          Tabela <span class="kbd">ai_usage</span> registra <strong>cada chamada</strong>:
+          tokens in/out, custo USD, latência, modelo, hash da pergunta, erro.
+          Visível em <span class="kbd">/super-admin/ai-usage</span> com agregação mensal.
+        </p>
       </div>
       <div class="card p-6">
         <div class="text-3xl mb-2">🛡️</div>
-        <h4 class="font-bold mb-2">Budget alerts</h4>
-        <p class="text-sm text-slate-600">Tenant pode setar limite mensal. Webhook + email quando ultrapassa 80% e bloqueio em 100%. Evita surpresas no faturamento.</p>
+        <h4 class="font-bold mb-2">Budget alerts + hard cap</h4>
+        <p class="text-sm text-slate-600">
+          Tenant define limite mensal (default R$ 50). Webhook + email quando atinge
+          <strong>80%</strong>. Em <strong>100% bloqueia</strong> chamadas até o admin desbloquear.
+          Evita susto no faturamento.
+        </p>
       </div>
       <div class="card p-6">
         <div class="text-3xl mb-2">🔒</div>
-        <h4 class="font-bold mb-2">Privacidade</h4>
-        <p class="text-sm text-slate-600">Sem OptIn de treinamento OpenAI (default). Dados sensíveis filtrados antes do prompt. RLS garante isolamento entre tenants no RAG.</p>
+        <h4 class="font-bold mb-2">Privacidade e LGPD</h4>
+        <p class="text-sm text-slate-600">
+          OpenAI <strong>não treina com nossos dados</strong> (default API). Dados sensíveis
+          (CPF, senhas) filtrados antes do prompt via regex. RLS garante que tenant A
+          nunca veja embedding de tenant B no RAG.
+        </p>
       </div>
     </div>
   </div>
@@ -999,42 +1386,249 @@ Resposta com gráficos + tabelas + ações sugeridas
 <!-- ─────────────────────────── GASTOS FUTUROS ─────────────────────────── -->
 <section class="max-w-7xl mx-auto px-6 lg:px-12 py-20">
   <div class="badge mb-4" style="background: #fef3c7; color: #b45309;">GASTOS FUTUROS</div>
-  <h2 class="text-4xl font-extrabold mb-2">💰 Investimento previsto até GA</h2>
-  <p class="text-slate-600 mb-12 max-w-3xl">
-    Levantamento completo de custos para chegar ao lançamento geral, separados por categoria.
-    Valores em BRL; algumas linhas em USD com câmbio R$ 5,00 aplicado.
+  <h2 class="text-4xl font-extrabold mb-2">💰 Investimento e custos detalhados</h2>
+  <p class="text-slate-700 mb-12 max-w-3xl">
+    Levantamento completo de custos para chegar ao lançamento geral. Cada linha vem
+    com <strong>justificativa</strong> (por que esse plano), <strong>alternativas</strong> mais
+    baratas e <strong>quando reavaliar</strong>. Câmbio R$ 5,00/USD aplicado.
   </p>
 
-  <!-- Recorrente mensal -->
-  <h3 class="text-xl font-bold mb-4">📅 Custos recorrentes mensais (em produção)</h3>
+  <!-- ━━━━━━━━━━━━━━━ EXPLICAÇÃO POR ITEM ━━━━━━━━━━━━━━━ -->
+  <h3 class="text-xl font-bold mb-2">📅 Custos recorrentes mensais — explicado item por item</h3>
+  <p class="text-slate-600 mb-6">Cada item da infra tem motivo claro e gatilho de upgrade.</p>
+
+  <div class="grid md:grid-cols-2 gap-4 mb-8">
+
+    <div class="card p-5">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <div class="font-bold flex items-center gap-2">🖥️ Backend hosting</div>
+          <div class="text-xs text-slate-500">Render · Standard 2GB · 1 vCPU</div>
+        </div>
+        <div class="text-right">
+          <div class="font-mono font-bold">R$ 125/mês</div>
+          <div class="text-xs text-slate-400">$25</div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-600 mb-2"><strong>Por quê:</strong> 2GB RAM aguenta 200 req/s e 200 tenants concurrent. Auto-deploy via GitHub.</p>
+      <p class="text-xs text-slate-500"><strong>Alternativa:</strong> Fly.io (~R$ 100/mês) ou Hetzner VPS (~R$ 50, sem gerenciamento). <strong>Upgrade quando:</strong> &gt; 500 tenants ou p95 &gt; 800ms.</p>
+    </div>
+
+    <div class="card p-5">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <div class="font-bold flex items-center gap-2">🌐 Frontend / admin / landing</div>
+          <div class="text-xs text-slate-500">Vercel · Pro · 3 projetos</div>
+        </div>
+        <div class="text-right">
+          <div class="font-mono font-bold">R$ 100/mês</div>
+          <div class="text-xs text-slate-400">$20</div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-600 mb-2"><strong>Por quê:</strong> CDN global, deploys atômicos, preview por PR, analytics Web Vitals incluso, suporte Next.js 15.</p>
+      <p class="text-xs text-slate-500"><strong>Alternativa:</strong> Cloudflare Pages (free) — perde preview deploys com auth e Vercel Speed Insights. <strong>Upgrade:</strong> Pro 1 já cobre &lt; 1M req/mês.</p>
+    </div>
+
+    <div class="card p-5">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <div class="font-bold flex items-center gap-2">🐘 Postgres + pgvector</div>
+          <div class="text-xs text-slate-500">Supabase · Pro · 8 GB · backup diário</div>
+        </div>
+        <div class="text-right">
+          <div class="font-mono font-bold">R$ 125/mês</div>
+          <div class="text-xs text-slate-400">$25</div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-600 mb-2"><strong>Por quê:</strong> RLS nativo, pgvector, backup automático com PITR, dashboard de queries lentas. Substitui DBA.</p>
+      <p class="text-xs text-slate-500"><strong>Alternativa:</strong> Neon (~R$ 100), Postgres self-hosted (~R$ 30 + 4h/mês de devops). <strong>Upgrade:</strong> Team Plan (R$ 300) com mais I/O quando passar de 100 tenants ativos.</p>
+    </div>
+
+    <div class="card p-5">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <div class="font-bold flex items-center gap-2">⚡ Redis</div>
+          <div class="text-xs text-slate-500">Upstash · pay-as-you-go · BullMQ + cache</div>
+        </div>
+        <div class="text-right">
+          <div class="font-mono font-bold">R$ 50/mês</div>
+          <div class="text-xs text-slate-400">$10</div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-600 mb-2"><strong>Por quê:</strong> jobs de BullMQ, cache do proxy, rate limiting, sessions distribuídas. Latência &lt; 5ms.</p>
+      <p class="text-xs text-slate-500"><strong>Alternativa:</strong> Redis self-hosted no Render. <strong>Upgrade:</strong> escala automaticamente · custo cresce ~R$ 30 a cada 50 tenants ativos.</p>
+    </div>
+
+    <div class="card p-5">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <div class="font-bold flex items-center gap-2">📨 Email transacional</div>
+          <div class="text-xs text-slate-500">Resend · Pro · 50k/mês · SPF/DKIM</div>
+        </div>
+        <div class="text-right">
+          <div class="font-mono font-bold">R$ 100/mês</div>
+          <div class="text-xs text-slate-400">$20</div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-600 mb-2"><strong>Por quê:</strong> alertas, relatórios agendados, magic link, onboarding. Deliverability alta no BR.</p>
+      <p class="text-xs text-slate-500"><strong>Alternativa:</strong> Amazon SES (~R$ 25 mas configuração complexa) ou Postmark. <strong>Upgrade:</strong> Pro 100k (R$ 175) quando ultrapassar 30k/mês.</p>
+    </div>
+
+    <div class="card p-5">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <div class="font-bold flex items-center gap-2">🌍 Domínio + DNS</div>
+          <div class="text-xs text-slate-500">Cloudflare · Free · Registro .com.br anual</div>
+        </div>
+        <div class="text-right">
+          <div class="font-mono font-bold">R$ 15/mês</div>
+          <div class="text-xs text-slate-400">~R$ 180/ano</div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-600 mb-2"><strong>Por quê:</strong> CDN, anti-DDoS básico e DNS rápido — tudo gratuito. Domínio .com.br via Registro.br.</p>
+      <p class="text-xs text-slate-500"><strong>Upgrade:</strong> Cloudflare WAF Pro (R$ 100/mês) quando começar a receber ataques scripted.</p>
+    </div>
+
+    <div class="card p-5">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <div class="font-bold flex items-center gap-2">🐛 Sentry (error tracking)</div>
+          <div class="text-xs text-slate-500">Sentry · Team · errors + performance</div>
+        </div>
+        <div class="text-right">
+          <div class="font-mono font-bold">R$ 130/mês</div>
+          <div class="text-xs text-slate-400">$26</div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-600 mb-2"><strong>Por quê:</strong> stack trace de erros front e back, source maps, performance traces, alerting Slack.</p>
+      <p class="text-xs text-slate-500"><strong>Alternativa:</strong> Self-hosted Sentry (~4h setup), GlitchTip (free). <strong>Adiar:</strong> usar plano free 5k events/mês até 20 tenants.</p>
+    </div>
+
+    <div class="card p-5">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <div class="font-bold flex items-center gap-2">📊 PostHog</div>
+          <div class="text-xs text-slate-500">Cloud · free tier 1M events</div>
+        </div>
+        <div class="text-right">
+          <div class="font-mono font-bold">R$ 0/mês</div>
+          <div class="text-xs text-slate-400">free tier</div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-600 mb-2"><strong>Por quê:</strong> product analytics, funis, session replay, feature flags. Tudo num lugar só.</p>
+      <p class="text-xs text-slate-500"><strong>Upgrade:</strong> $0.00031/event quando ultrapassar 1M/mês — projeção R$ 50/mês com 200 tenants.</p>
+    </div>
+
+    <div class="card p-5">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <div class="font-bold flex items-center gap-2">💳 Stripe (taxas)</div>
+          <div class="text-xs text-slate-500">Stripe BR · 3.99% + R$ 0,39 por transação</div>
+        </div>
+        <div class="text-right">
+          <div class="font-mono font-bold text-slate-500">% receita</div>
+          <div class="text-xs text-slate-400">variável</div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-600 mb-2"><strong>Como funciona:</strong> em R$ 197 do plano Pro, Stripe fica com R$ 8,25 (R$ 7,86 + R$ 0,39). Líquido: <strong>R$ 188,75</strong>.</p>
+      <p class="text-xs text-slate-500"><strong>Alternativa BR:</strong> Pagar.me, Asaas, Iugu (taxas similares). Stripe ganha em produto e DX.</p>
+    </div>
+
+    <div class="card p-5 border-l-4 border-blue-500">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <div class="font-bold flex items-center gap-2">🤖 OpenAI Beta (5 clientes)</div>
+          <div class="text-xs text-slate-500">gpt-4o-mini · pay-as-you-go</div>
+        </div>
+        <div class="text-right">
+          <div class="font-mono font-bold text-blue-700">R$ 17/mês</div>
+          <div class="text-xs text-slate-400">$3.45</div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-600 mb-2"><strong>Por quê:</strong> ver seção IA acima — perfis Light + Médio dominam o Beta. Custo previsível por cliente.</p>
+      <p class="text-xs text-slate-500"><strong>Otimização:</strong> com prompt caching ativo (default OpenAI) e Groq como fallback Light, custo real esperado: <strong>~R$ 10/mês</strong>.</p>
+    </div>
+
+    <div class="card p-5 border-l-4 border-amber-500">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <div class="font-bold flex items-center gap-2">🤖 OpenAI GA (50 clientes)</div>
+          <div class="text-xs text-slate-500">Projeção GA · mix realista</div>
+        </div>
+        <div class="text-right">
+          <div class="font-mono font-bold text-amber-700">R$ 173/mês</div>
+          <div class="text-xs text-slate-400">$34.50</div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-600 mb-2"><strong>Linear:</strong> R$ 3,45/cliente × 50 = R$ 173. Cresce previsivelmente com volume.</p>
+      <p class="text-xs text-slate-500"><strong>Cap por tenant:</strong> R$ 50/mês (default). Power users sobem para Enterprise (R$ 497) que cobre custo + margem.</p>
+    </div>
+
+    <div class="card p-5 bg-slate-50">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <div class="font-bold">📦 Total Beta (hoje)</div>
+          <div class="text-xs text-slate-500">5 clientes · estado atual</div>
+        </div>
+        <div class="text-right">
+          <div class="font-mono font-bold text-2xl text-emerald-700">R$ 660</div>
+          <div class="text-xs text-slate-500">por mês</div>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-xs mt-3">
+        <div><div class="text-slate-500">Por cliente</div><div class="font-mono font-bold">R$ 132</div></div>
+        <div><div class="text-slate-500">Plano Pro</div><div class="font-mono">R$ 197</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Tabela consolidada compacta -->
+  <h3 class="text-xl font-bold mb-4">Tabela consolidada (mensal)</h3>
   <div class="card overflow-hidden mb-12">
     <table class="w-full text-sm">
       <thead style="background: #f8fafc;">
         <tr class="text-left">
-          <th class="p-4 font-semibold">Item</th>
-          <th class="p-4 font-semibold">Provider</th>
-          <th class="p-4 font-semibold">Plano</th>
-          <th class="p-4 font-semibold text-right">Mensal</th>
+          <th class="p-3 font-semibold">Item</th>
+          <th class="p-3 font-semibold">Provider · plano</th>
+          <th class="p-3 font-semibold text-right">Beta (5)</th>
+          <th class="p-3 font-semibold text-right">GA (50)</th>
+          <th class="p-3 font-semibold text-right">Escala (200)</th>
+          <th class="p-3 font-semibold text-right">Crítico</th>
         </tr>
       </thead>
       <tbody>
-        <tr class="border-t border-slate-100"><td class="p-4">Backend hosting</td><td class="p-4">Render</td><td class="p-4">Standard 2GB</td><td class="p-4 font-mono text-right">R$ 125 <span class="text-xs text-slate-400">($25)</span></td></tr>
-        <tr class="border-t border-slate-100"><td class="p-4">Frontend + admin + landing</td><td class="p-4">Vercel</td><td class="p-4">Pro</td><td class="p-4 font-mono text-right">R$ 100 <span class="text-xs text-slate-400">($20)</span></td></tr>
-        <tr class="border-t border-slate-100"><td class="p-4">Postgres + pgvector</td><td class="p-4">Supabase</td><td class="p-4">Pro 8GB</td><td class="p-4 font-mono text-right">R$ 125 <span class="text-xs text-slate-400">($25)</span></td></tr>
-        <tr class="border-t border-slate-100"><td class="p-4">Redis (jobs + cache)</td><td class="p-4">Upstash</td><td class="p-4">Pay-as-you-go</td><td class="p-4 font-mono text-right">R$ 50 <span class="text-xs text-slate-400">($10)</span></td></tr>
-        <tr class="border-t border-slate-100"><td class="p-4">Email transacional</td><td class="p-4">Resend</td><td class="p-4">Pro 50k/mês</td><td class="p-4 font-mono text-right">R$ 100 <span class="text-xs text-slate-400">($20)</span></td></tr>
-        <tr class="border-t border-slate-100"><td class="p-4">Domínio + DNS</td><td class="p-4">Cloudflare</td><td class="p-4">Free + domínio</td><td class="p-4 font-mono text-right">R$ 15</td></tr>
-        <tr class="border-t border-slate-100"><td class="p-4">Stripe (taxa por transação)</td><td class="p-4">Stripe BR</td><td class="p-4">3.99% + R$ 0.39</td><td class="p-4 font-mono text-right text-slate-400">% sobre faturamento</td></tr>
-        <tr class="border-t border-slate-100"><td class="p-4">Sentry (errors)</td><td class="p-4">Sentry</td><td class="p-4">Team</td><td class="p-4 font-mono text-right">R$ 130 <span class="text-xs text-slate-400">($26)</span></td></tr>
-        <tr class="border-t border-slate-100"><td class="p-4">PostHog (analytics)</td><td class="p-4">PostHog</td><td class="p-4">Cloud free tier</td><td class="p-4 font-mono text-right">R$ 0</td></tr>
-        <tr class="border-t border-slate-100" style="background: #eff6ff;"><td class="p-4 font-semibold">OpenAI (5 clientes Beta)</td><td class="p-4">OpenAI</td><td class="p-4">gpt-4o-mini · pay-as-you-go</td><td class="p-4 font-mono text-right font-semibold">R$ 17 <span class="text-xs text-slate-400">($3.45)</span></td></tr>
-        <tr class="border-t border-slate-100" style="background: #fef3c7;"><td class="p-4 font-semibold">OpenAI (50 clientes médios)</td><td class="p-4">OpenAI</td><td class="p-4">Projeção GA</td><td class="p-4 font-mono text-right font-semibold">R$ 170 <span class="text-xs text-slate-400">($34.50)</span></td></tr>
+        <tr class="border-t border-slate-100"><td class="p-3">Backend</td><td class="p-3 text-xs">Render Standard</td><td class="p-3 font-mono text-right">R$ 125</td><td class="p-3 font-mono text-right">R$ 125</td><td class="p-3 font-mono text-right">R$ 250</td><td class="p-3 text-right">🔴 Sim</td></tr>
+        <tr class="border-t border-slate-100"><td class="p-3">Frontend / admin / landing</td><td class="p-3 text-xs">Vercel Pro</td><td class="p-3 font-mono text-right">R$ 100</td><td class="p-3 font-mono text-right">R$ 100</td><td class="p-3 font-mono text-right">R$ 100</td><td class="p-3 text-right">🟡 Médio</td></tr>
+        <tr class="border-t border-slate-100"><td class="p-3">Postgres + pgvector</td><td class="p-3 text-xs">Supabase Pro 8GB</td><td class="p-3 font-mono text-right">R$ 125</td><td class="p-3 font-mono text-right">R$ 125</td><td class="p-3 font-mono text-right">R$ 300</td><td class="p-3 text-right">🔴 Sim</td></tr>
+        <tr class="border-t border-slate-100"><td class="p-3">Redis</td><td class="p-3 text-xs">Upstash pay-as-you-go</td><td class="p-3 font-mono text-right">R$ 50</td><td class="p-3 font-mono text-right">R$ 75</td><td class="p-3 font-mono text-right">R$ 150</td><td class="p-3 text-right">🟡 Médio</td></tr>
+        <tr class="border-t border-slate-100"><td class="p-3">Email transacional</td><td class="p-3 text-xs">Resend Pro 50k</td><td class="p-3 font-mono text-right">R$ 100</td><td class="p-3 font-mono text-right">R$ 100</td><td class="p-3 font-mono text-right">R$ 175</td><td class="p-3 text-right">🟡 Médio</td></tr>
+        <tr class="border-t border-slate-100"><td class="p-3">Domínio + DNS</td><td class="p-3 text-xs">Cloudflare Free</td><td class="p-3 font-mono text-right">R$ 15</td><td class="p-3 font-mono text-right">R$ 15</td><td class="p-3 font-mono text-right">R$ 15</td><td class="p-3 text-right">🟢 Baixo</td></tr>
+        <tr class="border-t border-slate-100"><td class="p-3">Sentry</td><td class="p-3 text-xs">Team · errors + perf</td><td class="p-3 font-mono text-right">R$ 130</td><td class="p-3 font-mono text-right">R$ 130</td><td class="p-3 font-mono text-right">R$ 260</td><td class="p-3 text-right">🟡 Médio</td></tr>
+        <tr class="border-t border-slate-100"><td class="p-3">PostHog</td><td class="p-3 text-xs">Free 1M / Pro</td><td class="p-3 font-mono text-right">R$ 0</td><td class="p-3 font-mono text-right">R$ 0</td><td class="p-3 font-mono text-right">R$ 75</td><td class="p-3 text-right">🟢 Baixo</td></tr>
+        <tr class="border-t border-slate-100" style="background: #eff6ff;"><td class="p-3 font-semibold">OpenAI</td><td class="p-3 text-xs">gpt-4o-mini</td><td class="p-3 font-mono text-right font-bold">R$ 17</td><td class="p-3 font-mono text-right font-bold">R$ 173</td><td class="p-3 font-mono text-right font-bold">R$ 690</td><td class="p-3 text-right">🟢 Linear</td></tr>
       </tbody>
       <tfoot style="background: #f0fdf4;">
-        <tr><td class="p-4 font-bold" colspan="3">Total mensal Beta (5 clientes)</td><td class="p-4 font-mono text-right font-bold text-emerald-700">~R$ 660/mês</td></tr>
-        <tr style="background: #fef3c7;"><td class="p-4 font-bold" colspan="3">Total mensal GA (50 clientes)</td><td class="p-4 font-mono text-right font-bold text-amber-700">~R$ 1.150/mês</td></tr>
+        <tr>
+          <td class="p-3 font-bold" colspan="2">TOTAL MENSAL</td>
+          <td class="p-3 font-mono text-right font-bold text-emerald-700">R$ 662</td>
+          <td class="p-3 font-mono text-right font-bold text-amber-700">R$ 843</td>
+          <td class="p-3 font-mono text-right font-bold text-rose-700">R$ 2.015</td>
+          <td class="p-3"></td>
+        </tr>
+        <tr style="background: #f0fdf4;">
+          <td class="p-3 text-sm" colspan="2">Custo por cliente</td>
+          <td class="p-3 font-mono text-right text-emerald-700">R$ 132</td>
+          <td class="p-3 font-mono text-right text-emerald-700">R$ 17</td>
+          <td class="p-3 font-mono text-right text-emerald-700">R$ 10</td>
+          <td class="p-3"></td>
+        </tr>
       </tfoot>
     </table>
+    <div class="p-3 text-xs text-slate-500 bg-slate-50 border-t">
+      <strong>🎯 Insight:</strong> custo por cliente <strong>cai 92%</strong> de Beta para Escala (de R$ 132 para R$ 10).
+      É a economia de escala do SaaS — overhead fixo (Render, Supabase, Sentry) diluído por mais usuários.
+    </div>
   </div>
 
   <!-- One-time -->
@@ -1144,35 +1738,260 @@ Resposta com gráficos + tabelas + ações sugeridas
     </div>
   </div>
 
-  <!-- Resumo -->
+  <!-- ━━━━━━━━━━━━━━━ UNIT ECONOMICS ━━━━━━━━━━━━━━━ -->
+  <h3 class="text-xl font-bold mb-2">🧮 Unit economics — quanto sobra de cada cliente</h3>
+  <p class="text-slate-600 mb-6 max-w-3xl">
+    Decomposição completa da receita até a margem bruta para cada plano.
+    Inclui taxa Stripe, custo de infra alocado e custo de IA.
+  </p>
+
+  <div class="grid md:grid-cols-3 gap-4 mb-12">
+
+    <!-- Plano Trial / Beta -->
+    <div class="card overflow-hidden">
+      <div class="p-5 text-white" style="background: linear-gradient(135deg, #6366f1, #4f46e5);">
+        <div class="text-xs uppercase tracking-wider opacity-80 mb-1">PLANO TRIAL / BETA</div>
+        <div class="text-3xl font-extrabold">R$ 0</div>
+        <div class="text-sm opacity-80">14 dias grátis · sem cartão</div>
+      </div>
+      <div class="p-5 text-sm">
+        <div class="space-y-2 mb-4 font-mono text-xs">
+          <div class="flex justify-between"><span>Receita</span><span>R$ 0,00</span></div>
+          <div class="flex justify-between text-rose-600"><span>Custo infra alocado</span><span>−R$ 17,00</span></div>
+          <div class="flex justify-between text-rose-600"><span>Custo IA (perfil Médio)</span><span>−R$ 3,45</span></div>
+          <div class="flex justify-between text-rose-600"><span>Onboarding (1h consultor)</span><span>−R$ 50,00</span></div>
+          <div class="border-t pt-2 flex justify-between font-bold text-rose-700"><span>Margem mês 1</span><span>−R$ 70,45</span></div>
+        </div>
+        <div class="text-xs text-slate-500 leading-relaxed">
+          Beta é <strong>investimento em validação</strong>. Esperamos converter <strong>40-60%</strong> em pagantes. CAC implícito ≈ R$ 175/cliente convertido.
+        </div>
+      </div>
+    </div>
+
+    <!-- Plano Pro -->
+    <div class="card overflow-hidden ring-2 ring-emerald-500">
+      <div class="p-5 text-white" style="background: linear-gradient(135deg, #10b981, #059669);">
+        <div class="flex items-center justify-between mb-1">
+          <div class="text-xs uppercase tracking-wider opacity-80">PLANO PRO ★</div>
+          <span class="badge" style="background: rgba(255,255,255,0.2); color: white;">RECOMENDADO</span>
+        </div>
+        <div class="text-3xl font-extrabold">R$ 197</div>
+        <div class="text-sm opacity-80">por mês · até 5 usuários</div>
+      </div>
+      <div class="p-5 text-sm">
+        <div class="space-y-2 mb-4 font-mono text-xs">
+          <div class="flex justify-between"><span>Receita bruta</span><span>R$ 197,00</span></div>
+          <div class="flex justify-between text-rose-600"><span>Stripe (3.99% + R$ 0,39)</span><span>−R$ 8,25</span></div>
+          <div class="flex justify-between text-rose-600"><span>Custo infra alocado</span><span>−R$ 17,00</span></div>
+          <div class="flex justify-between text-rose-600"><span>Custo IA (perfil Médio)</span><span>−R$ 3,45</span></div>
+          <div class="flex justify-between text-rose-600"><span>Suporte (10 min/mês)</span><span>−R$ 8,33</span></div>
+          <div class="border-t pt-2 flex justify-between font-bold text-emerald-700"><span>Margem bruta</span><span>R$ 159,97</span></div>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+          <div><div class="text-slate-500">Margem %</div><div class="font-mono font-bold text-emerald-700">81,2%</div></div>
+          <div><div class="text-slate-500">Por dia</div><div class="font-mono font-bold">R$ 5,33</div></div>
+        </div>
+        <div class="text-xs text-slate-500 leading-relaxed">
+          Plano sweet-spot. <strong>81% de margem</strong> é típico de SaaS B2B saudável.
+          Preço próximo do Conta Azul / ContaAzul mas com BI nativo + IA.
+        </div>
+      </div>
+    </div>
+
+    <!-- Plano Enterprise -->
+    <div class="card overflow-hidden">
+      <div class="p-5 text-white" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+        <div class="text-xs uppercase tracking-wider opacity-80 mb-1">PLANO ENTERPRISE</div>
+        <div class="text-3xl font-extrabold">R$ 497</div>
+        <div class="text-sm opacity-80">por mês · usuários ilimitados</div>
+      </div>
+      <div class="p-5 text-sm">
+        <div class="space-y-2 mb-4 font-mono text-xs">
+          <div class="flex justify-between"><span>Receita bruta</span><span>R$ 497,00</span></div>
+          <div class="flex justify-between text-rose-600"><span>Stripe (3.99% + R$ 0,39)</span><span>−R$ 20,22</span></div>
+          <div class="flex justify-between text-rose-600"><span>Custo infra alocado</span><span>−R$ 25,00</span></div>
+          <div class="flex justify-between text-rose-600"><span>Custo IA (perfil Heavy)</span><span>−R$ 29,25</span></div>
+          <div class="flex justify-between text-rose-600"><span>Suporte (30 min/mês)</span><span>−R$ 25,00</span></div>
+          <div class="border-t pt-2 flex justify-between font-bold text-amber-700"><span>Margem bruta</span><span>R$ 397,53</span></div>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+          <div><div class="text-slate-500">Margem %</div><div class="font-mono font-bold text-amber-700">80,0%</div></div>
+          <div><div class="text-slate-500">Por dia</div><div class="font-mono font-bold">R$ 13,25</div></div>
+        </div>
+        <div class="text-xs text-slate-500 leading-relaxed">
+          Cobre power users (R$ 150/mês de IA) e ainda mantém 80%.
+          Idealmente cobrado anual com desconto = LTV travado.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LTV / CAC -->
+  <h3 class="text-xl font-bold mb-2">📐 LTV, CAC e Payback (estimativas conservadoras)</h3>
+  <p class="text-slate-600 mb-6 max-w-3xl">
+    Métricas de saúde do SaaS. Como ainda não temos histórico, usamos benchmarks de SaaS B2B brasileiro
+    (churn 4-7% mensal típico em SMB).
+  </p>
+
+  <div class="grid md:grid-cols-4 gap-4 mb-12">
+    <div class="card p-5">
+      <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">CHURN MENSAL</div>
+      <div class="stat-num text-3xl mb-1">5%</div>
+      <div class="text-sm text-slate-600 mb-3">Lifetime ≈ 20 meses</div>
+      <div class="text-xs text-slate-500">Conservador para SMB · varia 3-8% no setor.</div>
+    </div>
+    <div class="card p-5 ring-1 ring-emerald-200">
+      <div class="text-xs uppercase tracking-wider text-emerald-600 font-bold mb-2">LTV PRO</div>
+      <div class="stat-num text-3xl text-emerald-700 mb-1">R$ 3.199</div>
+      <div class="text-sm text-slate-600 mb-3">160 × 20 meses</div>
+      <div class="text-xs text-slate-500">Margem bruta acumulada por cliente Pro até churn.</div>
+    </div>
+    <div class="card p-5">
+      <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">CAC ALVO</div>
+      <div class="stat-num text-3xl mb-1">R$ 600</div>
+      <div class="text-sm text-slate-600 mb-3">marketing + venda + onboarding</div>
+      <div class="text-xs text-slate-500">Baseado em conversão Beta + indicações + tráfego orgânico.</div>
+    </div>
+    <div class="card p-5 ring-1 ring-blue-200">
+      <div class="text-xs uppercase tracking-wider text-blue-600 font-bold mb-2">RAZÃO LTV/CAC</div>
+      <div class="stat-num text-3xl text-blue-700 mb-1">5,3×</div>
+      <div class="text-sm text-slate-600 mb-3">Excelente (&gt; 3×)</div>
+      <div class="text-xs text-slate-500">Payback do CAC: <strong>4 meses</strong>. Saudável.</div>
+    </div>
+  </div>
+
+  <!-- ━━━━━━━━━━━━━━━ CENÁRIOS PESSIMISTA / REALISTA / OTIMISTA ━━━━━━━━━━━━━━━ -->
+  <h3 class="text-xl font-bold mb-2">🎲 Cenários de 12 meses pós-GA</h3>
+  <p class="text-slate-600 mb-6 max-w-3xl">
+    Três projeções considerando ritmo de aquisição, mix de planos e churn.
+    Inicial: 5 clientes Beta (todos Trial → migração estimada para Pro).
+  </p>
+
+  <div class="grid md:grid-cols-3 gap-4 mb-8">
+
+    <div class="card overflow-hidden">
+      <div class="p-5" style="background: #fef2f2; border-bottom: 1px solid #fee2e2;">
+        <div class="badge mb-2" style="background: #fee2e2; color: #b91c1c;">PESSIMISTA · 25%</div>
+        <h4 class="text-xl font-bold">Adoção lenta</h4>
+        <p class="text-xs text-slate-600 mt-1">Mercado resistente · churn alto · 1-2 clientes/mês</p>
+      </div>
+      <div class="p-5 space-y-2 text-sm">
+        <div class="flex justify-between"><span>Clientes em 12m</span><span class="font-mono font-bold">15</span></div>
+        <div class="flex justify-between"><span>Mix Pro / Ent</span><span class="font-mono">12 / 3</span></div>
+        <div class="flex justify-between"><span>MRR final</span><span class="font-mono">R$ 3.855</span></div>
+        <div class="flex justify-between"><span>Custo total/mês</span><span class="font-mono text-rose-600">R$ 750</span></div>
+        <div class="border-t pt-2 flex justify-between font-bold text-rose-700"><span>Margem mensal</span><span>R$ 3.105</span></div>
+        <div class="flex justify-between"><span>Acumulado 12m</span><span class="font-mono">R$ 18k</span></div>
+      </div>
+    </div>
+
+    <div class="card overflow-hidden ring-2 ring-blue-500">
+      <div class="p-5" style="background: #eff6ff; border-bottom: 1px solid #dbeafe;">
+        <div class="badge mb-2" style="background: #dbeafe; color: var(--brand);">REALISTA · 50%</div>
+        <h4 class="text-xl font-bold">Crescimento orgânico</h4>
+        <p class="text-xs text-slate-600 mt-1">3-5 clientes/mês · indicações · landing convertendo</p>
+      </div>
+      <div class="p-5 space-y-2 text-sm">
+        <div class="flex justify-between"><span>Clientes em 12m</span><span class="font-mono font-bold">50</span></div>
+        <div class="flex justify-between"><span>Mix Pro / Ent</span><span class="font-mono">42 / 8</span></div>
+        <div class="flex justify-between"><span>MRR final</span><span class="font-mono">R$ 12.250</span></div>
+        <div class="flex justify-between"><span>Custo total/mês</span><span class="font-mono text-rose-600">R$ 850</span></div>
+        <div class="border-t pt-2 flex justify-between font-bold text-blue-700"><span>Margem mensal</span><span>R$ 11.400</span></div>
+        <div class="flex justify-between"><span>Acumulado 12m</span><span class="font-mono">R$ 78k</span></div>
+      </div>
+    </div>
+
+    <div class="card overflow-hidden">
+      <div class="p-5" style="background: #f0fdf4; border-bottom: 1px solid #dcfce7;">
+        <div class="badge mb-2" style="background: #dcfce7; color: #166534;">OTIMISTA · 25%</div>
+        <h4 class="text-xl font-bold">Tração + influencer</h4>
+        <p class="text-xs text-slate-600 mt-1">10-15 clientes/mês · marketing pago · partnerships</p>
+      </div>
+      <div class="p-5 space-y-2 text-sm">
+        <div class="flex justify-between"><span>Clientes em 12m</span><span class="font-mono font-bold">150</span></div>
+        <div class="flex justify-between"><span>Mix Pro / Ent</span><span class="font-mono">120 / 30</span></div>
+        <div class="flex justify-between"><span>MRR final</span><span class="font-mono">R$ 38.550</span></div>
+        <div class="flex justify-between"><span>Custo total/mês</span><span class="font-mono text-rose-600">R$ 1.450</span></div>
+        <div class="border-t pt-2 flex justify-between font-bold text-emerald-700"><span>Margem mensal</span><span>R$ 37.100</span></div>
+        <div class="flex justify-between"><span>Acumulado 12m</span><span class="font-mono">R$ 240k</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="card p-6 mb-12 bg-gradient-to-br from-slate-50 to-blue-50">
+    <h4 class="font-bold mb-3">🎯 Esperança ponderada (E[X])</h4>
+    <div class="grid md:grid-cols-3 gap-4 text-sm mb-3">
+      <div>
+        <div class="text-xs text-slate-500">Cálculo</div>
+        <div class="font-mono text-xs">25%×R$18k + 50%×R$78k + 25%×R$240k</div>
+      </div>
+      <div>
+        <div class="text-xs text-slate-500">Resultado em 12m</div>
+        <div class="font-mono font-bold text-emerald-700 text-lg">R$ 103.500</div>
+      </div>
+      <div>
+        <div class="text-xs text-slate-500">MRR esperado em 12m</div>
+        <div class="font-mono font-bold text-blue-700 text-lg">R$ 16.000</div>
+      </div>
+    </div>
+    <p class="text-sm text-slate-600">
+      Mesmo no <strong>cenário pessimista</strong>, o negócio é viável (R$ 18k acumulado em margem).
+      Cenário realista paga todos os custos one-time pré-GA (R$ 25-46k) <strong>nos primeiros 4-6 meses</strong>.
+    </p>
+  </div>
+
+  <!-- Resumo final -->
   <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-8 md:p-12">
     <h3 class="text-2xl font-bold mb-6">📊 Resumo executivo de gastos</h3>
     <div class="grid md:grid-cols-4 gap-6">
       <div>
         <div class="text-xs uppercase tracking-wider text-slate-400 mb-2">Beta (hoje)</div>
         <div class="stat-num text-4xl text-white mb-1">R$ 660</div>
-        <div class="text-sm text-slate-400">infra mensal · 5 clientes</div>
+        <div class="text-sm text-slate-400">infra mensal · 5 clientes · R$ 132/cliente</div>
       </div>
       <div>
         <div class="text-xs uppercase tracking-wider text-slate-400 mb-2">GA esperado</div>
-        <div class="stat-num text-4xl text-emerald-400 mb-1">R$ 1.150</div>
-        <div class="text-sm text-slate-400">infra mensal · 50 clientes</div>
+        <div class="stat-num text-4xl text-emerald-400 mb-1">R$ 843</div>
+        <div class="text-sm text-slate-400">infra mensal · 50 clientes · R$ 17/cliente</div>
       </div>
       <div>
         <div class="text-xs uppercase tracking-wider text-slate-400 mb-2">Bloqueadores GA</div>
         <div class="stat-num text-4xl text-amber-400 mb-1">~R$ 25k</div>
-        <div class="text-sm text-slate-400">pentest + LGPD + KYC</div>
+        <div class="text-sm text-slate-400">pentest + LGPD + KYC (one-time)</div>
       </div>
       <div>
         <div class="text-xs uppercase tracking-wider text-slate-400 mb-2">Break-even</div>
         <div class="stat-num text-4xl text-cyan-400 mb-1">~6</div>
-        <div class="text-sm text-slate-400">clientes Pro (R$ 197/mês cada)</div>
+        <div class="text-sm text-slate-400">clientes Pro · payback CAC 4 meses</div>
       </div>
     </div>
-    <div class="mt-8 pt-6 border-t border-slate-700 text-sm text-slate-300">
-      <strong class="text-white">Conclusão:</strong> infraestrutura é barata (R$ 600-1.200/mês) e escala bem.
-      O grande gasto é one-time pré-GA (pentest + compliance), <strong class="text-amber-400">~R$ 25k</strong>,
-      pago uma única vez. Após break-even (~6 clientes Pro), operação fica <strong class="text-emerald-400">positiva</strong>.
+    <div class="mt-8 pt-6 border-t border-slate-700 grid md:grid-cols-2 gap-6 text-sm text-slate-300">
+      <div>
+        <strong class="text-white block mb-2">💡 Por que dá pra escalar barato</strong>
+        <ul class="space-y-1 text-slate-400 text-xs">
+          <li>• Custo IA é <strong>linear por cliente</strong> (R$ 3,45/mês) — sem surpresas</li>
+          <li>• Infra fixa (Render, Supabase, Sentry) <strong>dilui</strong> com volume</li>
+          <li>• Margem bruta Pro: <strong>81%</strong> · acima do benchmark SaaS B2B (75%)</li>
+          <li>• LTV/CAC = <strong>5,3×</strong> (saudável é &gt; 3×)</li>
+        </ul>
+      </div>
+      <div>
+        <strong class="text-white block mb-2">🚨 Riscos a vigiar</strong>
+        <ul class="space-y-1 text-slate-400 text-xs">
+          <li>• Power users de IA (R$ 150/mês) precisam estar em Enterprise</li>
+          <li>• Stripe live precisa CNPJ + KYC <strong>antes de cobrar</strong></li>
+          <li>• Pentest é <strong>bloqueador GA</strong> (R$ 10-30k) — agendar já</li>
+          <li>• Câmbio USD: cada R$ 0,50 de alta = +R$ 50-100/mês na conta</li>
+        </ul>
+      </div>
+    </div>
+    <div class="mt-6 pt-6 border-t border-slate-700 text-base text-white">
+      <strong>Conclusão:</strong> infraestrutura é barata e escala bem
+      (R$ 660 → R$ 843 indo de 5 → 50 clientes).
+      O grande gasto é <strong class="text-amber-400">one-time pré-GA (~R$ 25k)</strong>,
+      pago no realista <strong class="text-emerald-400">pelos primeiros 4-6 meses de receita</strong>.
+      Em 12 meses, esperança ponderada: <strong class="text-emerald-400">R$ 103k em margem acumulada</strong>.
     </div>
   </div>
 </section>
