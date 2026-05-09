@@ -7,17 +7,20 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  ChevronsUpDown,
   CircuitBoard,
   ClipboardList,
   Database,
   FileSearch,
   FileText,
   HelpCircle,
-  HomeIcon,
+  Home,
   KeyRound,
   LineChart,
   Lock,
+  LogOut,
   Megaphone,
+  Moon,
   Package,
   Phone,
   PieChart,
@@ -28,6 +31,7 @@ import {
   ShoppingCart,
   Sparkles,
   Star,
+  Sun,
   Truck,
   UserCircle,
   Users,
@@ -36,12 +40,15 @@ import {
   Zap,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
+import { Dropdown } from 'antd'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission, type Permission } from '../auth/permissions'
 import { useTenant } from '../tenant/TenantContext'
 import { useAppTheme } from '../theme/ThemeContext'
+import { listAlerts } from '../services/alertsService'
 
 type NavItem = {
   to: string
@@ -49,9 +56,8 @@ type NavItem = {
   icon: ReactNode
   permission?: Permission
   module?: string
-  badge?: string
+  badge?: string | number
   badgeColor?: string
-  external?: string
 }
 
 type NavGroup = {
@@ -67,14 +73,14 @@ type Props = {
   isMobileDrawer?: boolean
 }
 
-function buildGroups(_session: unknown): NavGroup[] {
+function buildGroups(): NavGroup[] {
   return [
     {
       id: 'home',
       label: 'Visão',
       items: [
         { to: '/gestao', label: 'Visão do gestor', icon: <PieChart size={17} /> },
-        { to: '/dashboard', label: 'Visão geral', icon: <HomeIcon size={17} /> },
+        { to: '/dashboard', label: 'Visão geral', icon: <Home size={17} /> },
         { to: '/dashboard/analises', label: 'Análises BI', icon: <LineChart size={17} /> },
         { to: '/dashboard/vendas-analitico', label: 'Vendas', icon: <ShoppingCart size={17} /> },
         { to: '/alertas', label: 'Alertas', icon: <AlertCircle size={17} /> },
@@ -113,7 +119,7 @@ function buildGroups(_session: unknown): NavGroup[] {
         { to: '/orgs', label: 'Organizações', icon: <Building2 size={17} />, permission: 'users:view' },
         { to: '/auditoria', label: 'Auditoria', icon: <FileSearch size={17} />, permission: 'audit:view' },
         { to: '/api-keys', label: 'API keys', icon: <KeyRound size={17} />, permission: 'audit:view' },
-        { to: '/billing', label: 'Plano e cobrança', icon: <Wallet size={17} />, badge: 'admin' },
+        { to: '/billing', label: 'Plano e cobrança', icon: <Wallet size={17} /> },
       ],
     },
     {
@@ -142,15 +148,31 @@ function buildGroups(_session: unknown): NavGroup[] {
   ]
 }
 
+function userInitials(name: string | undefined | null): string {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase()
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  admin: 'Administrador',
+  manager: 'Gestor',
+  viewer: 'Visualizador',
+}
+
 export function AppSidebar({ collapsed, onCollapseToggle, onNavigate, isMobileDrawer }: Props) {
   const tenant = useTenant()
-  const { session } = useAuth()
+  const { session, signOut } = useAuth()
   const location = useLocation()
-  const { mode } = useAppTheme()
+  const navigate = useNavigate()
+  const { mode, toggle: toggleTheme } = useAppTheme()
   const [filter, setFilter] = useState('')
   const filterRef = useRef<HTMLInputElement>(null)
+  const navContainerRef = useRef<HTMLDivElement>(null)
+  const [scrollState, setScrollState] = useState({ atTop: true, atBottom: false })
 
-  // Atalho '/' foca o filtro (estilo GitHub)
+  // Atalho '/' foca o filtro
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const target = e.target as HTMLElement | null
@@ -164,14 +186,55 @@ export function AppSidebar({ collapsed, onCollapseToggle, onNavigate, isMobileDr
     return () => window.removeEventListener('keydown', onKey)
   }, [collapsed])
 
+  // Scroll fades
+  useEffect(() => {
+    const el = navContainerRef.current
+    if (!el) return
+    function update() {
+      if (!el) return
+      setScrollState({
+        atTop: el.scrollTop <= 4,
+        atBottom: el.scrollHeight - el.scrollTop - el.clientHeight <= 4,
+      })
+    }
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => {
+      el.removeEventListener('scroll', update)
+      ro.disconnect()
+    }
+  }, [])
+
+  // Badge de alertas (count nao lidos)
+  const alertsQuery = useQuery({
+    queryKey: ['alerts', 'unread-count'],
+    queryFn: async () => {
+      const items = await listAlerts()
+      return items.filter((a) => !a.readAt).length
+    },
+    staleTime: 60_000,
+    refetchInterval: 5 * 60_000,
+    enabled: Boolean(session),
+  })
+  const unreadAlerts = alertsQuery.data ?? 0
+
   const groups = useMemo(() => {
-    const all = buildGroups(session)
+    const all = buildGroups()
     const enabledModules = tenant.enabledModules ?? []
     const q = filter.trim().toLowerCase()
     return all
       .map((g) => ({
         ...g,
         items: g.items
+          .map((it) => {
+            // Inject badge dynamic for /alertas
+            if (it.to === '/alertas' && unreadAlerts > 0) {
+              return { ...it, badge: unreadAlerts, badgeColor: '#ef4444' }
+            }
+            return it
+          })
           .filter((it) => {
             if (it.permission && !hasPermission(session, it.permission)) return false
             if (it.module && !enabledModules.includes(it.module)) return false
@@ -180,7 +243,7 @@ export function AppSidebar({ collapsed, onCollapseToggle, onNavigate, isMobileDr
           .filter((it) => (q ? it.label.toLowerCase().includes(q) : true)),
       }))
       .filter((g) => g.items.length > 0)
-  }, [session, tenant.enabledModules, filter])
+  }, [session, tenant.enabledModules, filter, unreadAlerts])
 
   const isActive = (path: string) => {
     if (path === '/gestao') return location.pathname === '/gestao'
@@ -188,21 +251,28 @@ export function AppSidebar({ collapsed, onCollapseToggle, onNavigate, isMobileDr
     return location.pathname === path || location.pathname.startsWith(`${path}/`)
   }
 
+  const primaryColor = tenant.primaryColor || '#2563eb'
+  const isDark = mode === 'dark'
+
   const sidebarStyle: React.CSSProperties = {
-    width: collapsed ? 76 : 256,
-    minWidth: collapsed ? 76 : 256,
+    width: collapsed ? 76 : 264,
+    minWidth: collapsed ? 76 : 264,
     height: isMobileDrawer ? '100%' : '100vh',
-    background:
-      mode === 'dark'
-        ? 'linear-gradient(180deg, #0f1620 0%, #0a0e14 100%)'
-        : 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-    borderRight: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.06)'}`,
+    background: isDark
+      ? 'linear-gradient(180deg, #0f1822 0%, #0a0e14 100%)'
+      : 'linear-gradient(180deg, #ffffff 0%, #fafbfd 100%)',
+    borderRight: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.06)'}`,
     display: 'flex',
     flexDirection: 'column',
     position: isMobileDrawer ? 'relative' : 'sticky',
     top: 0,
-    transition: 'width 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+    transition: 'width 220ms cubic-bezier(0.4, 0, 0.2, 1)',
     zIndex: 10,
+  }
+
+  const handleLogout = () => {
+    signOut()
+    navigate('/login', { replace: true })
   }
 
   return (
@@ -213,103 +283,131 @@ export function AppSidebar({ collapsed, onCollapseToggle, onNavigate, isMobileDr
       data-collapsed={collapsed ? '1' : '0'}
       style={sidebarStyle}
     >
-      {/* Brand */}
+      {/* === Brand === */}
       <div
         style={{
-          padding: collapsed ? '20px 0' : '20px 18px',
+          padding: collapsed ? '18px 0' : '18px 16px',
           display: 'flex',
           alignItems: 'center',
           gap: 10,
-          borderBottom: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)'}`,
+          borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)'}`,
           justifyContent: collapsed ? 'center' : 'flex-start',
           minHeight: 64,
+          flexShrink: 0,
         }}
       >
-        {tenant.logoUrl ? (
-          <img
-            src={tenant.logoUrl}
-            alt={tenant.companyName}
-            style={{ width: 36, height: 36, borderRadius: 10, objectFit: 'contain', flexShrink: 0 }}
-          />
-        ) : (
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: `linear-gradient(135deg, ${tenant.primaryColor || '#1677ff'}, ${tenant.primaryColor || '#1677ff'}cc)`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              boxShadow: `0 4px 14px ${tenant.primaryColor || '#1677ff'}33`,
-            }}
-          >
-            <Sparkles size={18} color="#fff" />
-          </div>
-        )}
-        {!collapsed && (
-          <div style={{ minWidth: 0, lineHeight: 1.2 }}>
+        <Link
+          to="/gestao"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            textDecoration: 'none',
+            color: 'inherit',
+            minWidth: 0,
+            flex: 1,
+            justifyContent: collapsed ? 'center' : 'flex-start',
+          }}
+        >
+          {tenant.logoUrl ? (
+            <img
+              src={tenant.logoUrl}
+              alt={tenant.companyName}
+              style={{ width: 36, height: 36, borderRadius: 10, objectFit: 'contain', flexShrink: 0 }}
+            />
+          ) : (
             <div
               style={{
-                fontWeight: 700,
-                fontSize: 14,
-                color: mode === 'dark' ? '#e4e7eb' : '#0f172a',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-              title={tenant.companyName}
-            >
-              {tenant.companyName}
-            </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: mode === 'dark' ? '#94a3b8' : '#64748b',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: `linear-gradient(135deg, ${primaryColor}, ${primaryColor}cc)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                boxShadow: `0 4px 14px ${primaryColor}33`,
               }}
             >
-              {tenant.subtitle}
+              <Sparkles size={18} color="#fff" />
             </div>
-          </div>
-        )}
+          )}
+          {!collapsed && (
+            <div style={{ minWidth: 0, lineHeight: 1.2 }}>
+              <div
+                style={{
+                  fontWeight: 700,
+                  fontSize: 14,
+                  color: isDark ? '#e4e7eb' : '#0f172a',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+                title={tenant.companyName}
+              >
+                {tenant.companyName}
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: isDark ? '#94a3b8' : '#64748b',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {tenant.subtitle}
+              </div>
+            </div>
+          )}
+        </Link>
       </div>
 
-      {/* Quick filter */}
+      {/* === Quick filter === */}
       {!collapsed && !isMobileDrawer && (
-        <div style={{ padding: '14px 14px 8px' }}>
+        <div style={{ padding: '14px 14px 4px', flexShrink: 0 }}>
           <div
             style={{
               position: 'relative',
               display: 'flex',
               alignItems: 'center',
-              background: mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)',
+              background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)',
               borderRadius: 10,
-              border: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)'}`,
-              padding: '6px 10px',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)'}`,
+              padding: '7px 10px',
             }}
           >
-            <Search size={14} style={{ color: mode === 'dark' ? '#64748b' : '#94a3b8', flexShrink: 0 }} />
+            <Search size={14} style={{ color: isDark ? '#64748b' : '#94a3b8', flexShrink: 0 }} />
             <input
               ref={filterRef}
               type="text"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Filtrar menu (/)"
+              placeholder="Buscar no menu"
               style={{
                 flex: 1,
                 marginLeft: 8,
                 background: 'transparent',
                 border: 'none',
                 outline: 'none',
-                fontSize: 12,
-                color: mode === 'dark' ? '#e4e7eb' : '#0f172a',
+                fontSize: 12.5,
+                color: isDark ? '#e4e7eb' : '#0f172a',
                 width: '100%',
               }}
             />
+            <kbd
+              style={{
+                fontFamily: 'ui-monospace, monospace',
+                fontSize: 10,
+                padding: '2px 6px',
+                borderRadius: 4,
+                background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.06)',
+                color: isDark ? '#94a3b8' : '#64748b',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.06)'}`,
+              }}
+            >
+              /
+            </kbd>
             {filter && (
               <button
                 type="button"
@@ -317,10 +415,11 @@ export function AppSidebar({ collapsed, onCollapseToggle, onNavigate, isMobileDr
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: mode === 'dark' ? '#64748b' : '#94a3b8',
+                  color: isDark ? '#64748b' : '#94a3b8',
                   fontSize: 11,
                   cursor: 'pointer',
                   padding: 2,
+                  marginLeft: 4,
                 }}
                 aria-label="Limpar filtro"
               >
@@ -331,99 +430,281 @@ export function AppSidebar({ collapsed, onCollapseToggle, onNavigate, isMobileDr
         </div>
       )}
 
-      {/* Nav list */}
-      <nav
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '8px 10px 16px',
-          scrollbarWidth: 'thin',
-        }}
-        className="app-sidebar-modern__nav"
-      >
-        {groups.length === 0 && filter && (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: 24,
-              fontSize: 12,
-              color: mode === 'dark' ? '#64748b' : '#94a3b8',
-            }}
-          >
-            Nenhum item encontrado para "{filter}"
-          </div>
-        )}
-        {groups.map((group) => (
-          <div key={group.id} style={{ marginBottom: 14 }}>
-            {!collapsed && (
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  color: mode === 'dark' ? '#475569' : '#94a3b8',
-                  padding: '8px 12px 6px',
-                }}
-              >
-                {group.label}
-              </div>
-            )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {group.items.map((item) => (
-                <NavLinkItem
-                  key={item.to}
-                  item={item}
-                  active={isActive(item.to)}
-                  collapsed={collapsed}
-                  mode={mode}
-                  primaryColor={tenant.primaryColor || '#1677ff'}
-                  onClick={onNavigate}
-                />
-              ))}
+      {/* === Nav list with scroll fades === */}
+      <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+        {/* Top fade */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 16,
+            pointerEvents: 'none',
+            background: `linear-gradient(to bottom, ${isDark ? '#0f1822' : '#ffffff'}, transparent)`,
+            opacity: scrollState.atTop ? 0 : 1,
+            transition: 'opacity 200ms ease',
+            zIndex: 1,
+          }}
+        />
+        {/* Bottom fade */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 16,
+            pointerEvents: 'none',
+            background: `linear-gradient(to top, ${isDark ? '#0a0e14' : '#fafbfd'}, transparent)`,
+            opacity: scrollState.atBottom ? 0 : 1,
+            transition: 'opacity 200ms ease',
+            zIndex: 1,
+          }}
+        />
+        <nav
+          ref={navContainerRef}
+          style={{
+            height: '100%',
+            overflowY: 'auto',
+            padding: '8px 10px 12px',
+            scrollbarWidth: 'thin',
+          }}
+          className="app-sidebar-modern__nav"
+        >
+          {groups.length === 0 && filter && (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: 28,
+                fontSize: 12,
+                color: isDark ? '#64748b' : '#94a3b8',
+              }}
+            >
+              Nada encontrado para "<strong>{filter}</strong>"
             </div>
-          </div>
-        ))}
-      </nav>
+          )}
+          {groups.map((group, idx) => (
+            <div key={group.id} style={{ marginBottom: 14 }}>
+              {!collapsed && (
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    color: isDark ? '#475569' : '#94a3b8',
+                    padding: '8px 12px 6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <span>{group.label}</span>
+                  <span
+                    aria-hidden
+                    style={{
+                      flex: 1,
+                      height: 1,
+                      background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.05)',
+                    }}
+                  />
+                </div>
+              )}
+              {collapsed && idx > 0 && (
+                <div
+                  aria-hidden
+                  style={{
+                    height: 1,
+                    margin: '8px 16px',
+                    background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.05)',
+                  }}
+                />
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {group.items.map((item) => (
+                  <NavLinkItem
+                    key={item.to}
+                    item={item}
+                    active={isActive(item.to)}
+                    collapsed={collapsed}
+                    isDark={isDark}
+                    primaryColor={primaryColor}
+                    onClick={onNavigate}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </nav>
+      </div>
 
-      {/* Bottom — collapse toggle */}
-      {!isMobileDrawer && (
+      {/* === User card + actions === */}
+      {!isMobileDrawer && session && (
         <div
           style={{
-            padding: '12px',
-            borderTop: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)'}`,
+            padding: collapsed ? '10px 10px 12px' : '10px 12px 12px',
+            borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)'}`,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            flexShrink: 0,
           }}
         >
+          <Dropdown
+            placement={collapsed ? 'topRight' : 'top'}
+            trigger={['click']}
+            menu={{
+              items: [
+                {
+                  key: 'profile',
+                  icon: <UserCircle size={14} />,
+                  label: 'Meu perfil',
+                  onClick: () => navigate('/perfil'),
+                },
+                {
+                  key: 'security',
+                  icon: <Lock size={14} />,
+                  label: 'Segurança',
+                  onClick: () => navigate('/seguranca'),
+                },
+                {
+                  key: 'theme',
+                  icon: isDark ? <Sun size={14} /> : <Moon size={14} />,
+                  label: isDark ? 'Tema claro' : 'Tema escuro',
+                  onClick: toggleTheme,
+                },
+                { type: 'divider' as const },
+                {
+                  key: 'logout',
+                  icon: <LogOut size={14} />,
+                  label: 'Sair',
+                  danger: true,
+                  onClick: handleLogout,
+                },
+              ],
+            }}
+          >
+            <button
+              type="button"
+              aria-label="Menu do usuário"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: collapsed ? 6 : '8px 10px',
+                borderRadius: 12,
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.06)'}`,
+                background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(15,23,42,0.015)',
+                cursor: 'pointer',
+                transition: 'background 150ms ease, border-color 150ms ease',
+                width: '100%',
+                justifyContent: collapsed ? 'center' : 'flex-start',
+                color: 'inherit',
+                fontFamily: 'inherit',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = isDark
+                  ? 'rgba(255,255,255,0.05)'
+                  : 'rgba(15,23,42,0.04)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = isDark
+                  ? 'rgba(255,255,255,0.02)'
+                  : 'rgba(15,23,42,0.015)'
+              }}
+            >
+              {/* Avatar */}
+              <div
+                style={{
+                  width: collapsed ? 32 : 30,
+                  height: collapsed ? 32 : 30,
+                  borderRadius: 10,
+                  background: `linear-gradient(135deg, ${primaryColor}, ${primaryColor}cc)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  flexShrink: 0,
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {userInitials(session.user.name)}
+              </div>
+              {!collapsed && (
+                <>
+                  <div style={{ minWidth: 0, flex: 1, lineHeight: 1.2, textAlign: 'left' }}>
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        fontSize: 12.5,
+                        color: isDark ? '#e4e7eb' : '#0f172a',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {session.user.name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 10.5,
+                        color: isDark ? '#64748b' : '#94a3b8',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {ROLE_LABEL[session.user.role] ?? session.user.role}
+                    </div>
+                  </div>
+                  <ChevronsUpDown
+                    size={14}
+                    style={{ color: isDark ? '#64748b' : '#94a3b8', flexShrink: 0 }}
+                  />
+                </>
+              )}
+            </button>
+          </Dropdown>
+
+          {/* Collapse toggle */}
           <button
             type="button"
             onClick={onCollapseToggle}
             aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+            title={collapsed ? 'Expandir (Ctrl+B)' : 'Recolher (Ctrl+B)'}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 10,
+              gap: 8,
               width: '100%',
-              padding: collapsed ? '10px 0' : '10px 12px',
-              borderRadius: 10,
+              padding: collapsed ? '6px 0' : '6px 10px',
+              borderRadius: 8,
               border: 'none',
               background: 'transparent',
-              color: mode === 'dark' ? '#94a3b8' : '#64748b',
+              color: isDark ? '#64748b' : '#94a3b8',
               cursor: 'pointer',
-              fontSize: 13,
+              fontSize: 11.5,
               fontWeight: 500,
-              justifyContent: collapsed ? 'center' : 'flex-start',
-              transition: 'all 150ms ease',
+              justifyContent: 'center',
+              transition: 'background 120ms ease',
+              fontFamily: 'inherit',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background =
-                mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)'
+              e.currentTarget.style.background = isDark
+                ? 'rgba(255,255,255,0.03)'
+                : 'rgba(15,23,42,0.03)'
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = 'transparent'
             }}
           >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-            {!collapsed && <span>Recolher menu</span>}
+            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            {!collapsed && <span>Recolher</span>}
           </button>
         </div>
       )}
@@ -435,20 +716,23 @@ function NavLinkItem({
   item,
   active,
   collapsed,
-  mode,
+  isDark,
   primaryColor,
   onClick,
 }: {
   item: NavItem
   active: boolean
   collapsed: boolean
-  mode: 'dark' | 'light'
+  isDark: boolean
   primaryColor: string
   onClick?: () => void
 }) {
-  const baseColor = mode === 'dark' ? '#cbd5e1' : '#475569'
-  const activeColor = mode === 'dark' ? '#fff' : '#0f172a'
-  const hoverBg = mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)'
+  const baseColor = isDark ? '#cbd5e1' : '#475569'
+  const activeColor = isDark ? '#fff' : '#0f172a'
+  const hoverBg = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)'
+  const activeBg = isDark
+    ? `linear-gradient(90deg, ${primaryColor}26, ${primaryColor}0a)`
+    : `linear-gradient(90deg, ${primaryColor}14, ${primaryColor}04)`
 
   return (
     <Link
@@ -460,18 +744,14 @@ function NavLinkItem({
         display: 'flex',
         alignItems: 'center',
         gap: 12,
-        padding: collapsed ? '10px 0' : '9px 12px',
+        padding: collapsed ? '10px 0' : '8px 12px',
         borderRadius: 10,
         textDecoration: 'none',
         color: active ? activeColor : baseColor,
-        background: active
-          ? mode === 'dark'
-            ? `linear-gradient(90deg, ${primaryColor}1f, ${primaryColor}08)`
-            : `linear-gradient(90deg, ${primaryColor}12, ${primaryColor}03)`
-          : 'transparent',
+        background: active ? activeBg : 'transparent',
         fontWeight: active ? 600 : 500,
         fontSize: 13.5,
-        transition: 'all 150ms ease',
+        transition: 'background 150ms ease, color 150ms ease',
         justifyContent: collapsed ? 'center' : 'flex-start',
       }}
       onMouseEnter={(e) => {
@@ -481,16 +761,17 @@ function NavLinkItem({
         if (!active) e.currentTarget.style.background = 'transparent'
       }}
     >
-      {/* Active accent bar */}
+      {/* Active indicator dot */}
       {active && !collapsed && (
         <span
           aria-hidden
           style={{
             position: 'absolute',
             left: 0,
-            top: 8,
-            bottom: 8,
+            top: '50%',
+            transform: 'translateY(-50%)',
             width: 3,
+            height: 18,
             background: primaryColor,
             borderRadius: '0 3px 3px 0',
           }}
@@ -498,7 +779,7 @@ function NavLinkItem({
       )}
       <span
         style={{
-          color: active ? primaryColor : mode === 'dark' ? '#94a3b8' : '#64748b',
+          color: active ? primaryColor : isDark ? '#94a3b8' : '#64748b',
           flexShrink: 0,
           display: 'flex',
         }}
@@ -507,26 +788,46 @@ function NavLinkItem({
       </span>
       {!collapsed && (
         <>
-          <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span
+            style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+          >
             {item.label}
           </span>
-          {item.badge && (
+          {item.badge !== undefined && item.badge !== '' && (
             <span
               style={{
-                fontSize: 9,
+                fontSize: 10,
                 fontWeight: 700,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
                 padding: '2px 7px',
+                minWidth: 20,
+                textAlign: 'center',
                 borderRadius: 999,
                 background: item.badgeColor || `${primaryColor}22`,
                 color: item.badgeColor ? '#fff' : primaryColor,
+                lineHeight: 1.4,
               }}
             >
               {item.badge}
             </span>
           )}
         </>
+      )}
+      {/* Collapsed badge dot */}
+      {collapsed && item.badge !== undefined && item.badge !== '' && (
+        <span
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: 4,
+            right: 12,
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: item.badgeColor || primaryColor,
+            border: `2px solid ${isDark ? '#0f1822' : '#ffffff'}`,
+          }}
+        />
       )}
     </Link>
   )

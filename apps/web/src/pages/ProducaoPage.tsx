@@ -41,6 +41,7 @@ import { useSearchParams } from 'react-router-dom'
 import { MetricCard } from '../components/MetricCard'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { CircuitBoard } from 'lucide-react'
 import { http } from '../services/http'
 import { metricColors } from '../theme/colors'
 
@@ -424,7 +425,12 @@ export function ProducaoPage() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%', padding: '24px 24px 48px' }}>
-      <PageHeaderCard title="Produção" subtitle="Produtos produzidos e consumo de blocos" />
+      <PageHeaderCard
+        title="Produção"
+        subtitle="Produtos produzidos e consumo de blocos"
+        icon={<CircuitBoard size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'ERP' }, { label: 'Produção' }]}
+      />
       <Card className="app-card no-hover" variant="borderless" style={{ padding: 0 }}>
         <Tabs
           activeKey={activeTab}

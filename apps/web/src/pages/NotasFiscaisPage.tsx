@@ -20,6 +20,7 @@ import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import { MetricCard } from '../components/MetricCard'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { Receipt } from 'lucide-react'
 import { RangePickerBR } from '../components/DatePickerPtBR'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { getFaturamentos } from '../services/erpService'
@@ -140,6 +141,8 @@ export function NotasFiscaisPage() {
       <PageHeaderCard
         title="Notas Fiscais"
         subtitle={`Período: ${periodoLabel}`}
+        icon={<Receipt size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'ERP' }, { label: 'Notas Fiscais' }]}
         extra={
           <Tooltip title="Atualizar">
             <Button icon={<ReloadOutlined spin={nfQ.isFetching} />} onClick={() => nfQ.refetch()} />

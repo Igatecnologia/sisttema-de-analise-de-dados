@@ -17,6 +17,7 @@ import {
 } from 'antd'
 import { SaveOutlined, UserOutlined } from '@ant-design/icons'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { UserCircle } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 
 type ProfileForm = {
@@ -55,7 +56,9 @@ export function ProfilePage() {
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <PageHeaderCard
         title="Meu perfil"
-        subtitle="Dados pessoais, sessoes ativas e preferencias da experiencia."
+        subtitle="Dados pessoais, sessões ativas e preferências da experiência."
+        icon={<UserCircle size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Conta' }, { label: 'Meu perfil' }]}
         extra={<Button type="primary" icon={<SaveOutlined />} onClick={() => form.submit()}>Salvar</Button>}
       />
 

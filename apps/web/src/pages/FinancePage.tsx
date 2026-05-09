@@ -19,6 +19,7 @@ import {
   FundOutlined,
   RiseOutlined,
 } from '@ant-design/icons'
+import { Wallet } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
@@ -550,6 +551,8 @@ export function FinancePage() {
       <PageHeaderCard
         title="Financeiro"
         subtitle="Controle financeiro completo: visão geral, superávit/déficit, contas pagas e a receber."
+        icon={<Wallet size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Financeiro' }]}
         extra={<Tag color="blue">{sourceLabel}</Tag>}
       />
 

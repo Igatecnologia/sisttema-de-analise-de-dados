@@ -6,6 +6,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Suspense, lazy } from 'react'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { LineChart } from 'lucide-react'
 import { ANALITICO_STALE_MS } from '../api/apiEnv'
 import { hasAnySources } from '../services/dataSourceService'
 import {
@@ -53,6 +54,8 @@ export function DashboardInsightsPage() {
       <PageHeaderCard
         title="Análises BI"
         subtitle="Inteligência comercial com gráficos analíticos baseados em dados reais de vendas. Selecione o período para explorar tendências, concentração de clientes e sazonalidade."
+        icon={<LineChart size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Dashboards' }, { label: 'Análises BI' }]}
         extra={<Tag color="blue">{sourceLabel}</Tag>}
       />
 

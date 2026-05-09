@@ -244,6 +244,13 @@ export function ScheduledReportsPage() {
       <PageHeaderCard
         title="Relatórios agendados"
         subtitle="Receba relatórios por email automaticamente, no horário que escolher."
+        icon={<Calendar size={22} />}
+        breadcrumbs={[
+          { label: 'Início', to: '/gestao' },
+          { label: 'Financeiro' },
+          { label: 'Relatórios' },
+          { label: 'Agendados' },
+        ]}
         extra={
           <Button type="primary" icon={<Plus size={14} />} onClick={openCreate}>
             Novo agendamento

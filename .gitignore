@@ -57,3 +57,8 @@ uv.lock
 # tsc incremental build cache
 **/tsconfig.tsbuildinfo
 **/.next/
+
+# Audit artifacts (regerados a cada audit)
+audit-report.json
+audit-report.md
+audit-screenshots/

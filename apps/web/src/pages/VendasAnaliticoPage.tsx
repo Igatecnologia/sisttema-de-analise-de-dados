@@ -39,6 +39,7 @@ import {
 import { getErrorMessage } from '../api/httpError'
 import type { VendaAnaliticaRow } from '../api/schemas'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { ShoppingCart } from 'lucide-react'
 import { queryKeys } from '../query/queryKeys'
 import { getVendasAnalitico } from '../services/vendasAnaliticoService'
 import { nowBr } from '../utils/dayjsBr'
@@ -504,6 +505,8 @@ export function VendasAnaliticoPage() {
       <PageHeaderCard
         title="Vendas"
         subtitle="Análise de vendas: pedidos, faturamento e curva ABC."
+        icon={<ShoppingCart size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Dashboards' }, { label: 'Vendas' }]}
         extra={<Tag color="blue">{sourceLabel}</Tag>}
       />
 

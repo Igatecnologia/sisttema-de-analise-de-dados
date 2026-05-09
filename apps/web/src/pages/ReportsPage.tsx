@@ -37,6 +37,12 @@ import {
   getVendasAnaliticoQuerySourceKey,
 } from '../services/vendasAnaliticoSourceSelection'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { FileText } from 'lucide-react'
+
+const REPORTS_HEADER_PROPS = {
+  icon: <FileText size={22} />,
+  breadcrumbs: [{ label: 'Início', to: '/gestao' }, { label: 'Financeiro' }, { label: 'Relatórios' }],
+} as const
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/permissions'
 import { getErrorMessage } from '../api/httpError'
@@ -378,7 +384,7 @@ export function ReportsPage() {
   if (!biConfigured) {
     return (
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <PageHeaderCard title="Relatórios" subtitle="Configure uma fonte de dados." />
+        <PageHeaderCard {...REPORTS_HEADER_PROPS} title="Relatórios" subtitle="Configure uma fonte de dados." />
         <Alert type="warning" showIcon message="Nenhuma fonte de dados configurada" />
       </Space>
     )
@@ -387,7 +393,7 @@ export function ReportsPage() {
   if (query.isLoading) {
     return (
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <PageHeaderCard title="Relatórios" subtitle="Carregando..." />
+        <PageHeaderCard {...REPORTS_HEADER_PROPS} title="Relatórios" subtitle="Carregando..." />
         <Card className="app-card" variant="borderless"><Skeleton active paragraph={{ rows: 10 }} /></Card>
       </Space>
     )
@@ -396,7 +402,7 @@ export function ReportsPage() {
   if (query.isError) {
     return (
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <PageHeaderCard title="Relatórios" subtitle="Erro" />
+        <PageHeaderCard {...REPORTS_HEADER_PROPS} title="Relatórios" subtitle="Erro" />
         <Alert type="error" showIcon message="Falha ao carregar"
           description={<>{getErrorMessage(query.error, 'Erro.')}<DevErrorDetail error={query.error} /></>}
         />
@@ -407,7 +413,7 @@ export function ReportsPage() {
   if (!report) {
     return (
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <PageHeaderCard title="Relatórios" subtitle="Sem dados no período." />
+        <PageHeaderCard {...REPORTS_HEADER_PROPS} title="Relatórios" subtitle="Sem dados no período." />
         <Card className="app-card" variant="borderless"><Empty description="Nenhum dado de venda no período selecionado." /></Card>
       </Space>
     )
@@ -416,6 +422,7 @@ export function ReportsPage() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <PageHeaderCard
+        {...REPORTS_HEADER_PROPS}
         title="Relatórios"
         subtitle="Consolidação de vendas, produtos e clientes com exportação em Excel e PDF."
         extra={

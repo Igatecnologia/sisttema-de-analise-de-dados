@@ -5,10 +5,9 @@ export function markGuidedTourDone() {
 }
 
 export function shouldAutoOpenTour(): boolean {
-  try {
-    return localStorage.getItem(TOUR_STORAGE_KEY) !== '1'
-  } catch {
-    return false
-  }
+  // Auto-open desabilitado — usuario abre manualmente via botao "Tour" no header.
+  // Decisao UX: pop-ups intrusivos prejudicam first impression. Fica disponivel
+  // mas sob demanda.
+  return false
 }
 

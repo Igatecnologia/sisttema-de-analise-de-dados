@@ -2,6 +2,7 @@ import { RocketOutlined } from '@ant-design/icons'
 import { Card, Skeleton, Space, Tag, Timeline, Typography } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { Sparkles } from 'lucide-react'
 import { queryKeys } from '../query/queryKeys'
 import { listChangelog } from '../services/changelogService'
 
@@ -11,7 +12,12 @@ export function ChangelogPage() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <PageHeaderCard title="Novidades" subtitle="Historico de melhorias, correcoes e recursos liberados." />
+      <PageHeaderCard
+        title="Novidades"
+        subtitle="Histórico de melhorias, correções e recursos liberados."
+        icon={<Sparkles size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Suporte' }, { label: 'Novidades' }]}
+      />
       <Card className="app-card" variant="borderless">
         {changelogQuery.isLoading ? <Skeleton active paragraph={{ rows: 6 }} /> : null}
         <Timeline

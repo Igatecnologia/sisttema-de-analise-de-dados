@@ -1,4 +1,5 @@
 import { Space } from 'antd'
+import { Phone } from 'lucide-react'
 import { PageHeaderCard } from '../components/PageHeaderCard'
 import { SupportWhatsAppSection } from '../components/SupportWhatsAppSection'
 
@@ -9,6 +10,8 @@ export function FaleConoscoSuportePage() {
       <PageHeaderCard
         title="Suporte técnico"
         subtitle="Fale conosco: canal oficial com a equipe de suporte via WhatsApp."
+        icon={<Phone size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Suporte' }, { label: 'Fale conosco' }]}
       />
       <SupportWhatsAppSection />
     </Space>

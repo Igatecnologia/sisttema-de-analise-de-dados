@@ -6,6 +6,8 @@ import {
   Building2,
   CheckCircle2,
   Factory,
+  FileSearch,
+  Loader2,
   Mail,
   ShieldCheck,
   ShoppingBag,
@@ -23,6 +25,14 @@ import {
   type BusinessSegment,
   type SegmentInfo,
 } from '../services/authService'
+import {
+  CnpjNotFoundError,
+  formatCnpj,
+  isValidCnpj,
+  lookupCnpj,
+  sanitizeCnpj,
+  type CnpjData,
+} from '../services/cnpjLookupService'
 import { useTenant } from '../tenant/TenantContext'
 
 type RegisterForm = {
@@ -154,6 +164,12 @@ export function RegisterPage() {
   const [selectedPlan, setSelectedPlan] = useState<Plan>('pro')
   const [form] = Form.useForm<RegisterForm>()
   const [companyName, setCompanyName] = useState('')
+  const [cnpj, setCnpj] = useState('')
+  const [cnpjLookup, setCnpjLookup] = useState<{
+    state: 'idle' | 'loading' | 'found' | 'not-found' | 'invalid' | 'error'
+    data?: CnpjData
+    message?: string
+  }>({ state: 'idle' })
   const [adminName, setAdminName] = useState('')
   const [adminEmail, setAdminEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -174,6 +190,52 @@ export function RegisterPage() {
   }, [])
 
   const slug = useMemo(() => slugify(companyName || 'empresa'), [companyName])
+
+  // CNPJ lookup com debounce — chama BrasilAPI quando digits === 14
+  useEffect(() => {
+    const digits = sanitizeCnpj(cnpj)
+    if (digits.length === 0) {
+      setCnpjLookup({ state: 'idle' })
+      return
+    }
+    if (digits.length < 14) {
+      setCnpjLookup({ state: 'idle' })
+      return
+    }
+    if (!isValidCnpj(digits)) {
+      setCnpjLookup({ state: 'invalid', message: 'CNPJ inválido (dígitos verificadores).' })
+      return
+    }
+    let active = true
+    setCnpjLookup({ state: 'loading' })
+    const timer = window.setTimeout(() => {
+      lookupCnpj(digits)
+        .then((data) => {
+          if (!active) return
+          setCnpjLookup({ state: 'found', data })
+          // Auto-preenche o nome se estiver vazio
+          if (!companyName.trim()) {
+            setCompanyName(data.nomeFantasia || data.razaoSocial)
+          }
+        })
+        .catch((err: unknown) => {
+          if (!active) return
+          if (err instanceof CnpjNotFoundError) {
+            setCnpjLookup({ state: 'not-found', message: err.message })
+          } else {
+            setCnpjLookup({
+              state: 'error',
+              message: err instanceof Error ? err.message : 'Erro ao consultar CNPJ.',
+            })
+          }
+        })
+    }, 400)
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cnpj])
   const strength = useMemo(() => passwordStrength(password), [password])
   const primaryColor = tenant.primaryColor || '#1677ff'
 
@@ -409,6 +471,92 @@ export function RegisterPage() {
             {step === 1 && (
               <div className="animate-fade-in">
                 <Form layout="vertical" requiredMark={false} size="large">
+                  <Form.Item
+                    label="CNPJ (opcional — busca automática)"
+                    extra="Digite o CNPJ e buscamos os dados da empresa na Receita Federal."
+                  >
+                    <Input
+                      prefix={
+                        cnpjLookup.state === 'loading' ? (
+                          <Loader2
+                            size={16}
+                            style={{ color: primaryColor, animation: 'spin 1s linear infinite' }}
+                          />
+                        ) : cnpjLookup.state === 'found' ? (
+                          <CheckCircle2 size={16} style={{ color: '#10b981' }} />
+                        ) : (
+                          <FileSearch size={16} style={{ color: '#94a3b8' }} />
+                        )
+                      }
+                      value={formatCnpj(cnpj)}
+                      onChange={(e) => setCnpj(e.target.value)}
+                      maxLength={18}
+                      placeholder="00.000.000/0000-00"
+                      autoFocus
+                      inputMode="numeric"
+                      status={
+                        cnpjLookup.state === 'invalid' || cnpjLookup.state === 'not-found' || cnpjLookup.state === 'error'
+                          ? 'error'
+                          : undefined
+                      }
+                    />
+                  </Form.Item>
+
+                  {cnpjLookup.state === 'found' && cnpjLookup.data && (
+                    <Alert
+                      type="success"
+                      showIcon
+                      icon={<CheckCircle2 size={16} />}
+                      style={{ marginTop: -8, marginBottom: 16 }}
+                      message={
+                        <span style={{ fontSize: 13 }}>
+                          <strong>{cnpjLookup.data.razaoSocial}</strong>
+                          {cnpjLookup.data.nomeFantasia && cnpjLookup.data.nomeFantasia !== cnpjLookup.data.razaoSocial
+                            ? ` — ${cnpjLookup.data.nomeFantasia}`
+                            : ''}
+                        </span>
+                      }
+                      description={
+                        <div style={{ fontSize: 12, lineHeight: 1.5 }}>
+                          {cnpjLookup.data.cnaePrincipal && (
+                            <div>
+                              <strong>Atividade:</strong> {cnpjLookup.data.cnaePrincipal}
+                            </div>
+                          )}
+                          {cnpjLookup.data.municipio && cnpjLookup.data.uf && (
+                            <div>
+                              <strong>Local:</strong> {cnpjLookup.data.municipio}/{cnpjLookup.data.uf}
+                            </div>
+                          )}
+                          {cnpjLookup.data.situacao && (
+                            <div>
+                              <strong>Situação:</strong>{' '}
+                              <Typography.Text
+                                style={{
+                                  fontSize: 12,
+                                  color: cnpjLookup.data.situacao === 'ATIVA' ? '#10b981' : '#ef4444',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {cnpjLookup.data.situacao}
+                              </Typography.Text>
+                            </div>
+                          )}
+                        </div>
+                      }
+                    />
+                  )}
+                  {(cnpjLookup.state === 'not-found' ||
+                    cnpjLookup.state === 'invalid' ||
+                    cnpjLookup.state === 'error') && (
+                    <Alert
+                      type={cnpjLookup.state === 'invalid' ? 'warning' : 'error'}
+                      showIcon
+                      style={{ marginTop: -8, marginBottom: 16 }}
+                      message={cnpjLookup.message}
+                    />
+                  )}
+
                   <Form.Item label="Nome da empresa" required>
                     <Input
                       prefix={<Building2 size={16} style={{ color: '#94a3b8' }} />}
@@ -416,7 +564,6 @@ export function RegisterPage() {
                       onChange={(e) => setCompanyName(e.target.value)}
                       maxLength={160}
                       placeholder="Ex: Indústria Acme Ltda"
-                      autoFocus
                     />
                   </Form.Item>
                   {companyName.trim().length >= 2 && (

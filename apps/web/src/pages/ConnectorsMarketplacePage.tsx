@@ -3,6 +3,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { Truck } from 'lucide-react'
 import { http } from '../services/http'
 
 type ConnectorRow = {
@@ -80,8 +81,10 @@ export function ConnectorsMarketplacePage() {
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
       <PageHeaderCard
-        title="Marketplace de integracoes"
-        subtitle="Conecte seu ERP ou suba dados via CSV. Adicione um datasource em Configuracoes -> Datasources."
+        title="Marketplace de integrações"
+        subtitle="Conecte seu ERP ou suba dados via CSV. Adicione um datasource em Configurações → Datasources."
+        icon={<Truck size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Dados & Integrações' }, { label: 'Conectores' }]}
       />
 
       <Input.Search

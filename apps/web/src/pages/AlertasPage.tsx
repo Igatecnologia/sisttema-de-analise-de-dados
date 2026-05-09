@@ -19,9 +19,11 @@ import {
   Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import { AlertCircle, AlertTriangle, BellRing, Eye, Flame } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { MetricCard } from '../components/MetricCard'
+import { PageHeaderCard } from '../components/PageHeaderCard'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { queryKeys } from '../query/queryKeys'
 import {
@@ -246,19 +248,47 @@ export function AlertasPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <PageHeaderCard
+        title="Alertas operacionais"
+        subtitle="Monitoramento de margem, estoque, produção e financeiro"
+        icon={<BellRing size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Dashboards' }, { label: 'Alertas' }]}
+      />
+
       {/* ── Section 1: Metric Cards ── */}
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
-          <MetricCard title="Total Alertas" value={totalAlertas} />
+          <MetricCard
+            title="Total de alertas"
+            value={totalAlertas}
+            icon={<BellRing size={16} />}
+            accentColor="var(--qc-primary)"
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <MetricCard title="Alta Severidade" value={altaSeveridade} hero />
+          <MetricCard
+            title="Alta severidade"
+            value={altaSeveridade}
+            icon={<Flame size={16} />}
+            accentColor="#ef4444"
+            hero
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <MetricCard title="Não Lidos" value={naoLidos} />
+          <MetricCard
+            title="Não lidos"
+            value={naoLidos}
+            icon={<Eye size={16} />}
+            accentColor="#f59e0b"
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <MetricCard title="Margem Crítica" value={margemCritica} />
+          <MetricCard
+            title="Margem crítica"
+            value={margemCritica}
+            icon={<AlertTriangle size={16} />}
+            accentColor="#a855f7"
+          />
         </Col>
       </Row>
 

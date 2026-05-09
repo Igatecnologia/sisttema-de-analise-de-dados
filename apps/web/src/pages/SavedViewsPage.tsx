@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { Star } from 'lucide-react'
 import { deleteViewApi, listSavedViewsApi, type ApiSavedView } from '../services/savedViewsService'
 import { createPublicShare } from '../services/publicSharesService'
 import { queryKeys } from '../query/queryKeys'
@@ -48,8 +49,14 @@ export function SavedViewsPage() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <PageHeaderCard
-        title="Visoes salvas"
-        subtitle="Filtros e perspectivas reutilizaveis por area do sistema."
+        title="Visões salvas"
+        subtitle="Filtros e perspectivas reutilizáveis por área do sistema."
+        icon={<Star size={22} />}
+        breadcrumbs={[
+          { label: 'Início', to: '/gestao' },
+          { label: 'Financeiro' },
+          { label: 'Visões salvas' },
+        ]}
         extra={<Select value={pageKey} onChange={setPageKey} options={pageOptions} style={{ width: 220 }} />}
       />
       <Card className="app-card" variant="borderless">

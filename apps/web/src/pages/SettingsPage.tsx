@@ -25,6 +25,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useEffect, useMemo } from 'react'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { Settings as SettingsIcon } from 'lucide-react'
 import { DevErrorDetail } from '../components/DevErrorDetail'
 import { getErrorMessage } from '../api/httpError'
 import { queryKeys } from '../query/queryKeys'
@@ -138,6 +139,8 @@ export function SettingsPage() {
       <PageHeaderCard
         title="Configurações"
         subtitle="Perfil da empresa, equipe e integrações do tenant atual."
+        icon={<SettingsIcon size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Administração' }, { label: 'Configurações' }]}
         extra={
           <Space wrap>
             <Button icon={<ReloadOutlined />} onClick={() => settingsQuery.refetch()}>

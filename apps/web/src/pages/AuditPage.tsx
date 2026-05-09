@@ -19,6 +19,7 @@ import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { FileSearch } from 'lucide-react'
 
 import { MetricCard } from '../components/MetricCard'
 import { VirtualTable, type VirtualColumn } from '../components/VirtualTable'
@@ -191,6 +192,8 @@ export function AuditPage() {
             ? 'Logs de auditoria não estão disponíveis na API SGBR integrada. Ative um serviço de log ou outra API.'
             : 'Logs de ações do sistema com filtros na URL e export CSV.'
         }
+        icon={<FileSearch size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Administração' }, { label: 'Auditoria' }]}
         extra={
           <Space>
             <Button icon={<ReloadOutlined />} onClick={() => auditQuery.refetch()}>

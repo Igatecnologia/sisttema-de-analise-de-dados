@@ -2,6 +2,7 @@ import { FileTextOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import { Button, Card, Col, Row, Space, Tag, Typography } from 'antd'
 import { Link } from 'react-router-dom'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { BookOpen } from 'lucide-react'
 
 const templates = [
   { id: 'dre', title: 'DRE gerencial', category: 'Financeiro', cadence: 'Mensal' },
@@ -15,7 +16,12 @@ const templates = [
 export function ReportsGalleryPage() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <PageHeaderCard title="Galeria de relatorios" subtitle="Modelos prontos para copiar, agendar e adaptar." />
+      <PageHeaderCard
+        title="Galeria de relatórios"
+        subtitle="Modelos prontos para copiar, agendar e adaptar."
+        icon={<BookOpen size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Financeiro' }, { label: 'Relatórios' }, { label: 'Galeria' }]}
+      />
       <Row gutter={[16, 16]}>
         {templates.map((template) => (
           <Col xs={24} md={12} xl={8} key={template.id}>

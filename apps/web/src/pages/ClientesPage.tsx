@@ -4,7 +4,6 @@ import {
   EditOutlined,
   DeleteOutlined,
   EyeOutlined,
-  TagsOutlined,
 } from '@ant-design/icons'
 import {
   App,
@@ -20,17 +19,19 @@ import {
   Col,
   Select,
   Space,
-  Statistic,
   Table,
   Tabs,
   Tag,
   Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import { Award, BarChart3, Users, UsersIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { MetricCard } from '../components/MetricCard'
+import { DataPanel } from '../components/DataPanel'
 import {
   createCustomer,
   deleteCustomer,
@@ -239,6 +240,8 @@ export function ClientesPage() {
       <PageHeaderCard
         title="Clientes"
         subtitle="Cadastro próprio com segmentação A/B/C calculada por receita."
+        icon={<Users size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Clientes' }]}
         extra={
           canWrite ? (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
@@ -299,7 +302,7 @@ export function ClientesPage() {
               key: 'abc',
               label: (
                 <span>
-                  <TagsOutlined /> Segmentação A/B/C
+                  <Award size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Segmentação A/B/C
                 </span>
               ),
               children: (
@@ -320,29 +323,38 @@ export function ClientesPage() {
                   </Space>
                   {abcCounts ? (
                     <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-                      <Col xs={24} sm={6}>
-                        <Card size="small" style={{ borderLeft: '3px solid #d4b106' }}>
-                          <Statistic title="Curva A (top 20% receita)" value={abcCounts.A} />
-                        </Card>
+                      <Col xs={24} sm={12} md={6}>
+                        <MetricCard
+                          title="Curva A (top 20% receita)"
+                          value={abcCounts.A}
+                          accentColor="#d4b106"
+                          icon={<Award size={16} />}
+                          description="Clientes que somam 20% da receita do periodo"
+                        />
                       </Col>
-                      <Col xs={24} sm={6}>
-                        <Card size="small" style={{ borderLeft: '3px solid #1677ff' }}>
-                          <Statistic title="Curva B (próximos 30%)" value={abcCounts.B} />
-                        </Card>
+                      <Col xs={24} sm={12} md={6}>
+                        <MetricCard
+                          title="Curva B (próximos 30%)"
+                          value={abcCounts.B}
+                          accentColor="#1677ff"
+                          icon={<BarChart3 size={16} />}
+                        />
                       </Col>
-                      <Col xs={24} sm={6}>
-                        <Card size="small" style={{ borderLeft: '3px solid #8c8c8c' }}>
-                          <Statistic title="Curva C (cauda 50%)" value={abcCounts.C} />
-                        </Card>
+                      <Col xs={24} sm={12} md={6}>
+                        <MetricCard
+                          title="Curva C (cauda 50%)"
+                          value={abcCounts.C}
+                          accentColor="#8c8c8c"
+                          icon={<UsersIcon size={16} />}
+                        />
                       </Col>
-                      <Col xs={24} sm={6}>
-                        <Card size="small" style={{ borderLeft: '3px solid #fa541c' }}>
-                          <Statistic
-                            title="Sem cadastro"
-                            value={abcCounts.unregistered}
-                            valueStyle={{ color: abcCounts.unregistered > 0 ? '#fa541c' : undefined }}
-                          />
-                        </Card>
+                      <Col xs={24} sm={12} md={6}>
+                        <MetricCard
+                          title="Sem cadastro"
+                          value={abcCounts.unregistered}
+                          accentColor={abcCounts.unregistered > 0 ? '#fa541c' : '#94a3b8'}
+                          subtitle={abcCounts.unregistered > 0 ? 'Cadastrar para enriquecer' : 'Tudo cadastrado'}
+                        />
                       </Col>
                     </Row>
                   ) : null}

@@ -2,18 +2,62 @@
 
 :root,
 [data-theme='light'] {
-  /* Alinhado ao ThemeProvider (quantum.light): hierarquia de superfície e bordas */
-  --qc-canvas: #eef3f8;
+  /* === Surface hierarchy — paleta refinada estilo Linear/Vercel === */
+  --qc-canvas: #f7f9fc;
   --qc-surface: #ffffff;
-  --qc-surface-elevated: #fafcfe;
-  --qc-border: #c9d8e6;
-  --qc-border-subtle: #e3edf6;
-  --qc-primary: #1a7ab5;
-  --qc-primary-light: #e4f0f8;
+  --qc-surface-elevated: #ffffff;
+  --qc-surface-2: #f1f5f9;
+  --qc-border: #e2e8f0;
+  --qc-border-subtle: #edf1f7;
+  --qc-border-strong: #cbd5e1;
+
+  /* === Brand — primary mais vibrante e premium === */
+  --qc-primary: #2563eb;
+  --qc-primary-hover: #1d4ed8;
+  --qc-primary-light: #eff6ff;
+  --qc-primary-strong: #1e40af;
   --qc-secondary: #0d5a8c;
-  --qc-accent: #e8930c;
-  --qc-text: #0f1c28;
-  --qc-text-muted: #5a6d7d;
+  --qc-accent: #f59e0b;
+  --qc-accent-hover: #d97706;
+
+  /* === Text === */
+  --qc-text: #0f172a;
+  --qc-text-muted: #475569;
+  --qc-text-faint: #94a3b8;
+  --qc-accent-muted: rgba(37, 99, 235, 0.08);
+  --qc-accent-strong: rgba(37, 99, 235, 0.18);
+
+  /* === Shadows refinadas (estilo Stripe) === */
+  --qc-shadow-xs: 0 1px 1px rgba(15, 23, 42, 0.04);
+  --qc-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --qc-shadow-md: 0 2px 4px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.08);
+  --qc-shadow-lg: 0 4px 12px rgba(15, 23, 42, 0.08), 0 16px 40px rgba(15, 23, 42, 0.12);
+  --qc-shadow-glow: 0 0 0 1px var(--qc-accent-strong), 0 4px 14px var(--qc-accent-muted);
+
+  /* === Gradients premium === */
+  --qc-gradient-primary: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+  --qc-gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --qc-gradient-warning: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  --qc-gradient-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  --qc-gradient-mesh: radial-gradient(circle at 20% 0%, rgba(37, 99, 235, 0.06), transparent 50%),
+                      radial-gradient(circle at 80% 100%, rgba(245, 158, 11, 0.04), transparent 50%);
+
+  /* === Glass / blur === */
+  --qc-glass-bg: rgba(255, 255, 255, 0.8);
+  --qc-glass-border: rgba(15, 23, 42, 0.08);
+  --qc-glass-blur: 12px;
+
+  /* === Transitions === */
+  --qc-transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --qc-transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --qc-transition-slow: 320ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* === Radius escala === */
+  --qc-radius-sm: 6px;
+  --qc-radius: 10px;
+  --qc-radius-lg: 14px;
+  --qc-radius-xl: 20px;
+  --qc-radius-pill: 999px;
 
   /* Status */
   --qc-success: #52c41a;
@@ -83,16 +127,50 @@
 }
 
 [data-theme='dark'] {
-  --qc-canvas: #080d12;
-  --qc-surface: #111920;
-  --qc-surface-elevated: #19232e;
-  --qc-border: #243344;
-  --qc-primary: #4aabe0;
-  --qc-primary-light: #142430;
-  --qc-secondary: #2196d3;
-  --qc-accent: #f0a030;
-  --qc-text: #e8eef4;
-  --qc-text-muted: #8a9bb0;
+  /* === Surface hierarchy — cinza moderno estilo Linear === */
+  --qc-canvas: #0a0e14;
+  --qc-surface: #111827;
+  --qc-surface-elevated: #1e293b;
+  --qc-surface-2: #1e293b;
+  --qc-border: #334155;
+  --qc-border-subtle: #1f2937;
+  --qc-border-strong: #475569;
+
+  /* === Brand === */
+  --qc-primary: #60a5fa;
+  --qc-primary-hover: #93c5fd;
+  --qc-primary-light: #1e3a8a;
+  --qc-primary-strong: #3b82f6;
+  --qc-secondary: #3b82f6;
+  --qc-accent: #fbbf24;
+  --qc-accent-hover: #fcd34d;
+
+  /* === Text === */
+  --qc-text: #f1f5f9;
+  --qc-text-muted: #94a3b8;
+  --qc-text-faint: #64748b;
+  --qc-accent-muted: rgba(96, 165, 250, 0.12);
+  --qc-accent-strong: rgba(96, 165, 250, 0.24);
+
+  /* === Shadows mais profundas no dark === */
+  --qc-shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.3);
+  --qc-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --qc-shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.5);
+  --qc-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.5), 0 16px 40px rgba(0, 0, 0, 0.6);
+  --qc-shadow-glow: 0 0 0 1px var(--qc-accent-strong), 0 4px 20px rgba(96, 165, 250, 0.3);
+
+  /* === Gradients premium === */
+  --qc-gradient-primary: linear-gradient(135deg, #60a5fa 0%, #818cf8 100%);
+  --qc-gradient-success: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  --qc-gradient-warning: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  --qc-gradient-danger: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+  --qc-gradient-mesh: radial-gradient(circle at 20% 0%, rgba(96, 165, 250, 0.08), transparent 50%),
+                      radial-gradient(circle at 80% 100%, rgba(251, 191, 36, 0.06), transparent 50%);
+
+  /* === Glass / blur === */
+  --qc-glass-bg: rgba(17, 24, 39, 0.75);
+  --qc-glass-border: rgba(255, 255, 255, 0.08);
+  --qc-glass-blur: 12px;
 
   --qc-success: #5db896;
   --qc-warning: #e8930c;
@@ -2650,4 +2728,188 @@ html[data-theme='dark'] .ant-picker-dropdown .ant-picker-date-panel {
   .app-skeleton__block::after {
     animation: none !important;
   }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   POLISH GLOBAL — refinements premium aplicados a todas as paginas
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Buttons primary refinados — leve elevation no hover */
+.ant-btn-primary {
+  font-weight: 600;
+  transition: all var(--qc-transition-fast, 120ms ease);
+  letter-spacing: 0.01em;
+}
+.ant-btn-primary:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--qc-accent-muted);
+}
+
+/* Inputs com focus ring premium (3px brand glow) */
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-select-selector,
+.ant-picker {
+  border-radius: var(--qc-radius, 10px) !important;
+  transition: border-color var(--qc-transition-fast, 120ms ease), box-shadow var(--qc-transition-fast, 120ms ease) !important;
+}
+
+/* Scrollbar estilo macOS — fina e discreta */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--qc-border-strong, var(--qc-border));
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background-color var(--qc-transition-fast, 120ms ease);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--qc-text-faint, #94a3b8);
+  background-clip: padding-box;
+}
+
+/* Tables — header tipografia com letter-spacing + uppercase */
+.ant-table-wrapper .ant-table-thead > tr > th {
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--qc-text-muted) !important;
+  background: var(--qc-canvas) !important;
+}
+.ant-table-wrapper .ant-table-tbody > tr.ant-table-row:hover > td {
+  background: var(--qc-accent-muted) !important;
+}
+.ant-table-wrapper .ant-table {
+  border-radius: var(--qc-radius-lg, 14px);
+}
+
+/* Tabs com peso de fonte premium */
+.ant-tabs-tab {
+  font-weight: 500;
+  transition: color var(--qc-transition-fast, 120ms ease);
+}
+.ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  font-weight: 600;
+}
+
+/* Modal e Drawer com radius maior */
+.ant-modal-content,
+.ant-drawer-content {
+  border-radius: var(--qc-radius-xl, 20px) !important;
+}
+.ant-modal-content {
+  box-shadow: var(--qc-shadow-lg) !important;
+}
+
+/* Tag refinada */
+.ant-tag {
+  border-radius: var(--qc-radius-sm, 6px);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+/* Alert banners com gradient sutil de brand */
+.ant-alert-warning {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.10), rgba(245, 158, 11, 0.02)) !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+}
+.ant-alert-error {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.10), rgba(239, 68, 68, 0.02)) !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+}
+.ant-alert-info {
+  background: linear-gradient(90deg, var(--qc-accent-muted), transparent) !important;
+  border-color: var(--qc-accent-strong) !important;
+}
+.ant-alert-success {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.10), rgba(16, 185, 129, 0.02)) !important;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+}
+
+/* Page background com gradient mesh sutil */
+.ant-layout-content {
+  background: var(--qc-canvas) !important;
+  background-image: var(--qc-gradient-mesh, none) !important;
+  background-attachment: fixed;
+}
+
+/* Skeleton com brand color em vez de cinza chato — shimmer azulado */
+.ant-skeleton-active .ant-skeleton-content .ant-skeleton-paragraph > li,
+.ant-skeleton-active .ant-skeleton-content .ant-skeleton-title,
+.ant-skeleton-active .ant-skeleton-button,
+.ant-skeleton-active .ant-skeleton-image {
+  background: linear-gradient(
+    90deg,
+    var(--qc-border-subtle) 25%,
+    var(--qc-accent-muted) 37%,
+    var(--qc-border-subtle) 63%
+  ) !important;
+  background-size: 400% 100% !important;
+}
+
+/* Selection com brand color */
+::selection {
+  background: var(--qc-accent-strong);
+  color: var(--qc-text);
+}
+
+/* Loading spinner com brand color */
+.ant-spin-dot-item {
+  background-color: var(--qc-primary) !important;
+}
+
+/* Switch active com gradient primary */
+.ant-switch-checked {
+  background: var(--qc-gradient-primary) !important;
+}
+
+/* Page entry animation */
+.app-content {
+  animation: pageEnter var(--qc-transition-base, 200ms cubic-bezier(0.4, 0, 0.2, 1));
+}
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Cards interativos — hover lift sutil (apenas sem .no-hover) */
+.ant-card.app-card:not(.no-hover) {
+  transition: transform var(--qc-transition-base, 200ms ease), box-shadow var(--qc-transition-base, 200ms ease), border-color var(--qc-transition-fast, 150ms ease);
+  border-radius: var(--qc-radius-lg, 14px);
+}
+.ant-card.app-card:not(.no-hover):hover {
+  transform: translateY(-2px);
+  box-shadow: var(--qc-shadow-md);
+}
+
+/* Header sticky/glass quando scrollando */
+.app-content header[role='banner'],
+.ant-layout-header {
+  background: var(--qc-glass-bg, var(--qc-surface)) !important;
+  backdrop-filter: blur(var(--qc-glass-blur, 12px));
+  -webkit-backdrop-filter: blur(var(--qc-glass-blur, 12px));
+}
+
+/* MetricCard hover lift */
+.metric-card {
+  transition: transform var(--qc-transition-base, 200ms ease), box-shadow var(--qc-transition-base, 200ms ease);
+}
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--qc-shadow-md);
+}
+
+/* DataPanel hover (subtle) */
+.data-panel {
+  transition: box-shadow var(--qc-transition-base, 200ms ease);
+}
+.data-panel:hover {
+  box-shadow: var(--qc-shadow-md);
 }

@@ -2,6 +2,7 @@ import { Button, Card, Empty, Form, Input, Modal, Popconfirm, Select, Space, Swi
 import type { ColumnsType } from 'antd/es/table'
 import { useEffect, useState } from 'react'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { Megaphone } from 'lucide-react'
 import { http } from '../services/http'
 
 type WebhookSubscription = {
@@ -127,6 +128,8 @@ export function WebhooksPage() {
       <PageHeaderCard
         title="Webhooks"
         subtitle="Entregas enterprise para eventos do tenant com assinatura HMAC e retry exponencial."
+        icon={<Megaphone size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Dados & Integrações' }, { label: 'Webhooks' }]}
         extra={
           <Button
             type="primary"

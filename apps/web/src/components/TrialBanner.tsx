@@ -47,12 +47,12 @@ export function TrialBanner() {
   if (!status.access.allowed) {
     return (
       <Alert
-        type="error"
+        type="warning"
         showIcon
         banner
         message={
           <Space>
-            <span>{status.access.reason === 'trial_expired' ? 'Trial expirado.' : 'Assinatura inativa.'} Acesso somente leitura ate ativar plano.</span>
+            <span>{status.access.reason === 'trial_expired' ? 'Trial expirado.' : 'Assinatura inativa.'} Acesso somente leitura até ativar plano.</span>
             <Link to="/planos"><Button size="small" type="primary">Ver planos</Button></Link>
           </Space>
         }

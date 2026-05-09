@@ -1,5 +1,6 @@
 import { ArrowDownOutlined, ArrowUpOutlined, MinusOutlined } from '@ant-design/icons'
 import { Skeleton, Tag, Tooltip } from 'antd'
+import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { deltaColor } from '../theme/colors'
 
@@ -35,6 +36,7 @@ export function MetricCard({
   subtitle,
   description,
   accentColor,
+  icon,
 }: {
   title: string
   value: string | number
@@ -45,10 +47,13 @@ export function MetricCard({
   subtitle?: string
   description?: string
   accentColor?: string
+  /** Icone Lucide opcional — render top-right do card. */
+  icon?: ReactNode
 }) {
   const trend =
     typeof deltaPct !== 'number' ? null : deltaPct > 0 ? 'up' : deltaPct < 0 ? 'down' : 'flat'
-  const trendColorValue = trend === 'up' ? deltaColor(1) : trend === 'down' ? deltaColor(-1) : deltaColor(0)
+  const trendColorValue =
+    trend === 'up' ? deltaColor(1) : trend === 'down' ? deltaColor(-1) : deltaColor(0)
   const accent = accentColor ?? (trend ? trendColorValue : 'var(--qc-primary)')
 
   if (loading) {
@@ -66,13 +71,41 @@ export function MetricCard({
     <div className={`metric-card${hero ? ' metric-card--hero' : ''}`}>
       <div className="metric-card__accent" style={{ background: accent }} />
       <div className="metric-card__content">
-        <span className="metric-card__title">{title}</span>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 8,
+            marginBottom: 6,
+          }}
+        >
+          <span className="metric-card__title" style={{ flex: 1, minWidth: 0 }}>
+            {title}
+          </span>
+          {icon && (
+            <span
+              aria-hidden
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 10,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: `color-mix(in srgb, ${accent} 14%, transparent)`,
+                color: accent,
+                flexShrink: 0,
+              }}
+            >
+              {icon}
+            </span>
+          )}
+        </div>
         <span className={`metric-card__value${hero ? ' metric-card__value--hero' : ''}`}>
           {typeof value === 'number' ? <AnimatedNumber value={value} /> : value}
         </span>
-        {subtitle && (
-          <span className="metric-card__prev">{subtitle}</span>
-        )}
+        {subtitle && <span className="metric-card__prev">{subtitle}</span>}
         {previousValue !== undefined && (
           <span className="metric-card__prev">Anterior: {previousValue}</span>
         )}
@@ -81,7 +114,13 @@ export function MetricCard({
             color={trend === 'up' ? 'green' : trend === 'down' ? 'red' : 'default'}
             style={{ marginTop: 6, fontVariantNumeric: 'tabular-nums' }}
           >
-            {trend === 'up' ? <ArrowUpOutlined /> : trend === 'down' ? <ArrowDownOutlined /> : <MinusOutlined />}{' '}
+            {trend === 'up' ? (
+              <ArrowUpOutlined />
+            ) : trend === 'down' ? (
+              <ArrowDownOutlined />
+            ) : (
+              <MinusOutlined />
+            )}{' '}
             {deltaPct > 0 ? '+' : ''}
             {deltaPct.toFixed(1)}%
           </Tag>

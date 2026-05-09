@@ -31,6 +31,7 @@ import dayjs from 'dayjs'
 import { useMemo, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { Package } from 'lucide-react'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { http } from '../services/http'
 import { metricColors } from '../theme/colors'
@@ -410,6 +411,8 @@ export function ComprasPage() {
       <PageHeaderCard
         title="Compras de Matéria-Prima"
         subtitle={`Período: ${periodoLabel}`}
+        icon={<Package size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'ERP' }, { label: 'Compras' }]}
         extra={
           <Tooltip title="Atualizar dados">
             <Button icon={<ReloadOutlined spin={comprasQ.isFetching && !isPlaceholder} />} onClick={() => comprasQ.refetch()} />

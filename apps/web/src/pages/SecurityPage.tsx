@@ -1,6 +1,7 @@
 import { Alert, Button, Card, Input, Modal, Popconfirm, Space, Tag, Typography, message } from 'antd'
 import { useEffect, useState } from 'react'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { Lock } from 'lucide-react'
 import { MfaSetupModal } from '../components/MfaSetupModal'
 import {
   disableMfa,
@@ -71,8 +72,10 @@ export function SecurityPage() {
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
       <PageHeaderCard
-        title="Seguranca da conta"
-        subtitle="Gerencie autenticacao em dois fatores e codigos de recuperacao."
+        title="Segurança da conta"
+        subtitle="Gerencie autenticação em dois fatores e códigos de recuperação."
+        icon={<Lock size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Conta' }, { label: 'Segurança' }]}
       />
 
       <Card title="Autenticacao em dois fatores (2FA)" loading={loading}>

@@ -1,5 +1,5 @@
 import { Card, Skeleton, Space, Tabs } from 'antd'
-import { InboxOutlined, BuildOutlined, AppstoreOutlined } from '@ant-design/icons'
+import { Boxes, Layers, Package, Wrench } from 'lucide-react'
 import { Suspense, lazy } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { PageHeaderCard } from '../components/PageHeaderCard'
@@ -32,14 +32,17 @@ export function EstoquePage() {
     setSearchParams({ tab: key }, { replace: true })
   }
 
+  const labelWith = (icon: React.ReactNode, text: string) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      {icon}
+      {text}
+    </span>
+  )
+
   const tabItems = [
     {
       key: 'materia-prima',
-      label: (
-        <span>
-          <InboxOutlined /> {rawMaterialLabel}
-        </span>
-      ),
+      label: labelWith(<Package size={14} />, rawMaterialLabel),
       children: (
         <Suspense fallback={tabFallback}>
           <EstoqueMateriaPrimaTab />
@@ -49,11 +52,7 @@ export function EstoquePage() {
     ...(showIntermediateTab
       ? [{
           key: 'produto-base',
-          label: (
-            <span>
-              <BuildOutlined /> {productLabel} base
-            </span>
-          ),
+          label: labelWith(<Wrench size={14} />, `${productLabel} base`),
           children: (
             <Suspense fallback={tabFallback}>
               <EstoqueEspumaTab />
@@ -63,11 +62,7 @@ export function EstoquePage() {
       : []),
     {
       key: 'produto-final',
-      label: (
-        <span>
-          <AppstoreOutlined /> {finishedLabel}
-        </span>
-      ),
+      label: labelWith(<Layers size={14} />, finishedLabel),
       children: (
         <Suspense fallback={tabFallback}>
           <EstoqueProdutoFinalTab />
@@ -82,7 +77,12 @@ export function EstoquePage() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <PageHeaderCard title="Estoque" subtitle={subtitle} />
+      <PageHeaderCard
+        title="Estoque"
+        subtitle={subtitle}
+        icon={<Boxes size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'ERP' }, { label: 'Estoque' }]}
+      />
 
       <Card className="app-card no-hover" variant="borderless" style={{ padding: 0 }}>
         <Tabs

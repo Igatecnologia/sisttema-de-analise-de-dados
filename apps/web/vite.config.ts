@@ -33,22 +33,11 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       proxy: {
-        '/api': {
-          target: env.VITE_API_BASE_URL || 'http://localhost:3001',
-          changeOrigin: true,
-          secure: false,
-        },
-        '/dashboard': {
-          target: env.VITE_API_BASE_URL || 'http://localhost:3001',
-          changeOrigin: true,
-          secure: false,
-        },
-        '/reports': {
-          target: env.VITE_API_BASE_URL || 'http://localhost:3001',
-          changeOrigin: true,
-          secure: false,
-        },
-        '/health': {
+        // Apenas /api/ e /sgbrbi precisam de proxy. Outros paths como
+        // /dashboard, /reports, /health, /api-keys colidem com rotas SPA do React
+        // Router — o axios client ja chama API direto via VITE_API_BASE_URL.
+        // IMPORTANTE: '/api/' (com barra final) evita match em /api-keys.
+        '/api/': {
           target: env.VITE_API_BASE_URL || 'http://localhost:3001',
           changeOrigin: true,
           secure: false,

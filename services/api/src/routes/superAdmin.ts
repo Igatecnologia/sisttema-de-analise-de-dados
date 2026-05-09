@@ -563,7 +563,7 @@ superAdminRouter.get('/ai-usage', async (req, res: Response) => {
      FROM ai_usage u
      WHERE u.created_at >= now() - ($1 || ' months')::interval
      GROUP BY u.tenant_id, date_trunc('month', u.created_at)
-     ORDER BY total_cost_usd::numeric DESC`,
+     ORDER BY SUM(u.cost_usd) DESC`,
     [String(months)],
   )
   const rows = result.rows.map((r) => ({

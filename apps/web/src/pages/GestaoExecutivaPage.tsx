@@ -18,6 +18,7 @@ import { Alert, Card, Col, Row, Space, Typography } from 'antd'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { PieChart } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import type { AuthSession } from '../auth/authStorage'
 import type { Permission } from '../auth/permissions'
@@ -173,6 +174,8 @@ export function GestaoExecutivaPage() {
       <PageHeaderCard
         title="Visão do gestor"
         subtitle="Ponto de partida do painel: indicadores, operação, financeiro e suporte. O que você vê depende do seu perfil e permissões."
+        icon={<PieChart size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Visão do gestor' }]}
       />
 
       {!configured && (

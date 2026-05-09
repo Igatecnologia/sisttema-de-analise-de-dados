@@ -45,6 +45,7 @@ import {
 import { ChartTooltip, gridProps, xAxisProps, yAxisProps, CHART_COLORS, useChartAnimationProps } from '../components/charts/ChartDefaults'
 import { ChartShell } from '../components/ChartShell'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { Home as HomeIconLucide } from 'lucide-react'
 import { DevErrorDetail } from '../components/DevErrorDetail'
 import { ANALITICO_STALE_MS } from '../api/apiEnv'
 import { hasAnySources } from '../services/dataSourceService'
@@ -207,6 +208,8 @@ export function DashboardPage() {
     <PageHeaderCard
       title="Dashboard Executivo"
       subtitle="Visão consolidada do desempenho comercial da empresa."
+      icon={<HomeIconLucide size={22} />}
+      breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Dashboards' }, { label: 'Visão geral' }]}
       extra={
         <Space size={8}>
           <Tag color="blue">{sourceLabel}</Tag>

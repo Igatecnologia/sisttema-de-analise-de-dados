@@ -1,6 +1,7 @@
 import { Alert, Button, Card, Modal, Space, Typography, message } from 'antd'
 import { useState } from 'react'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { ScrollText } from 'lucide-react'
 import { http } from '../services/http'
 import { useAuth } from '../auth/AuthContext'
 
@@ -87,7 +88,9 @@ export function LgpdPage() {
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
       <PageHeaderCard
         title="Privacidade e LGPD"
-        subtitle="Exerca seus direitos previstos na Lei Geral de Protecao de Dados (Lei 13.709/2018)."
+        subtitle="Exerça seus direitos previstos na Lei Geral de Proteção de Dados (Lei 13.709/2018)."
+        icon={<ScrollText size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Conta' }, { label: 'Privacidade (LGPD)' }]}
       />
 
       <Card title="Acesso aos seus dados">

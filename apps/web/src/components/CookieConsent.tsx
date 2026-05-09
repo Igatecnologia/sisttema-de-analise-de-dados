@@ -39,27 +39,47 @@ export function CookieConsent() {
         style={{
           position: 'fixed',
           bottom: 16,
-          left: 16,
           right: 16,
-          maxWidth: 720,
-          margin: '0 auto',
-          padding: 20,
-          background: 'white',
+          maxWidth: 380,
+          padding: '14px 16px',
+          background: 'var(--qc-glass-bg, rgba(255,255,255,0.95))',
+          backdropFilter: 'blur(var(--qc-glass-blur, 12px))',
+          WebkitBackdropFilter: 'blur(var(--qc-glass-blur, 12px))',
+          color: 'var(--qc-text)',
           borderRadius: 12,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-          border: '1px solid #e6eaf0',
+          boxShadow: 'var(--qc-shadow-lg, 0 8px 32px rgba(0,0,0,0.18))',
+          border: '1px solid var(--qc-border-subtle, #e6eaf0)',
           zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
         }}
       >
-        <Typography.Title level={5} style={{ marginTop: 0 }}>Privacidade e cookies</Typography.Title>
-        <Typography.Paragraph style={{ marginBottom: 12 }}>
-          Usamos cookies essenciais para autenticacao e funcionamento. Cookies opcionais (analytics, marketing) ajudam a melhorar o produto. Voce pode aceitar tudo, recusar opcionais ou personalizar abaixo. Decisao gravada conforme LGPD.
-        </Typography.Paragraph>
-        <Space wrap>
-          <Button type="primary" onClick={acceptAll}>Aceitar tudo</Button>
-          <Button onClick={rejectOptional}>Apenas essenciais</Button>
-          <Button type="link" onClick={() => setDetails(true)}>Personalizar</Button>
-          <Button type="link" href="/legal/cookies" target="_blank">Saiba mais</Button>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          <span
+            aria-hidden
+            style={{
+              fontSize: 18,
+              lineHeight: 1,
+              filter: 'grayscale(0.2)',
+            }}
+          >
+            🍪
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }}>Cookies & privacidade</div>
+            <div style={{ fontSize: 12, color: 'var(--qc-text-muted, #64748b)', lineHeight: 1.45 }}>
+              Usamos essenciais para login + opcionais para melhorar o produto.{' '}
+              <a href="/legal/cookies" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--qc-primary)' }}>
+                Saiba mais
+              </a>
+            </div>
+          </div>
+        </div>
+        <Space size={6} wrap>
+          <Button type="primary" size="small" onClick={acceptAll}>Aceitar tudo</Button>
+          <Button size="small" onClick={rejectOptional}>Apenas essenciais</Button>
+          <Button type="text" size="small" onClick={() => setDetails(true)}>Personalizar</Button>
         </Space>
       </div>
 

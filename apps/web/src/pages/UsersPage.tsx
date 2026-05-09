@@ -29,6 +29,7 @@ import {
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import { PageHeaderCard } from '../components/PageHeaderCard'
+import { UserCircle } from 'lucide-react'
 
 import { MetricCard } from '../components/MetricCard'
 import { VirtualTable, type VirtualColumn } from '../components/VirtualTable'
@@ -335,6 +336,8 @@ export function UsersPage() {
       <PageHeaderCard
         title="Funcionários"
         subtitle="Gerencie os funcionários que acessam o sistema."
+        icon={<UserCircle size={22} />}
+        breadcrumbs={[{ label: 'Início', to: '/gestao' }, { label: 'Administração' }, { label: 'Funcionários' }]}
         extra={headerExtra}
       />
 
