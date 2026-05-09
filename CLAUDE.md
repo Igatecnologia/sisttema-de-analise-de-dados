@@ -61,9 +61,7 @@ sistema de gestão/
 │   ├── .env.production    # Config de producao
 │   └── package.json
 │
-├── PLANO-SAAS.md          # Plano completo de transformacao SaaS (v3)
-├── PLANO-LANDING-PAGE.md  # Plano da landing page
-├── TROUBLESHOOTING.md     # Guia de resolucao de problemas de dados
+├── docs/                  # Plano canonico, runbooks, compliance — ver docs/README.md
 ├── render.yaml            # Config de deploy no Render
 └── .gitignore
 ```
@@ -288,11 +286,16 @@ cd back-end-gest-o && npm run dev
 cd front-end-gest-o && npm run dev
 ```
 
-## Planos e roadmap
+## Planos e roadmap (em `docs/`)
 
-- `PLANO-SAAS.md` — Plano completo de transformacao SaaS (9 sprints, 15 semanas)
-- `PLANO-LANDING-PAGE.md` — Landing page de conversao (Next.js + Tailwind)
-- `TROUBLESHOOTING.md` — Guia de diagnostico quando dados nao carregam
+- `PLANO-SAAS.md` — Plano canonico SaaS (9 sprints, 15 semanas)
+- `PLANO-IGA-IA.md` — Migracao do Copilot para Python (FastAPI + Claude + RAG, AI-1 a AI-6)
+- `AUDITORIA-COMPLETA-2026-05-09.md` — Auditoria atual + benchmark de mercado
+- `DEPLOY-TODAY.md` — Runbook 1-2h Beta Fechada (Render+Vercel+Supabase+Upstash)
+- `CRITERIO-100.md` — Definition of Done para release publico
+- `INCIDENT-RESPONSE.md`, `SECURITY-BASELINE.md`, `TROUBLESHOOTING.md` — runbooks operacionais
+- `beta/` — emails, onboarding, runbook, termo Beta
+- `compliance/` — DPIA, RoPA, DPA-template (LGPD)
 
 ## Cuidados importantes
 

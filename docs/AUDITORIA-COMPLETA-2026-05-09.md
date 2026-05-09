@@ -212,25 +212,25 @@ vendor-zod, vendor-react...  < 70 KB
 
 ## 7. Documentação — 8/10
 
-### O que existe (25 arquivos em `docs/`)
+### O que existe em `docs/` (após limpeza 2026-05-09)
 
+**Vivos / referência ativa**:
 - **PLANO-SAAS.md** (3.588 linhas) — plano canônico
-- **PLANO-IGA-IA.md** — arquitetura agente Python (criado nesta sessão)
-- **PLANO-LANDING-PAGE.md**, **PLANO-FRONTEND-BETA.md**
+- **PLANO-IGA-IA.md** — arquitetura do agente Python
+- **AUDITORIA-COMPLETA-2026-05-09.md** — esta auditoria + benchmark
 - **DEPLOY-TODAY.md** — runbook 1-2h Beta Fechada
-- **DEPLOY-FREE.md** — Render+Vercel+Supabase+Upstash detalhado
 - **CRITERIO-100.md** — definition of done para release público
-- **AUDITORIA-FRONTEND.md** + esta auditoria
-- **INCIDENT-RESPONSE.md** — procedimentos
-- **SECURITY-BASELINE.md**
-- **CONTINUE.md** — handoff entre sessões
-- **TROUBLESHOOTING.md**
-- **STACK-PROFISSIONAL.md**
-- **PROJECT_STRUCTURE.md**
-- **BRANCH_STRATEGY.md**
-- **BETA-LAUNCH.md**
+- **INCIDENT-RESPONSE.md** — procedimentos de incidente
+- **SECURITY-BASELINE.md** — baseline de segurança
+- **TROUBLESHOOTING.md** — guia operacional
+- **BRANCH_STRATEGY.md** — fluxo git
+
+**Operacional Beta**:
 - `beta/`: emails (boas-vindas, convite, feedback D7), onboarding cliente, runbook operacional, termo Beta
 - `compliance/`: DPIA, RoPA, DPA-template (LGPD)
+
+**Removidos nesta limpeza** (já consumidos / superados):
+CONTINUE.md, AUDITORIA-FRONTEND.md, BETA-LAUNCH.md, PLANO-FRONTEND-BETA.md, DEPLOY-FREE.md, PROJECT_STRUCTURE.md, STACK-PROFISSIONAL.md, PLANO-LANDING-PAGE.md.
 
 **CLAUDE.md** atualizado com estado SaaS atual, env vars prod separadas de dev, lista SaaS core/segmento/opcional.
 
