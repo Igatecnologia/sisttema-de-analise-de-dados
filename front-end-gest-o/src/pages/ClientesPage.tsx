@@ -481,7 +481,7 @@ function CustomerDetail({ customer }: { customer: Customer }) {
         </div>
       ) : null}
       <div>
-        <Link to={`/vendas-analitico?cliente=${encodeURIComponent(customer.name)}`}>
+        <Link to={`/vendas-analitico?q=${encodeURIComponent(customer.name)}`}>
           Ver vendas deste cliente →
         </Link>
       </div>

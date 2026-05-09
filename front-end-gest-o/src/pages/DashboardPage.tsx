@@ -495,44 +495,62 @@ export function DashboardPage() {
                 {derived.topClientes.map((cli, i) => {
                   const pct = derived.faturamento > 0 ? (cli.value / derived.faturamento) * 100 : 0
                   return (
-                    <div key={cli.name} style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '10px 14px', borderRadius: 10,
-                      background: 'var(--qc-canvas)', border: '1px solid var(--qc-border)',
-                    }}>
+                    <Link
+                      key={cli.name}
+                      to={`/vendas-analitico?q=${encodeURIComponent(cli.name)}`}
+                      style={{ textDecoration: 'none', color: 'inherit' }}
+                      title={`Ver vendas detalhadas de ${cli.name}`}
+                    >
                       <div style={{
-                        width: 28, height: 28, borderRadius: 8,
-                        background: CHART_COLORS[i],
-                        display: 'grid', placeItems: 'center',
-                        color: '#fff', fontSize: 12, fontWeight: 700, flexShrink: 0,
-                      }}>
-                        {i + 1}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <Typography.Text ellipsis style={{ display: 'block', fontWeight: 500, fontSize: 13 }}>
-                          {cli.name}
-                        </Typography.Text>
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '10px 14px', borderRadius: 10,
+                        background: 'var(--qc-canvas)', border: '1px solid var(--qc-border)',
+                        cursor: 'pointer',
+                        transition: 'transform 0.15s ease, border-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateX(2px)'
+                        e.currentTarget.style.borderColor = CHART_COLORS[i]
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = ''
+                        e.currentTarget.style.borderColor = ''
+                      }}
+                      >
                         <div style={{
-                          height: 4, borderRadius: 2, marginTop: 4,
-                          background: 'var(--qc-border)', overflow: 'hidden',
+                          width: 28, height: 28, borderRadius: 8,
+                          background: CHART_COLORS[i],
+                          display: 'grid', placeItems: 'center',
+                          color: '#fff', fontSize: 12, fontWeight: 700, flexShrink: 0,
                         }}>
+                          {i + 1}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <Typography.Text ellipsis style={{ display: 'block', fontWeight: 500, fontSize: 13 }}>
+                            {cli.name}
+                          </Typography.Text>
                           <div style={{
-                            height: '100%', borderRadius: 2,
-                            width: `${Math.min(pct, 100)}%`,
-                            background: CHART_COLORS[i],
-                            transition: 'width 0.6s ease',
-                          }} />
+                            height: 4, borderRadius: 2, marginTop: 4,
+                            background: 'var(--qc-border)', overflow: 'hidden',
+                          }}>
+                            <div style={{
+                              height: '100%', borderRadius: 2,
+                              width: `${Math.min(pct, 100)}%`,
+                              background: CHART_COLORS[i],
+                              transition: 'width 0.6s ease',
+                            }} />
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <Typography.Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 14 }}>
+                            {formatCompact(cli.value)}
+                          </Typography.Text>
+                          <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                            {pct.toFixed(1)}%
+                          </Typography.Text>
                         </div>
                       </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <Typography.Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 14 }}>
-                          {formatCompact(cli.value)}
-                        </Typography.Text>
-                        <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                          {pct.toFixed(1)}%
-                        </Typography.Text>
-                      </div>
-                    </div>
+                    </Link>
                   )
                 })}
               </div>
