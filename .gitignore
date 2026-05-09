@@ -37,7 +37,7 @@ installer/
 *.exe
 *.msi
 
-# Docs/config não necessários na raiz
-docs/
+# Config local do Claude Code (não versionar)
 .claude/
 *.html
+# docs/ contém runbook de deploy, planos arquiteturais e critérios — versionar.
