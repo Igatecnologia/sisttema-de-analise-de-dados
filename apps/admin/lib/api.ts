@@ -130,3 +130,73 @@ export const ALL_MODULES = [
   'alertas',
   'suporte',
 ] as const
+
+// === Tipagem para os endpoints novos /super-admin/* ===
+
+export type CrossTenantUser = {
+  id: string
+  tenantId: string
+  name: string
+  email: string
+  role: string
+  status: string
+  mfaEnabled: boolean
+  createdAt: string | null
+}
+
+export type UsersResponse = {
+  total: number
+  users: CrossTenantUser[]
+}
+
+export type AiUsageRow = {
+  tenantId: string
+  month: string
+  totalCostUsd: number
+  totalTokensIn: number
+  totalTokensOut: number
+  conversations: number
+  avgLatencyMs: number
+  errorRate: number
+  primaryModel: string | null
+}
+
+export type AiUsageResponse = {
+  supported: boolean
+  message?: string
+  months?: number
+  grandTotalUsd?: number
+  rows?: AiUsageRow[]
+}
+
+export type SystemHealthCheck = {
+  ok: boolean
+  detail?: string
+}
+
+export type SystemHealthResponse = {
+  status: 'healthy' | 'degraded'
+  checks: Record<string, SystemHealthCheck>
+  uptime: number
+  nodeEnv: string
+  timestamp: string
+}
+
+export type Subscription = {
+  tenantId: string
+  plan: string
+  status: string
+  stripeCustomerId: string | null
+  stripeSubscriptionId: string | null
+  currentPeriodEnd: string | null
+}
+
+export type SubscriptionsResponse = {
+  total: number
+  subscriptions: Subscription[]
+}
+
+export type AuditSearchResponse = {
+  total: number
+  events: AuditEvent[]
+}

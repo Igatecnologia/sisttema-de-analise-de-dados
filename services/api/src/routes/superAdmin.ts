@@ -503,3 +503,253 @@ superAdminRouter.get('/metrics', async (_req, res) => {
     churnRatePct: active + canceled > 0 ? Number(((canceled / (active + canceled)) * 100).toFixed(2)) : 0,
   })
 })
+
+/** GET /super-admin/users — lista cross-tenant. Apenas super admin. */
+superAdminRouter.get('/users', async (req, res: Response) => {
+  const q = String(req.query.q ?? '').toLowerCase().trim()
+  const tenantFilter = String(req.query.tenantId ?? '').trim()
+  const all = await readAllUsersAsync()
+  const filtered = all.filter((u) => {
+    if (tenantFilter && u.tenantId !== tenantFilter) return false
+    if (!q) return true
+    return (
+      u.name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      u.id.toLowerCase().includes(q)
+    )
+  })
+  res.json({
+    total: filtered.length,
+    users: filtered.slice(0, 500).map((u) => ({
+      id: u.id,
+      tenantId: u.tenantId,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      status: u.status,
+      mfaEnabled: Boolean((u as { mfaEnabled?: boolean }).mfaEnabled),
+      createdAt: (u as { createdAt?: string }).createdAt ?? null,
+    })),
+  })
+})
+
+/** GET /super-admin/ai-usage — agregacoes de custo IA por tenant/mes. */
+superAdminRouter.get('/ai-usage', async (req, res: Response) => {
+  if (!usePostgresStorage()) {
+    return res.json({ supported: false, message: 'AI usage tracking requer Postgres' })
+  }
+  const months = Math.min(Math.max(Number(req.query.months ?? 3), 1), 12)
+  const result = await getPostgresPool().query<{
+    tenant_id: string
+    month: string
+    total_cost_usd: string
+    total_tokens_in: string
+    total_tokens_out: string
+    conversations: string
+    avg_latency_ms: string
+    error_rate: string
+    primary_model: string | null
+  }>(
+    `SELECT
+       u.tenant_id,
+       to_char(date_trunc('month', u.created_at), 'YYYY-MM') AS month,
+       SUM(u.cost_usd)::text AS total_cost_usd,
+       SUM(u.tokens_in)::text AS total_tokens_in,
+       SUM(u.tokens_out)::text AS total_tokens_out,
+       COUNT(DISTINCT u.conversation_id)::text AS conversations,
+       AVG(u.latency_ms)::text AS avg_latency_ms,
+       AVG(CASE WHEN u.had_error THEN 1.0 ELSE 0.0 END)::text AS error_rate,
+       MODE() WITHIN GROUP (ORDER BY u.model) AS primary_model
+     FROM ai_usage u
+     WHERE u.created_at >= now() - ($1 || ' months')::interval
+     GROUP BY u.tenant_id, date_trunc('month', u.created_at)
+     ORDER BY total_cost_usd::numeric DESC`,
+    [String(months)],
+  )
+  const rows = result.rows.map((r) => ({
+    tenantId: r.tenant_id,
+    month: r.month,
+    totalCostUsd: Number(r.total_cost_usd),
+    totalTokensIn: Number(r.total_tokens_in),
+    totalTokensOut: Number(r.total_tokens_out),
+    conversations: Number(r.conversations),
+    avgLatencyMs: Number(r.avg_latency_ms),
+    errorRate: Number(r.error_rate),
+    primaryModel: r.primary_model,
+  }))
+  const grandTotal = rows.reduce((acc, r) => acc + r.totalCostUsd, 0)
+  res.json({
+    supported: true,
+    months,
+    grandTotalUsd: Number(grandTotal.toFixed(4)),
+    rows,
+  })
+})
+
+/** GET /super-admin/system-health — status do proxy, db, redis. */
+superAdminRouter.get('/system-health', async (_req, res: Response) => {
+  const checks: Record<string, { ok: boolean; detail?: string }> = {}
+  // DB
+  try {
+    if (usePostgresStorage()) {
+      await getPostgresPool().query('SELECT 1')
+      checks.database = { ok: true, detail: 'postgres' }
+    } else {
+      db.prepare('SELECT 1').get()
+      checks.database = { ok: true, detail: 'sqlite' }
+    }
+  } catch (err) {
+    checks.database = { ok: false, detail: (err as Error).message }
+  }
+  // Redis (opcional)
+  if (process.env.REDIS_URL) {
+    checks.redis = { ok: true, detail: 'configurado' }
+  } else {
+    checks.redis = { ok: false, detail: 'nao configurado (usando memory fallback)' }
+  }
+  // Stripe
+  checks.stripe = {
+    ok: Boolean(process.env.STRIPE_SECRET_KEY),
+    detail: process.env.STRIPE_SECRET_KEY ? 'configurado' : 'nao configurado',
+  }
+  // Email
+  checks.email = {
+    ok: Boolean(process.env.RESEND_API_KEY || process.env.SMTP_HOST),
+    detail: process.env.RESEND_API_KEY ? 'resend' : process.env.SMTP_HOST ? 'smtp' : 'nao configurado',
+  }
+  // Sentry
+  checks.sentry = {
+    ok: Boolean(process.env.SENTRY_DSN),
+    detail: process.env.SENTRY_DSN ? 'configurado' : 'nao configurado',
+  }
+  // IGA-AI
+  checks.igaAi = {
+    ok: Boolean(process.env.IGA_AI_BASE_URL && process.env.IGA_AI_SHARED_SECRET),
+    detail: process.env.IGA_AI_BASE_URL ?? 'V2 nao configurado',
+  }
+  const allOk = Object.values(checks).every((c) => c.ok)
+  res.json({
+    status: allOk ? 'healthy' : 'degraded',
+    checks,
+    uptime: process.uptime(),
+    nodeEnv: process.env.NODE_ENV,
+    timestamp: new Date().toISOString(),
+  })
+})
+
+/** GET /super-admin/subscriptions — lista subscriptions com filtros. */
+superAdminRouter.get('/subscriptions', async (_req, res: Response) => {
+  if (!usePostgresStorage()) {
+    const rows = db
+      .prepare(
+        `SELECT tenant_id, plan, status, stripe_customer_id, stripe_subscription_id, current_period_end FROM subscriptions ORDER BY current_period_end DESC LIMIT 200`,
+      )
+      .all() as Array<{
+      tenant_id: string
+      plan: string
+      status: string
+      stripe_customer_id: string | null
+      stripe_subscription_id: string | null
+      current_period_end: string | null
+    }>
+    return res.json({
+      total: rows.length,
+      subscriptions: rows.map((r) => ({
+        tenantId: r.tenant_id,
+        plan: r.plan,
+        status: r.status,
+        stripeCustomerId: r.stripe_customer_id,
+        stripeSubscriptionId: r.stripe_subscription_id,
+        currentPeriodEnd: r.current_period_end,
+      })),
+    })
+  }
+  const result = await getPostgresPool().query<{
+    tenant_id: string
+    plan: string
+    status: string
+    stripe_customer_id: string | null
+    stripe_subscription_id: string | null
+    current_period_end: string | null
+  }>(
+    `SELECT tenant_id, plan, status, stripe_customer_id, stripe_subscription_id, current_period_end
+     FROM subscriptions ORDER BY current_period_end DESC LIMIT 200`,
+  )
+  res.json({
+    total: result.rows.length,
+    subscriptions: result.rows.map((r) => ({
+      tenantId: r.tenant_id,
+      plan: r.plan,
+      status: r.status,
+      stripeCustomerId: r.stripe_customer_id,
+      stripeSubscriptionId: r.stripe_subscription_id,
+      currentPeriodEnd: r.current_period_end,
+    })),
+  })
+})
+
+/** GET /super-admin/audit-search — auditoria com filtros. */
+superAdminRouter.get('/audit-search', async (req, res: Response) => {
+  const action = String(req.query.action ?? '').trim()
+  const tenantId = String(req.query.tenantId ?? '').trim()
+  const limit = Math.min(Math.max(Number(req.query.limit ?? 200), 1), 1000)
+  let sql = 'SELECT id, action, resource, created_at, user_id, tenant_id, metadata_json FROM audit_log WHERE 1=1'
+  const params: unknown[] = []
+  if (action) {
+    if (usePostgresStorage()) {
+      sql += ` AND action ILIKE $${params.length + 1}`
+    } else {
+      sql += ' AND action LIKE ?'
+    }
+    params.push(`%${action}%`)
+  }
+  if (tenantId) {
+    if (usePostgresStorage()) {
+      sql += ` AND tenant_id = $${params.length + 1}`
+    } else {
+      sql += ' AND tenant_id = ?'
+    }
+    params.push(tenantId)
+  }
+  if (usePostgresStorage()) {
+    sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`
+  } else {
+    sql += ' ORDER BY created_at DESC LIMIT ?'
+  }
+  params.push(limit)
+  let rows: Array<{
+    id: string
+    action: string
+    resource: string
+    created_at: string
+    user_id: string | null
+    tenant_id: string | null
+    metadata_json: string | null
+  }>
+  if (usePostgresStorage()) {
+    const result = await getPostgresPool().query(sql, params)
+    rows = result.rows as typeof rows
+  } else {
+    rows = db.prepare(sql).all(...params) as typeof rows
+  }
+  res.json({
+    total: rows.length,
+    events: rows.map((r) => ({
+      id: r.id,
+      action: r.action,
+      resource: r.resource,
+      createdAt: r.created_at,
+      userId: r.user_id,
+      tenantId: r.tenant_id,
+      metadata: r.metadata_json ? safeJsonParse(r.metadata_json) : null,
+    })),
+  })
+})
+
+function safeJsonParse(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}

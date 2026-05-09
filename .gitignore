@@ -54,3 +54,6 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 uv.lock
+# tsc incremental build cache
+**/tsconfig.tsbuildinfo
+**/.next/
