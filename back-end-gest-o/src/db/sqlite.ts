@@ -349,6 +349,30 @@ try { db.exec("ALTER TABLE tenants ADD COLUMN plan TEXT NOT NULL DEFAULT 'trial'
 try { db.exec("ALTER TABLE tenants ADD COLUMN trial_ends_at TEXT NULL") } catch { /* ja existe */ }
 // Migracao v10: segment de negocio por tenant (industry/commerce/services/distribution)
 try { db.exec("ALTER TABLE tenants ADD COLUMN segment TEXT NOT NULL DEFAULT 'industry'") } catch { /* ja existe */ }
+
+// Migracao v11: customers (CRM minimo) — entidade primaria do tenant
+db.exec(`
+  CREATE TABLE IF NOT EXISTS customers (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    document TEXT NULL,
+    email TEXT NULL,
+    phone TEXT NULL,
+    contact_name TEXT NULL,
+    address_json TEXT NULL,
+    credit_limit_cents INTEGER NULL,
+    notes TEXT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_customers_tenant ON customers(tenant_id, name COLLATE NOCASE);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_tenant_document_unique
+    ON customers(tenant_id, document) WHERE document IS NOT NULL;
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_tenant_email_unique
+    ON customers(tenant_id, lower(email)) WHERE email IS NOT NULL;
+`)
 try { db.exec("CREATE TABLE IF NOT EXISTS tenant_onboarding (tenant_id TEXT PRIMARY KEY, status TEXT NOT NULL DEFAULT 'pending', company_profile_json TEXT NOT NULL DEFAULT '{}', data_setup_json TEXT NOT NULL DEFAULT '{}', team_invites_json TEXT NOT NULL DEFAULT '[]', import_status TEXT NOT NULL DEFAULT 'idle', import_progress INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)") } catch { /* ja existe */ }
 db.exec('CREATE INDEX IF NOT EXISTS idx_users_tenant_email ON users(tenant_id, email)')
 db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tenant_email_unique ON users(tenant_id, lower(email))')

@@ -190,6 +190,22 @@ CREATE TABLE IF NOT EXISTS public_shares (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS customers (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  document TEXT NULL,           -- CPF (11) ou CNPJ (14), opcional
+  email TEXT NULL,
+  phone TEXT NULL,
+  contact_name TEXT NULL,
+  address_json TEXT NULL,        -- { cep, street, number, neighborhood, city, state, complement }
+  credit_limit_cents INTEGER NULL,
+  notes TEXT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_tenant_email ON users(tenant_id, email);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tenant_email_unique ON users(tenant_id, lower(email));
@@ -205,3 +221,6 @@ CREATE INDEX IF NOT EXISTS idx_api_keys_tenant ON api_keys(tenant_id, created_at
 CREATE UNIQUE INDEX IF NOT EXISTS idx_api_keys_secret_hash ON api_keys(secret_hash);
 CREATE INDEX IF NOT EXISTS idx_saved_views_tenant_page ON saved_views(tenant_id, page_key, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_public_shares_tenant ON public_shares(tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_customers_tenant ON customers(tenant_id, name COLLATE NOCASE);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_tenant_document_unique ON customers(tenant_id, document) WHERE document IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_tenant_email_unique ON customers(tenant_id, lower(email)) WHERE email IS NOT NULL;

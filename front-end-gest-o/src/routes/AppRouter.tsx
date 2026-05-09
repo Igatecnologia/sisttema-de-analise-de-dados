@@ -115,6 +115,9 @@ const NotasFiscaisPage = lazy(() =>
 const EstoquePage = lazy(() =>
   import('../pages/EstoquePage').then((m) => ({ default: m.EstoquePage })),
 )
+const ClientesPage = lazy(() =>
+  import('../pages/ClientesPage').then((m) => ({ default: m.ClientesPage })),
+)
 const ComprasPage = lazy(() =>
   import('../pages/ComprasPage').then((m) => ({ default: m.ComprasPage })),
 )
@@ -457,6 +460,14 @@ export function AppRouter() {
             element={
               <RequirePermission permission="estoque:view">
                 <RequireTenantModule path="/estoque"><PageErrorBoundary><EstoquePage /></PageErrorBoundary></RequireTenantModule>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="/clientes"
+            element={
+              <RequirePermission permission="comercial:view">
+                <PageErrorBoundary><ClientesPage /></PageErrorBoundary>
               </RequirePermission>
             }
           />

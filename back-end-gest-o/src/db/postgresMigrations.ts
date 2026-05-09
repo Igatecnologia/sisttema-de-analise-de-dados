@@ -503,4 +503,39 @@ ALTER TABLE tenants ADD COLUMN IF NOT EXISTS segment TEXT NOT NULL DEFAULT 'indu
 CREATE INDEX IF NOT EXISTS idx_tenants_segment ON tenants(segment);
 `,
   },
+  {
+    id: '013_customers',
+    sql: `
+CREATE TABLE IF NOT EXISTS customers (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  document TEXT NULL,
+  email TEXT NULL,
+  phone TEXT NULL,
+  contact_name TEXT NULL,
+  address_json JSONB NULL,
+  credit_limit_cents BIGINT NULL,
+  notes TEXT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_customers_tenant ON customers(tenant_id, lower(name));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_tenant_document_unique
+  ON customers(tenant_id, document) WHERE document IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_tenant_email_unique
+  ON customers(tenant_id, lower(email)) WHERE email IS NOT NULL;
+
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customers FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation_customers ON customers;
+CREATE POLICY tenant_isolation_customers ON customers
+  USING (tenant_id = current_setting('app.current_tenant_id', true))
+  WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true));
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON customers TO iga_app;
+`,
+  },
 ]
