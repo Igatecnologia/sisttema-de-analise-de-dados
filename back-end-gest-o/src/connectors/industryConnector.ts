@@ -33,6 +33,7 @@ export type ConnectorArea =
   | 'vendas'
   | 'compras'
   | 'contas'
+  | 'recebiveis'
   | 'notasfiscais'
 
 export type WarmTarget = {

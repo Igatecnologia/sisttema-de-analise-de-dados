@@ -56,6 +56,9 @@ const SuperavitDeficitTab = lazy(() =>
 const ContasPagarTab = lazy(() =>
   import('./finance/ContasPagarTab').then((m) => ({ default: m.ContasPagarTab })),
 )
+const ContasReceberTab = lazy(() =>
+  import('./finance/ContasReceberTab').then((m) => ({ default: m.ContasReceberTab })),
+)
 
 function formatBRL(value: number) {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -523,6 +526,20 @@ export function FinancePage() {
       children: (
         <Suspense fallback={tabFallback}>
           <ContasPagarTab />
+        </Suspense>
+      ),
+    },
+    {
+      key: 'contas-receber',
+      label: (
+        <span className="finance-tab-title">
+          <FundOutlined /> Contas a Receber
+        </span>
+      ),
+      premium: false,
+      children: (
+        <Suspense fallback={tabFallback}>
+          <ContasReceberTab />
         </Suspense>
       ),
     },

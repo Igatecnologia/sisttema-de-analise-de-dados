@@ -20,6 +20,7 @@ export class IgaCustomApiConnector extends GenericConnector {
     vendas: ['/iga/v1/vendas', '/iga/v1/pedidos', 'iga/vendas', 'pedidos'],
     compras: ['/iga/v1/compras', 'iga/compras'],
     contas: ['/iga/v1/contas-pagar', '/iga/v1/financeiro/contas-pagar', 'contas-pagar'],
+    recebiveis: ['/iga/v1/contas-receber', '/iga/v1/financeiro/contas-receber', '/iga/v1/recebiveis', 'contas-receber'],
     notasfiscais: ['/iga/v1/notas-fiscais', '/iga/v1/nfe', 'notas-fiscais', 'nfe'],
   }
 

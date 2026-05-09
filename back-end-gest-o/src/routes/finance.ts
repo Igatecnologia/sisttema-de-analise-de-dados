@@ -56,6 +56,44 @@ financeRouter.get('/contas-pagar', async (req, res) => {
   res.json(rows)
 })
 
+async function getContasReceberDataSourceId(tenantId: string): Promise<string | null> {
+  const connector = await getTenantConnector(tenantId)
+  return findDsIdForArea(tenantId, 'recebiveis', connector)
+}
+
+const contasReceberCache = createSharedCache<Record<string, unknown>[]>({
+  namespace: 'finance:contas-receber',
+  ttlMs: 15 * 60_000,
+})
+
+/**
+ * GET /finance/contas-receber — recebíveis em aberto + recebidos.
+ * Lê do connector área 'recebiveis'. Se o tenant não tem datasource
+ * mapeado, retorna [] (frontend mostra empty state com CTA pra configurar).
+ */
+financeRouter.get('/contas-receber', async (req, res) => {
+  const tenantId = resolveTenantId(req)
+  const dtDe = typeof req.query.dt_de === 'string' ? req.query.dt_de : ''
+  const dtAte = typeof req.query.dt_ate === 'string' ? req.query.dt_ate : ''
+  const dsId = await getContasReceberDataSourceId(tenantId)
+  if (!dsId) return res.json([])
+
+  const cacheKey = `${tenantId}:${dsId}:${dtDe}:${dtAte}`
+  const cached = await contasReceberCache.get(cacheKey)
+  if (cached) return res.json(cached)
+
+  const query: Record<string, string> = { requireDsId: '1' }
+  if (dtDe) query.dt_de = dtDe
+  if (dtAte) query.dt_ate = dtAte
+
+  const result = await fetchProxyDataForTool({ tenantId, dsId, query })
+  if (!result.ok) return res.json([])
+
+  const rows = result.rows.filter((r): r is Record<string, unknown> => Boolean(r && typeof r === 'object'))
+  await contasReceberCache.set(cacheKey, rows)
+  res.json(rows)
+})
+
 type EstoqueRawRow = Record<string, unknown>
 
 async function getEstoqueDataSourceId(tenantId: string): Promise<string | null> {

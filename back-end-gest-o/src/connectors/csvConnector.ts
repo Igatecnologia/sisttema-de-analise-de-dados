@@ -24,7 +24,8 @@ export class CsvConnector extends GenericConnector {
     produzido: ['produzido', 'producao', 'production', 'csv/producao'],
     vendas: ['vendas', 'sales', 'orders', 'csv/vendas'],
     compras: ['compras', 'purchases', 'csv/compras'],
-    contas: ['contas', 'pagar', 'csv/contas'],
+    contas: ['contas-pagar', 'pagar', 'csv/contas-pagar'],
+    recebiveis: ['contas-receber', 'receber', 'csv/contas-receber'],
     notasfiscais: ['notas', 'nfe', 'invoices', 'csv/nfe'],
   }
 
@@ -64,7 +65,8 @@ export class BlingConnector extends GenericConnector {
     produzido: ['/v3/producao', 'producao'],
     vendas: ['/v3/pedidos/vendas', 'pedidos', 'vendas'],
     compras: ['/v3/pedidos/compras', 'compras'],
-    contas: ['/v3/contas/pagar', 'contas'],
+    contas: ['/v3/contas/pagar', 'contas-pagar'],
+    recebiveis: ['/v3/contas/receber', 'contas-receber', 'receber'],
     notasfiscais: ['/v3/nfe', 'nfe', 'notas'],
   }
   warmTargets: WarmTarget[] = [
@@ -84,7 +86,8 @@ export class TinyConnector extends GenericConnector {
     produzido: ['producao', 'ordens'],
     vendas: ['pedidos.pesquisa', 'pedidos', 'vendas'],
     compras: ['compras.pesquisa', 'compras'],
-    contas: ['contas.pagar', 'contas'],
+    contas: ['contas.pagar', 'contas-pagar'],
+    recebiveis: ['contas.receber', 'contas-receber'],
     notasfiscais: ['nfe.pesquisa', 'nfe'],
   }
   warmTargets: WarmTarget[] = []
@@ -101,7 +104,8 @@ export class OmieConnector extends GenericConnector {
     produzido: ['producao'],
     vendas: ['ListarPedidos', 'pedidos', 'vendas'],
     compras: ['ListarPedidoCompra', 'compras'],
-    contas: ['ListarContasPagar', 'contas'],
+    contas: ['ListarContasPagar', 'contas-pagar'],
+    recebiveis: ['ListarContasReceber', 'contas-receber'],
     notasfiscais: ['ListarNF', 'nfe'],
   }
   warmTargets: WarmTarget[] = []

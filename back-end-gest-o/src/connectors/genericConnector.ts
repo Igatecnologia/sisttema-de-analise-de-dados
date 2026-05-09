@@ -31,6 +31,7 @@ export class GenericConnector implements IndustryConnector {
     vendas: ['vendas', 'sales', 'orders'],
     compras: ['compras', 'purchases', 'purchase'],
     contas: ['contas', 'accounts', 'pagar', 'pay'],
+    recebiveis: ['receber', 'receive', 'recebiveis', 'receivable'],
     notasfiscais: ['notasfiscais', 'notafiscal', 'invoices', 'vendanfe'],
   }
 

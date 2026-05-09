@@ -42,7 +42,8 @@ export class SgbrEspumaConnector extends GenericConnector {
     produzido: ['/sgbrbi/produzido', 'produzido'],
     vendas: ['/sgbrbi/vendas', 'vendas'],
     compras: ['/sgbrbi/compras', 'compras'],
-    contas: ['/sgbrbi/contas', 'contas', 'pagar'],
+    contas: ['/sgbrbi/contas/pagar', '/sgbrbi/contas', 'contas-pagar', 'pagar'],
+    recebiveis: ['/sgbrbi/contas/receber', '/sgbrbi/recebiveis', 'contas-receber', 'receber'],
     notasfiscais: ['/sgbrbi/vendanfe', '/sgbrbi/notasfiscais', '/sgbrbi/notafiscal', 'vendanfe', 'notafiscal'],
   }
 

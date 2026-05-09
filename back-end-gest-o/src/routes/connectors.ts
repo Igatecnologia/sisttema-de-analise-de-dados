@@ -44,6 +44,12 @@ const AREA_SCHEMAS: Record<ConnectorArea, Omit<ConnectorSchemaEndpoint, 'area' |
     requiredFields: ['vencimento', 'valor', 'fornecedor'],
     optionalFields: ['id', 'documento', 'emissao', 'pagamento', 'status', 'categoria'],
   },
+  recebiveis: {
+    method: 'GET',
+    description: 'Contas a receber: títulos em aberto e recebidos.',
+    requiredFields: ['vencimento', 'valor', 'cliente'],
+    optionalFields: ['id', 'documento', 'emissao', 'recebimento', 'status', 'forma_pagamento'],
+  },
   notasfiscais: {
     method: 'GET',
     description: 'Notas fiscais emitidas ou recebidas.',
@@ -58,6 +64,7 @@ const CUSTOM_API_PATHS: Record<ConnectorArea, string> = {
   vendas: '/iga/v1/vendas',
   compras: '/iga/v1/compras',
   contas: '/iga/v1/contas-pagar',
+  recebiveis: '/iga/v1/contas-receber',
   notasfiscais: '/iga/v1/notas-fiscais',
 }
 
