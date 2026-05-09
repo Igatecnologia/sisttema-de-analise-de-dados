@@ -550,4 +550,6 @@ A migração **NÃO bloqueia** o GA público. O Copilot TS atual + quick wins é
 - uv: https://docs.astral.sh/uv/
 - ruff: https://docs.astral.sh/ruff/
 
+- deixar o agente para usar qualquer api de ia poor ex openia,gemini etc 
+
 > **Convenção**: ao iniciar a migração (AI-1), criar branch `feat/iga-ai-foundation`, abrir PR draft para acumular trabalho, e revisar este documento conforme decisões mudarem.

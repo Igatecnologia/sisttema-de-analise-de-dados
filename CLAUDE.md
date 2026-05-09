@@ -20,50 +20,60 @@ Ver `back-end-gest-o/src/segments.ts` para o registro canonico e `front-end-gest
 
 ```
 sistema de gestão/
-├── back-end-gest-o/       # Backend Express + TypeScript
-│   ├── src/
-│   │   ├── app.ts         # Express app, middleware, rotas
-│   │   ├── server.ts      # Servidor HTTP, porta auto-discovery
-│   │   ├── routes/
-│   │   │   ├── proxy.ts   # Proxy generico para APIs externas (paginacao, cache, auth)
-│   │   │   ├── erp.ts     # Endpoints ERP (fichas, producao, vendas, compras)
-│   │   │   ├── finance.ts # Endpoints financeiros (contas pagar, estoque classificado)
-│   │   │   ├── auth.ts    # Login, sessoes, CRUD usuarios
-│   │   │   ├── copilot.ts # Chat IA (Groq/local)
-│   │   │   └── ...        # alerts, audit, dashboard, reports, etc.
-│   │   ├── middleware/
-│   │   │   ├── auth.ts    # requireAuth, sessao via cookie httpOnly
-│   │   │   ├── csrf.ts    # Protecao CSRF
-│   │   │   └── requestLog.ts
-│   │   ├── segments.ts    # Definicao dos 4 segmentos de negocio + helpers
-│   │   ├── connectors/    # IndustryConnector + 7 connectors (sgbr-espuma, iga-custom-api, csv, bling, tiny, omie, generic)
-│   │   ├── db/
-│   │   │   ├── sqlite.ts          # SQLite local (dev) — DEFAULT
-│   │   │   ├── postgres.ts        # PostgreSQL prod (com RLS) quando IGA_STORAGE_DRIVER=postgres
-│   │   │   ├── postgresMigrations.ts  # 12 migrations sequenciais
-│   │   │   └── schema.sql         # Espelho canonico do SQLite
-│   │   ├── services/ai/   # Copilot: orchestrator, providers, tools
-│   │   └── jobs/          # BullMQ + fallback setInterval (warmCache, dbBackup, copilotRetention, scheduledReports, alertsEngine, trialLifecycle)
-│   ├── .env               # Variaveis de ambiente (NAO commitar)
-│   ├── .env.example       # Template de variaveis
-│   └── package.json
-│
+├── back-end-gest-o/       # Backend Express + TypeScript (Node 22)
 ├── front-end-gest-o/      # Frontend React 19 + Vite + Ant Design v6
-│   ├── src/
-│   │   ├── pages/         # Paginas do app (DashboardPage, FinancePage, etc.)
-│   │   ├── components/    # Componentes compartilhados
-│   │   ├── services/      # http.ts (axios), authStorage, tenantStorage
-│   │   ├── hooks/         # Custom hooks (useSortableWidgets, etc.)
-│   │   ├── routes/        # AppRouter.tsx (React Router v7, lazy loading)
-│   │   ├── theme/         # ThemeProvider, tokens, chart defaults
-│   │   └── layout/        # AppLayout (sidebar, header, content)
-│   ├── .env.local         # VITE_API_BASE_URL do backend
-│   ├── .env.production    # Config de producao
-│   └── package.json
-│
-├── docs/                  # Plano canonico, runbooks, compliance — ver docs/README.md
-├── render.yaml            # Config de deploy no Render
-└── .gitignore
+├── iga-ai/                # Microservice Python FastAPI (Copilot V2 - PLANO-IGA-IA)
+├── landing-page/          # Next.js 15 + Tailwind 4 (site institucional)
+├── super-admin-app/       # App separado para super admin (cross-tenant)
+├── load-tests/            # k6 smoke + load tests
+├── docs/                  # DEPLOY-TODAY.md + PLANO-IGA-IA.md + beta/ + compliance/
+├── .github/workflows/     # ci, codeql, db-backup, lighthouse, security, iga-ai
+├── docker-compose.yml     # Stack completo (postgres, redis, backend, frontend, worker, landing)
+├── render.yaml            # Config Render para deploy
+└── package.json           # Workspace scripts (dev/build/test/migrate)
+```
+
+### Detalhe `back-end-gest-o/src/`
+```
+├── app.ts                  # Express app, middleware, rotas
+├── server.ts               # Servidor HTTP, porta auto-discovery
+├── routes/
+│   ├── proxy.ts            # Proxy generico ERPs (paginacao, cache, auth)
+│   ├── erp.ts              # Endpoints ERP (fichas, producao, vendas, compras)
+│   ├── finance.ts          # Endpoints financeiros (contas pagar, estoque)
+│   ├── auth.ts             # Login, sessoes, CRUD usuarios, MFA, refresh
+│   ├── copilot.ts          # Chat IA — V1 TS local + V2 proxy para iga-ai
+│   ├── internalTools.ts    # /api/v1/_internal/tools/* — chamado pelo iga-ai
+│   └── ...                 # alerts, audit, dashboard, reports, billing, etc.
+├── middleware/             # auth, csrf, requestLog, redisRateLimit
+├── segments.ts             # 4 BusinessSegments + helpers
+├── connectors/             # 7 connectors (sgbr/iga-custom/bling/tiny/omie/csv/generic)
+├── db/                     # sqlite (dev) + postgres (prod RLS) + migrations
+├── services/ai/            # V1 Copilot: orchestrator, providers (multi),
+│                           # tools, systemPrompt, copilotConfigStore,
+│                           # v2Proxy (encaminha p/ iga-ai), aiUsage (custo)
+└── jobs/                   # BullMQ + fallback setInterval
+```
+
+### Detalhe `front-end-gest-o/src/`
+```
+├── pages/                  # DashboardPage, FinancePage, OnboardingPage, etc.
+├── components/             # CopilotDrawer, CopilotSettingsModal (multi-provider), etc.
+├── services/               # http.ts, authStorage, analytics (PostHog)
+├── routes/AppRouter.tsx    # React Router v7 com lazy loading
+└── layouts/AppLayout.tsx   # Sidebar + header + skip-link a11y
+```
+
+### Detalhe `iga-ai/iga_ai/` (Python FastAPI)
+```
+├── main.py                 # FastAPI app entrypoint
+├── config.py               # Pydantic Settings
+├── deps/                   # auth (JWT shared), db (asyncpg+pgvector), llm, observability
+├── routes/                 # /chat (SSE), /health
+├── agents/                 # copilot (loop tool-call), prompts, tools, providers
+├── tools/client.py         # NodeClient HTTP -> /api/v1/_internal/tools/*
+├── rag/                    # AI-4 scaffold (embeddings Voyage, indexer, retriever híbrido)
+└── eval/                   # cases.yaml (30 casos), runner.py
 ```
 
 ## Comandos
@@ -97,6 +107,30 @@ npm run check        # lint + tsc
 npm run size:check   # Bundle size check
 ```
 
+### IGA-AI (Python FastAPI)
+
+```bash
+cd iga-ai
+uv venv .venv && source .venv/bin/activate
+uv pip install -e ".[dev]"
+uv run uvicorn iga_ai.main:app --reload --port 4000
+
+uv run ruff check iga_ai tests
+uv run mypy iga_ai
+uv run pytest -v
+uv run python -m iga_ai.eval.runner   # eval suite (precisa OPENAI_API_KEY)
+```
+
+### Workspace (root)
+
+```bash
+npm run dev           # docker compose up (sem iga-ai)
+npm run dev:ai        # docker compose --profile ai up (com iga-ai)
+npm run check         # lint + tsc em backend e frontend
+npm run test          # tests backend e frontend
+npm run test:load     # k6 smoke (load-tests/)
+```
+
 ## Stack tecnica
 
 ### Backend
@@ -109,7 +143,8 @@ npm run size:check   # Bundle size check
 - **RBAC**: 19 permissoes granulares (admin/manager/viewer + custom per-user) — ver `permissions.ts`
 - **Jobs**: BullMQ (Redis) com fallback para `setInterval` se Redis ausente
 - **Email**: Nodemailer (scheduled reports, transactional)
-- **IA**: AI SDK abstraction com Groq como provider default (free tier 30 req/min)
+- **IA Copilot V1 (TS)**: multi-provider — OpenAI, Anthropic, Gemini, Groq (free), OpenRouter, Custom (Ollama/LM Studio). Cada tenant configura sua chave em /copilot/config (cifrada AES-256-GCM)
+- **IA Copilot V2 (Python iga-ai)**: microservice FastAPI roteado por feature flag `COPILOT_USE_V2_TENANTS`. Default OpenAI gpt-4o-mini, fallback Anthropic. Comunicacao via JWT shared (HS256, exp 5min)
 
 ### Frontend
 - **Framework**: React 19 + TypeScript

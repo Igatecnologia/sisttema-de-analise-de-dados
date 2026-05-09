@@ -16,8 +16,8 @@ services:
     plan: free
     # /health/ready valida DB + Redis. /health/live só checa o processo.
     healthCheckPath: /health/ready
-    buildCommand: cd back-end-gest-o && npm ci && npm run build
-    startCommand: cd back-end-gest-o && node dist/server.js
+    buildCommand: cd services/api && npm ci && npm run build
+    startCommand: cd services/api && node dist/server.js
     autoDeploy: true
     envVars:
       - key: NODE_ENV

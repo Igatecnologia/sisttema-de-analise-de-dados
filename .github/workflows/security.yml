@@ -35,14 +35,14 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: back-end-gest-o
+        working-directory: services/api
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: back-end-gest-o/package-lock.json
+          cache-dependency-path: services/api/package-lock.json
       - run: npm ci --ignore-scripts
       # Falha em high/critical. Mediums sao reportados mas nao bloqueiam.
       - run: npm audit --audit-level=high --omit=dev
@@ -52,14 +52,14 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: front-end-gest-o
+        working-directory: apps/web
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: front-end-gest-o/package-lock.json
+          cache-dependency-path: apps/web/package-lock.json
       - run: npm ci --ignore-scripts
       - run: npm audit --audit-level=high --omit=dev
 
@@ -126,20 +126,20 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: back-end-gest-o
+        working-directory: services/api
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: back-end-gest-o/package-lock.json
+          cache-dependency-path: services/api/package-lock.json
       - run: npm ci --ignore-scripts
       - run: npx --yes @cyclonedx/cyclonedx-npm --output-format JSON --output-file sbom-backend.json
       - uses: actions/upload-artifact@v4
         with:
           name: sbom-backend
-          path: back-end-gest-o/sbom-backend.json
+          path: services/api/sbom-backend.json
           retention-days: 90
 
   sbom-frontend:
@@ -147,20 +147,20 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: front-end-gest-o
+        working-directory: apps/web
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: front-end-gest-o/package-lock.json
+          cache-dependency-path: apps/web/package-lock.json
       - run: npm ci --ignore-scripts
       - run: npx --yes @cyclonedx/cyclonedx-npm --output-format JSON --output-file sbom-frontend.json
       - uses: actions/upload-artifact@v4
         with:
           name: sbom-frontend
-          path: front-end-gest-o/sbom-frontend.json
+          path: apps/web/sbom-frontend.json
           retention-days: 90
 
   lockfile-lint:
@@ -172,5 +172,5 @@ jobs:
         with:
           node-version: 22
       # Detecta tarballs com URLs maliciosas (typosquatting, mirrors comprometidos).
-      - run: npx --yes lockfile-lint --path back-end-gest-o/package-lock.json --type npm --validate-https --allowed-hosts npm
-      - run: npx --yes lockfile-lint --path front-end-gest-o/package-lock.json --type npm --validate-https --allowed-hosts npm
+      - run: npx --yes lockfile-lint --path services/api/package-lock.json --type npm --validate-https --allowed-hosts npm
+      - run: npx --yes lockfile-lint --path apps/web/package-lock.json --type npm --validate-https --allowed-hosts npm

@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: back-end-gest-o
+        working-directory: services/api
     env:
       NODE_ENV: test
       IGA_DATA_DIR: ${{ runner.temp }}/iga-backend-data
@@ -31,7 +31,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: back-end-gest-o/package-lock.json
+          cache-dependency-path: services/api/package-lock.json
       - run: npm ci
       - run: npm run lint
       - run: npm run build
@@ -45,7 +45,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backend-coverage
-          path: back-end-gest-o/coverage/
+          path: services/api/coverage/
           if-no-files-found: ignore
           retention-days: 7
 
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: front-end-gest-o
+        working-directory: apps/web
     env:
       VITE_API_BASE_URL: http://127.0.0.1:3000
       VITE_HTTP_TIMEOUT_MS: "180000"
@@ -64,7 +64,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: front-end-gest-o/package-lock.json
+          cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
       - run: npm run check
       - run: npm run build
@@ -74,7 +74,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
-          path: front-end-gest-o/dist/
+          path: apps/web/dist/
           if-no-files-found: ignore
           retention-days: 3
 

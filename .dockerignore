@@ -12,7 +12,7 @@
 **/*.log
 **/playwright-report
 **/test-results
-front-end-gest-o/tests/e2e/.auth
+apps/web/tests/e2e/.auth
 desktop-app
 installer
 *.zip

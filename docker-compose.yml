@@ -39,8 +39,8 @@ services:
       IGA_STORAGE_DRIVER: postgres
       DATABASE_URL: postgresql://iga:iga_dev_password@postgres:5432/iga_gestao
     volumes:
-      - ./back-end-gest-o:/app/back-end-gest-o
-      - backend_node_modules:/app/back-end-gest-o/node_modules
+      - ./services/api:/app/services/api
+      - backend_node_modules:/app/services/api/node_modules
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,7 +56,7 @@ services:
       PORT: "3000"
       FRONTEND_URL: http://localhost:5173
       IGA_STORAGE_DRIVER: postgres
-      IGA_DATA_DIR: /app/back-end-gest-o/data
+      IGA_DATA_DIR: /app/services/api/data
       ADMIN_DEFAULT_EMAIL: admin@iga.com
       ADMIN_DEFAULT_PASSWORD: IgaGestao@2026!
       DATABASE_URL: postgresql://iga:iga_dev_password@postgres:5432/iga_gestao
@@ -67,9 +67,9 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./back-end-gest-o:/app/back-end-gest-o
-      - backend_node_modules:/app/back-end-gest-o/node_modules
-      - backend_data:/app/back-end-gest-o/data
+      - ./services/api:/app/services/api
+      - backend_node_modules:/app/services/api/node_modules
+      - backend_data:/app/services/api/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,7 +89,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: frontend-dev
-    working_dir: /app/front-end-gest-o
+    working_dir: /app/apps/web
     command: ["sh", "-c", "npm install && npm run dev -- --host 0.0.0.0"]
     environment:
       VITE_API_BASE_URL: http://localhost:3000
@@ -97,8 +97,8 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ./front-end-gest-o:/app/front-end-gest-o
-      - frontend_node_modules:/app/front-end-gest-o/node_modules
+      - ./apps/web:/app/apps/web
+      - frontend_node_modules:/app/apps/web/node_modules
     depends_on:
       backend:
         condition: service_healthy
@@ -114,16 +114,48 @@ services:
       context: .
       dockerfile: Dockerfile
       target: landing-dev
-    working_dir: /app/landing-page
+    working_dir: /app/apps/landing
     command: ["sh", "-c", "npm install && npm run dev -- --hostname 0.0.0.0 --port 3000"]
     environment:
       NODE_ENV: development
     ports:
       - "3002:3000"
     volumes:
-      - ./landing-page:/app/landing-page
-      - landing_node_modules:/app/landing-page/node_modules
-      - landing_next_cache:/app/landing-page/.next
+      - ./apps/landing:/app/apps/landing
+      - landing_node_modules:/app/apps/landing/node_modules
+      - landing_next_cache:/app/apps/landing/.next
+
+  iga-ai:
+    profiles: ["ai"]
+    build:
+      context: ./services/ai
+      dockerfile: Dockerfile
+      target: production
+    environment:
+      PORT: "4000"
+      ENV: development
+      LOG_LEVEL: INFO
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      IGA_AI_SHARED_SECRET: ${IGA_AI_SHARED_SECRET:-}
+      NODE_BACKEND_URL: http://backend:3000
+      DATABASE_URL: postgresql://iga:iga_dev_password@postgres:5432/iga_gestao
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:4000/health/live').raise_for_status()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   worker:
     build:
@@ -135,7 +167,7 @@ services:
       NODE_ENV: development
       IGA_PROCESS_ROLE: worker
       IGA_STORAGE_DRIVER: postgres
-      IGA_DATA_DIR: /app/back-end-gest-o/data
+      IGA_DATA_DIR: /app/services/api/data
       ADMIN_DEFAULT_EMAIL: admin@iga.com
       ADMIN_DEFAULT_PASSWORD: IgaGestao@2026!
       DATABASE_URL: postgresql://iga:iga_dev_password@postgres:5432/iga_gestao
@@ -143,9 +175,9 @@ services:
       PROXY_CACHE_TTL_MS: "300000"
       ALLOW_PRIVATE_HOSTS: localhost,127.0.0.1,host.docker.internal
     volumes:
-      - ./back-end-gest-o:/app/back-end-gest-o
-      - backend_node_modules:/app/back-end-gest-o/node_modules
-      - backend_data:/app/back-end-gest-o/data
+      - ./services/api:/app/services/api
+      - backend_node_modules:/app/services/api/node_modules
+      - backend_data:/app/services/api/data
     depends_on:
       postgres:
         condition: service_healthy

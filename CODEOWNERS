@@ -1,0 +1,33 @@
+# CODEOWNERS — quem precisa aprovar cada area do monorepo
+# Ver: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-security/customizing-your-repository/about-code-owners
+
+# Default — qualquer arquivo
+*                                  @Igatecnologia/eng
+
+# Backend Node
+/services/api/                     @Igatecnologia/backend
+/services/api/src/db/              @Igatecnologia/backend @Igatecnologia/dba
+
+# AI Service Python
+/services/ai/                      @Igatecnologia/ai
+
+# Frontend
+/apps/web/                         @Igatecnologia/frontend
+/apps/landing/                     @Igatecnologia/frontend @Igatecnologia/marketing
+/apps/admin/                       @Igatecnologia/backend @Igatecnologia/frontend
+
+# Infra & DevOps
+/Dockerfile                        @Igatecnologia/devops
+/docker-compose.yml                @Igatecnologia/devops
+/render.yaml                       @Igatecnologia/devops
+/.github/workflows/                @Igatecnologia/devops
+
+# Seguranca
+/.gitleaks.toml                    @Igatecnologia/security
+/services/api/src/middleware/      @Igatecnologia/security
+/services/api/src/db/postgresRls*  @Igatecnologia/security @Igatecnologia/dba
+
+# Documentacao
+/docs/                             @Igatecnologia/eng
+/CLAUDE.md                         @Igatecnologia/eng
+/README.md                         @Igatecnologia/eng

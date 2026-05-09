@@ -1,17 +1,35 @@
 {
-  "name": "iga-gestao-workspace",
+  "name": "iga-gestao",
   "private": true,
   "version": "1.2.0",
+  "description": "IGA Gestao — SaaS multi-tenant de BI conectando ERPs (Express + React + Python FastAPI)",
+  "workspaces": [
+    "apps/*",
+    "services/api"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "npm@10.9.0",
   "scripts": {
     "dev": "docker compose up",
     "dev:build": "docker compose up --build",
     "dev:down": "docker compose down",
+    "dev:ai": "docker compose --profile ai up",
+    "dev:ai:build": "docker compose --profile ai up --build",
     "logs": "docker compose logs -f",
-    "check": "npm --prefix back-end-gest-o run lint && npm --prefix front-end-gest-o run check",
-    "test": "npm --prefix back-end-gest-o run test && npm --prefix front-end-gest-o run test:unit",
-    "build": "npm --prefix back-end-gest-o run build && npm --prefix front-end-gest-o run build",
-    "db:migrate:pg": "npm --prefix back-end-gest-o run db:migrate:pg",
-    "db:copy:pg": "npm --prefix back-end-gest-o run db:copy:pg",
-    "deploy": "node -e \"console.log('Deploy automatizado entra na Sprint 6. Use render.yaml enquanto o deploy atual for Render.')\""
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "check": "turbo run check",
+    "size:check": "turbo run size:check",
+    "test:e2e": "npm --workspace apps/web run test:e2e",
+    "test:load": "k6 run tests/load/smoke.k6.js",
+    "db:migrate:pg": "npm --workspace services/api run db:migrate:pg",
+    "db:copy:pg": "npm --workspace services/api run db:copy:pg",
+    "deploy": "node -e \"console.log('Deploy via render.yaml — ver docs/DEPLOY-TODAY.md')\""
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0"
   }
 }

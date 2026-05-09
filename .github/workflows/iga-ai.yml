@@ -1,0 +1,57 @@
+name: ai-service (Python)
+
+on:
+  pull_request:
+    branches: [main, master, develop]
+    paths:
+      - 'services/ai/**'
+      - '.github/workflows/iga-ai.yml'
+  push:
+    branches: [main, master, develop]
+    paths:
+      - 'services/ai/**'
+
+concurrency:
+  group: ai-service-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-typecheck-test:
+    name: Lint + typecheck + tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/ai
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+
+      - name: Install deps
+        run: |
+          uv venv .venv
+          uv pip install --no-cache -e ".[dev]"
+
+      - name: Ruff lint
+        run: uv run ruff check iga_ai tests
+
+      - name: Ruff format check
+        run: uv run ruff format --check iga_ai tests
+
+      - name: Mypy strict
+        run: uv run mypy iga_ai
+
+      - name: Pytest
+        run: uv run pytest -v --cov=iga_ai --cov-report=term-missing
+        env:
+          IGA_AI_SHARED_SECRET: test-secret-not-real
+          ANTHROPIC_API_KEY: sk-ant-test
+          NODE_BACKEND_URL: http://localhost:3001

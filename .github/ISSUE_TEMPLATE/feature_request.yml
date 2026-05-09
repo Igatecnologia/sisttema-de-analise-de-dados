@@ -1,0 +1,59 @@
+name: Feature request
+description: Sugerir nova funcionalidade ou melhoria
+title: "[feat] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema
+      description: Que problema essa feature resolve? Quem sofre?
+      placeholder: Gestores de comercio precisam comparar margem por loja, mas hoje so temos margem agregada.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposta
+      description: Como voce imagina a solucao?
+      placeholder: Adicionar filtro "por loja" no dashboard /financeiro/margem com breakdown.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+      placeholder: Export CSV manual + Excel pivot. Funciona mas demora 15min.
+
+  - type: dropdown
+    id: segment
+    attributes:
+      label: Segmento que beneficia mais
+      options:
+        - Industria
+        - Comercio
+        - Servicos
+        - Distribuicao
+        - Todos
+      default: 4
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Prioridade percebida
+      options:
+        - Quick win (1-2 dias)
+        - Sprint atual
+        - Roadmap proximo trimestre
+        - Pos-GA / sem urgencia
+      default: 1
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexto adicional
+      description: Screenshots, links, mockups, ROI estimado.

@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main, master, develop]
     paths:
-      - 'front-end-gest-o/**'
+      - 'apps/web/**'
       - '.github/workflows/lighthouse.yml'
 
 permissions:
@@ -17,14 +17,14 @@ jobs:
     timeout-minutes: 10
     defaults:
       run:
-        working-directory: front-end-gest-o
+        working-directory: apps/web
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: front-end-gest-o/package-lock.json
+          cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
       - name: Build estatico
         run: npm run build

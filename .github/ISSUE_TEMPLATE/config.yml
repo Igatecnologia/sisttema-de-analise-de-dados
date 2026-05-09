@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Vulnerabilidade de seguranca
+    url: mailto:security@igagestao.com.br
+    about: Reporte vulnerabilidades em privado, NAO crie issue publica.
+  - name: Suporte ao cliente
+    url: mailto:suporte@igagestao.com.br
+    about: Duvidas de uso/comerciais.

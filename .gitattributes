@@ -1,0 +1,25 @@
+* text=auto eol=lf
+
+# Binarios — nao normalizar
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.avif binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.exe binary
+*.msi binary
+*.dll binary
+
+# Linguagens com toolchain proprio
+*.py text eol=lf
+*.sh text eol=lf
+
+# Diff customizado
+*.lock binary
+package-lock.json -diff
+uv.lock -diff

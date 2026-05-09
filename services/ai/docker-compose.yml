@@ -1,0 +1,35 @@
+services:
+  iga-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - LOG_LEVEL=INFO
+      - ENV=development
+      - IGA_AI_SHARED_SECRET=${IGA_AI_SHARED_SECRET}
+      - NODE_BACKEND_URL=${NODE_BACKEND_URL:-http://host.docker.internal:3001}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://iga:iga@postgres:5432/iga_gestao}
+      - VOYAGE_API_KEY=${VOYAGE_API_KEY:-}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=iga
+      - POSTGRES_PASSWORD=iga
+      - POSTGRES_DB=iga_gestao
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pg_data:

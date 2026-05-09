@@ -39,7 +39,18 @@ installer/
 
 # Config local do Claude Code:
 # - settings.local.json: pessoal (env vars, API keys) — NÃO versionar
+# - scheduled_tasks.lock: artefato runtime do ScheduleWakeup
 # - settings.json e skills/ — versionar (compartilhado com time)
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 *.html
-# docs/ contém runbook de deploy, planos arquiteturais e critérios — versionar.
+# docs/ contém runbook de deploy + planos vivos (PLANO-IGA-IA) — versionar.
+
+# Python runtime (iga-ai)
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+uv.lock
