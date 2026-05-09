@@ -50,6 +50,7 @@ import { helpRouter } from './routes/help.js'
 import { publicSharesRouter } from './routes/publicShares.js'
 import { segmentsRouter } from './routes/segments.js'
 import { customersRouter } from './routes/customers.js'
+import { forecastRouter } from './routes/forecast.js'
 import { startScheduledReportsJob } from './jobs/scheduledReports.js'
 import { startBackupScheduler } from './jobs/dbBackup.js'
 import { startCopilotRetentionJob } from './jobs/copilotRetention.js'
@@ -272,6 +273,7 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/api/v1/public-shares', publicSharesRouter)
   app.use('/api/v1/segments', segmentsRouter)
   app.use('/api/v1/customers', customersRouter)
+  app.use('/forecast', forecastRouter)
   /** Gate de billing apos as rotas de auth/billing/onboarding/tenant config. */
   app.use(subscriptionGate)
 

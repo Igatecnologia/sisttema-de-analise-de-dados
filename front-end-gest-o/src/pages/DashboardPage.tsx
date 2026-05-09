@@ -59,6 +59,7 @@ import { useRealtimeHeartbeat } from '../hooks/useRealtimeHeartbeat'
 import { formatBRL, formatCompact } from '../utils/formatters'
 import { DashboardSkeleton } from '../components/skeletons/DashboardSkeleton'
 import { CriticalAlertsCard } from '../components/CriticalAlertsCard'
+import { RevenueForecastCard } from '../components/RevenueForecastCard'
 
 function formatBRLAxisShort(n: number) {
   if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
@@ -317,6 +318,9 @@ export function DashboardPage() {
 
       {/** Alertas críticos abertos — só renderiza se houver pendentes (zero noise quando tudo OK). */}
       <CriticalAlertsCard />
+
+      {/** Projeção de faturamento — só renderiza se houver fonte de vendas + histórico mínimo. */}
+      <RevenueForecastCard />
 
       <Card className="app-card no-hover" variant="borderless">
         <Space direction="vertical" size={6}>
