@@ -315,7 +315,7 @@ Ver `docs/BLOQUEADORES-EXTERNOS.md`. Resumo:
 - `BLOQUEADORES-EXTERNOS.md` — O que falta para GA que NAO e codigo
 - `DEPLOY-TODAY.md` — Runbook 1-2h Beta Fechada (Render+Vercel+Supabase+Upstash)
 - `PERFORMANCE-BUDGET.md` — SLOs por endpoint + alvos Web Vitals + bundle limits
-- `INCIDENT-RESPONSE.md`, `SECURITY-BASELINE.md`, `TROUBLESHOOTING.md` — runbooks operacionais
+- `INCIDENT-RESPONSE.md` — runbook de resposta a incidentes (SEV-0 a SEV-3, playbooks)
 - `beta/` — emails, onboarding, runbook, termo Beta
 - `compliance/` — DPIA, RoPA, DPA-template (LGPD)
 

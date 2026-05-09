@@ -103,7 +103,7 @@ Canal: **lgpd@igagestao.com.br**
 
 ## 8. Segurança aplicada
 
-Controles documentados em `SECURITY-BASELINE.md`. Resumo:
+Controles ativos:
 
 - **Senhas**: argon2id (RFC 9106), MFA TOTP opcional, HIBP check, lockout adaptativo
 - **Sessão**: JWT 8h em cookie HttpOnly+Secure+SameSite=Strict, refresh token com rotation
