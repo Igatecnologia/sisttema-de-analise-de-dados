@@ -31,6 +31,7 @@ import {
   CloseCircleFilled,
   CloudServerOutlined,
   DatabaseOutlined,
+  CopyOutlined,
   DeleteOutlined,
   EditOutlined,
   KeyOutlined,
@@ -98,6 +99,8 @@ const CONNECTOR_PRESETS: Record<string, Partial<DataSourceCreatePayload> & { nam
     dataEndpoint: '/sgbrbi/vendas/analitico',
     loginFieldUser: 'login',
     loginFieldPassword: 'senha',
+    /** SGBR BI exige senha em SHA-256 hex no campo `senha`. */
+    passwordMode: 'sha256',
   },
   generic: {
     name: 'API REST generica',
@@ -280,6 +283,41 @@ export function DataSourceConfigPage() {
       setEditingId(null)
       form.resetFields()
     }
+    setDrawerOpen(true)
+  }
+
+  /**
+   * Duplicação rápida — útil quando o cliente tem várias fontes do mesmo
+   * servidor (caso SGBR Tiete: 6 endpoints com mesma URL/credencial).
+   * Pre-preenche tudo da fonte original mas:
+   *  - Nome: "<original> (cópia)" — usuário renomeia
+   *  - É fonte de auth: SEMPRE false (só uma fonte deve ser auth source)
+   *  - editingId: null para criar novo registro ao salvar
+   *  - apiPassword: vazio porque o backend não devolve a senha em texto;
+   *    usuário precisa redigitar — único campo manual.
+   */
+  const openDuplicateDrawer = (ds: DataSource) => {
+    setTestResult(null)
+    setDiagnostic(null)
+    setEditingId(null)
+    form.resetFields()
+    form.setFieldsValue({
+      name: `${ds.name} (cópia)`,
+      type: ds.type,
+      apiUrl: ds.apiUrl,
+      dataEndpoint: ds.dataEndpoint ?? '',
+      authMethod: ds.authMethod,
+      authCredentials: '',
+      apiLogin: ds.apiLogin ?? '',
+      apiPassword: '',
+      isAuthSource: false,
+      loginEndpoint: ds.loginEndpoint ?? '',
+      loginFieldUser: ds.loginFieldUser ?? 'login',
+      loginFieldPassword: ds.loginFieldPassword ?? 'senha',
+      passwordMode: ds.passwordMode ?? 'plain',
+      erpEndpoints: ds.erpEndpoints,
+      fieldMappings: ds.fieldMappings,
+    })
     setDrawerOpen(true)
   }
 
@@ -571,6 +609,7 @@ export function DataSourceConfigPage() {
           </Tooltip>
           <Dropdown trigger={['click']} menu={{ items: [
             { key: 'edit', icon: <EditOutlined />, label: 'Editar', onClick: () => openDrawer(record) },
+            { key: 'duplicate', icon: <CopyOutlined />, label: 'Duplicar', onClick: () => openDuplicateDrawer(record) },
             { key: 'test', icon: <ThunderboltOutlined />, label: 'Testar', onClick: async () => { setEditingId(record.id); const r = await testDataSourceConnection(record.id); notification[r.success ? 'success' : 'error']({ message: r.success ? 'Conectado' : 'Falha', description: r.message }); load() } },
             { key: 'autofill', icon: <BulbOutlined />, label: 'Aplicar sugestões automáticas', onClick: () => applySuggestions(record) },
             { type: 'divider' },
@@ -821,6 +860,15 @@ export function DataSourceConfigPage() {
                         </Form.Item>
                       </Col>
                     </Row>
+                    {/** Hash da senha sai do collapse: SGBR BI e similares
+                     *  exigem SHA-256 e o usuário precisa ver isso à vista. */}
+                    <Form.Item
+                      label="Hash da senha"
+                      name="passwordMode"
+                      extra="SGBR BI exige SHA-256. Outros sistemas costumam aceitar texto puro (Plain)."
+                    >
+                      <Select options={PASSWORD_OPTIONS} />
+                    </Form.Item>
                     <Collapse
                       bordered={false}
                       size="small"
@@ -828,10 +876,10 @@ export function DataSourceConfigPage() {
                       items={[
                         {
                           key: 'json',
-                          label: <Typography.Text type="secondary">Nomes dos campos no JSON do login</Typography.Text>,
+                          label: <Typography.Text type="secondary">Nomes dos campos no JSON do login (avançado)</Typography.Text>,
                           children: (
                             <Row gutter={12}>
-                              <Col xs={24} sm={8}>
+                              <Col xs={24} sm={12}>
                                 <Form.Item label="Campo usuário" name="loginFieldUser">
                                   <Select options={[
                                     { value: 'login', label: 'login' },
@@ -843,7 +891,7 @@ export function DataSourceConfigPage() {
                                   ]} />
                                 </Form.Item>
                               </Col>
-                              <Col xs={24} sm={8}>
+                              <Col xs={24} sm={12}>
                                 <Form.Item label="Campo senha" name="loginFieldPassword">
                                   <Select options={[
                                     { value: 'senha', label: 'senha' },
@@ -852,11 +900,6 @@ export function DataSourceConfigPage() {
                                     { value: 'pwd', label: 'pwd' },
                                     { value: 'secret', label: 'secret' },
                                   ]} />
-                                </Form.Item>
-                              </Col>
-                              <Col xs={24} sm={8}>
-                                <Form.Item label="Hash da senha" name="passwordMode">
-                                  <Select options={PASSWORD_OPTIONS} />
                                 </Form.Item>
                               </Col>
                             </Row>
