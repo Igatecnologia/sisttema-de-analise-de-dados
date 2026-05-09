@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm test *)",
+      "Bash(npx tsc *)",
+      "Bash(npx vitest *)",
+      "Bash(npx playwright *)",
+      "Bash(npx drizzle-kit *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git pull *)",
+      "Bash(docker compose *)",
+      "Bash(docker ps*)",
+      "Bash(curl *)",
+      "Bash(openssl *)",
+      "Read(.claude/**)",
+      "Read(.mcp.json)",
+      "Read(CLAUDE.md)",
+      "Read(docs/**)",
+      "Read(back-end-gest-o/**)",
+      "Read(front-end-gest-o/**)",
+      "Read(landing-page/**)",
+      "Read(super-admin-app/**)"
+    ]
+  }
+}

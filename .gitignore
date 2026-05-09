@@ -37,7 +37,9 @@ installer/
 *.exe
 *.msi
 
-# Config local do Claude Code (não versionar)
-.claude/
+# Config local do Claude Code:
+# - settings.local.json: pessoal (env vars, API keys) — NÃO versionar
+# - settings.json e skills/ — versionar (compartilhado com time)
+.claude/settings.local.json
 *.html
 # docs/ contém runbook de deploy, planos arquiteturais e critérios — versionar.
