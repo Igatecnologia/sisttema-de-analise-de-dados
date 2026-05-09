@@ -76,6 +76,7 @@ import { TrialBanner } from '../components/TrialBanner'
 import { OrgSwitcher } from '../components/OrgSwitcher'
 import { OfflineBanner } from '../components/OfflineBanner'
 import { PlanLimitModal } from '../components/PlanLimitModal'
+import { AppSidebar } from './AppSidebar'
 /**
  * Picker de fonte de vendas foi removido — o sistema lê automaticamente TODAS as
  * fontes compatíveis em paralelo. Ver `services/vendasAnaliticoSourceSelection.ts`.
@@ -630,90 +631,7 @@ export function AppLayout() {
         Pular para o conteúdo
       </a>
       {!screens.xs ? (
-        <Sider
-          role="navigation"
-          aria-label="Navegação principal"
-          className="app-sider-premium"
-          breakpoint="lg"
-          width={240}
-          collapsedWidth={64}
-          collapsed={collapsed}
-          onCollapse={setCollapsed}
-          trigger={null}
-          style={{
-            position: 'sticky',
-            top: 0,
-            height: '100vh',
-            background: isSuperAdminView
-              ? `linear-gradient(180deg, ${token.colorBgElevated} 0%, ${token.colorBgLayout} 100%)`
-              : undefined,
-          }}
-        >
-          <div className="app-sider-premium__sheen" aria-hidden />
-          <div className="app-sider-premium__edge" aria-hidden />
-          <div className="app-sider-brand app-sider-brand--premium">
-            <Space size={10} align="center" style={{ minWidth: 0, overflow: 'hidden', justifyContent: collapsed ? 'center' : 'flex-start', width: '100%' }}>
-              {tenant.logoUrl ? (
-                <img
-                  src={tenant.logoUrl}
-                  alt={tenant.companyName}
-                  className="app-sider-logo"
-                />
-              ) : <Logo size="md" animated variant={mode === 'dark' ? 'inverse' : 'color'} />}
-              {!collapsed && (
-                <div style={{ lineHeight: 1.1, minWidth: 0 }}>
-                  <span className="app-sider-brand-name" style={{ color: token.colorText }}>
-                    {tenant.companyName}
-                  </span>
-                  <br />
-                  <Typography.Text
-                    style={{
-                      color:
-                        mode === 'dark'
-                          ? 'var(--qc-text-muted)'
-                          : token.colorTextSecondary,
-                      fontSize: 12,
-                    }}
-                  >
-                    {tenant.subtitle}
-                  </Typography.Text>
-                  {isSuperAdminView ? (
-                    <Tag color="red" style={{ marginTop: 6 }}>
-                      ADMIN
-                    </Tag>
-                  ) : null}
-                </div>
-              )}
-            </Space>
-          </div>
-
-          <div className="app-sider-nav">
-            <Menu
-              className="app-sider-menu"
-              classNames={{ popup: 'app-sider-menu-popup' }}
-              theme={mode === 'dark' ? 'dark' : 'light'}
-              mode="inline"
-              selectedKeys={[selectedKey]}
-              defaultOpenKeys={collapsed ? [] : defaultOpenKeys}
-              items={navItems}
-              style={{ background: 'transparent', borderInlineEnd: 0 }}
-            />
-          </div>
-
-          {/* Toggle de colapso — rodapé do sidebar */}
-          <div className="app-sider-toggle">
-            <Tooltip title={collapsed ? 'Expandir menu (Ctrl+B)' : 'Recolher menu (Ctrl+B)'} placement="right">
-              <button
-                className="app-sider-toggle__btn"
-                aria-label={collapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-                onClick={() => setCollapsed(!collapsed)}
-              >
-                {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                {!collapsed && <span className="app-sider-toggle__label">Recolher</span>}
-              </button>
-            </Tooltip>
-          </div>
-        </Sider>
+        <AppSidebar collapsed={collapsed} onCollapseToggle={() => setCollapsed(!collapsed)} />
       ) : (
         <Drawer
           open={mobileNavOpen}
@@ -723,19 +641,12 @@ export function AppLayout() {
           styles={{ body: { padding: 0 } }}
           title="Menu"
         >
-          <div className="app-sider-nav app-sider-nav--drawer">
-            <Menu
-              className="app-sider-menu"
-              classNames={{ popup: 'app-sider-menu-popup' }}
-              theme={mode === 'dark' ? 'dark' : 'light'}
-              mode="inline"
-              selectedKeys={[selectedKey]}
-              defaultOpenKeys={defaultOpenKeys}
-              items={navItems}
-              onClick={() => setMobileNavOpen(false)}
-              style={{ borderInlineEnd: 0 }}
-            />
-          </div>
+          <AppSidebar
+            collapsed={false}
+            onCollapseToggle={() => {}}
+            isMobileDrawer
+            onNavigate={() => setMobileNavOpen(false)}
+          />
         </Drawer>
       )}
 
