@@ -14,8 +14,8 @@ type PageHeaderCardProps = {
   icon?: ReactNode
   /** Cor do icone wrapper (default: var(--qc-primary)) */
   iconColor?: string
-  /** Breadcrumbs no topo */
-  breadcrumbs?: Crumb[]
+  /** Breadcrumbs no topo. Aceita arrays imutaveis (`as const`). */
+  breadcrumbs?: readonly Crumb[]
   /** Versao compacta (sem padding extra) */
   compact?: boolean
 }

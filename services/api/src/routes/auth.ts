@@ -171,6 +171,8 @@ const registerSchema = z.object({
   segment: z.enum(BUSINESS_SEGMENTS as [string, ...string[]]).default('industry'),
   /** Connector explicito; se omitido, escolhemos o recomendado pelo segmento. */
   connectorId: z.string().min(2).max(64).optional(),
+  /** CNPJ opcional preenchido pelo lookup BrasilAPI no front. 14 digitos limpos. */
+  cnpj: z.string().regex(/^\d{14}$/).optional(),
 })
 
 const inviteSchema = z.object({
@@ -571,6 +573,10 @@ authRouter.post('/register', tenantAuthLimiter, requireTurnstile, async (req, re
     plan: 'trial',
     trialEndsAt: trialEndsAt(),
     status: 'active',
+    cnpj: parsed.data.cnpj ?? null,
+    contactEmail: parsed.data.email,
+    contactPhone: null,
+    betaNotes: null,
   })
   const user = {
     id: genUserId(),

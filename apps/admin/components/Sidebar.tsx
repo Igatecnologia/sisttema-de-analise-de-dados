@@ -3,7 +3,6 @@
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  Activity,
   Boxes,
   Building2,
   ChevronLeft,
@@ -15,6 +14,7 @@ import {
   HeartPulse,
   LogOut,
   Moon,
+  Rocket,
   Sparkles,
   Sun,
   Users,
@@ -33,10 +33,11 @@ type NavItem = {
 
 const NAV: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: <Gauge size={16} /> },
+  { href: '/beta', label: 'Beta Fechada', icon: <Rocket size={16} />, badge: 'beta' },
   { href: '/tenants', label: 'Tenants', icon: <Building2 size={16} /> },
   { href: '/users', label: 'Usuarios', icon: <Users size={16} /> },
   { href: '/subscriptions', label: 'Assinaturas', icon: <CreditCard size={16} /> },
-  { href: '/ai-usage', label: 'IA Usage', icon: <Sparkles size={16} />, badge: 'novo' },
+  { href: '/ai-usage', label: 'IA Usage', icon: <Sparkles size={16} /> },
   { href: '/audit', label: 'Auditoria', icon: <FileSearch size={16} /> },
   { href: '/system', label: 'Saude do sistema', icon: <HeartPulse size={16} /> },
   { href: '/connectors', label: 'Connectors', icon: <Boxes size={16} /> },

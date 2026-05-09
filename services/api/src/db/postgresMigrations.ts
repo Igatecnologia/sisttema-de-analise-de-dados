@@ -641,4 +641,14 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ai_documents TO iga_app;
 GRANT USAGE, SELECT ON SEQUENCE ai_documents_id_seq TO iga_app;
 `,
   },
+  {
+    id: '017_tenant_beta_fields',
+    sql: `
+-- Beta Fechada: CNPJ + contato livre direto na tabela tenants (sem tabela auxiliar).
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS cnpj TEXT NULL;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS contact_email TEXT NULL;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS contact_phone TEXT NULL;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS beta_notes TEXT NULL;
+`,
+  },
 ]

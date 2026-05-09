@@ -22,8 +22,6 @@ import {
   LockOutlined,
   StarOutlined,
   MenuOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
   ProfileOutlined,
   ShoppingCartOutlined,
   SettingOutlined,
@@ -63,7 +61,6 @@ import {
   getWorkspaceDefinition,
   getUserUxPreferences,
 } from '../navigation/uxPreferences'
-import { Logo } from '../assets/logo'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { AlertsBell } from '../components/AlertsBell'
 import { CommandPalette } from '../components/CommandPalette'
@@ -82,7 +79,7 @@ import { AppSidebar } from './AppSidebar'
  * fontes compatíveis em paralelo. Ver `services/vendasAnaliticoSourceSelection.ts`.
  */
 
-const { Header, Sider, Content } = Layout
+const { Header, Content } = Layout
 
 const pageTitlesByMenuKey: Record<string, string> = {
   gestao: 'Visão do gestor',
@@ -223,23 +220,6 @@ function useSelectedMenuKey(pathname: string) {
   return useMemo(() => resolveMenuKeyFromPath(pathname), [pathname])
 }
 
-/** Detecta qual grupo do sidebar deve estar aberto baseado na rota */
-function useOpenSubMenuKeys(selectedKey: string) {
-  return useMemo(() => {
-    if (selectedKey === 'gestao' || selectedKey.startsWith('dashboard') || selectedKey === 'alertas' || selectedKey === 'notificacoes') return ['sub-dashboard']
-    if (selectedKey === 'producao' || selectedKey === 'ficha-tecnica' || selectedKey === 'compras' || selectedKey === 'notas-fiscais' || selectedKey === 'estoque') return ['sub-erp']
-    if (selectedKey === 'financeiro' || selectedKey === 'relatorios' || selectedKey === 'relatorios-agendados' || selectedKey === 'relatorios-galeria' || selectedKey === 'visoes-salvas') return ['sub-analytics']
-    if (['usuarios', 'usuario-historico', 'configuracoes', 'auditoria', 'api-keys', 'orgs', 'super-admin', 'billing-plans', 'billing-recommend', 'billing-portal'].includes(selectedKey)) return ['sub-admin']
-    if (['perfil', 'boas-vindas'].includes(selectedKey)) return ['sub-account']
-    if (
-      ['suporte', 'suporte-fale-conosco', 'ajuda', 'novidades', 'tokens', 'webhooks', 'fontes-de-dados', 'integracoes-saude', 'admin-operacao'].includes(selectedKey)
-    ) {
-      return ['sub-suporte']
-    }
-    return ['sub-dashboard']
-  }, [selectedKey])
-}
-
 function hasTenantModule(enabledModules: string[], moduleId: string): boolean {
   return enabledModules.includes(moduleId)
 }
@@ -295,9 +275,7 @@ function LockedModuleLabel({ children }: { children: React.ReactNode }) {
 export function AppLayout() {
   const location = useLocation()
   const selectedKey = useSelectedMenuKey(location.pathname)
-  const isSuperAdminView = selectedKey === 'super-admin'
   const pageTitle = getTitleByMenuKey(selectedKey)
-  const defaultOpenKeys = useOpenSubMenuKeys(selectedKey)
   const [collapsed, setCollapsedRaw] = useState(() => {
     try { return localStorage.getItem('iga.sidebar.collapsed') === '1' } catch { return false }
   })
@@ -522,6 +500,10 @@ export function AppLayout() {
 
     return items
   }, [session, tenant.enabledModules])
+
+  // navItems é definido para manter compat com o AppSidebar futuro mas
+  // o sidebar atual (AppSidebar) tem nav propria com Lucide.
+  void navItems
 
   const currentPageTitle = useMemo(
     () => getTitleByMenuKey(selectedKey),

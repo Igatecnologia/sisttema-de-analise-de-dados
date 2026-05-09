@@ -40,6 +40,11 @@ const tenantBodySchema = z.object({
   trialEndsAt: z.string().datetime().nullable().optional(),
   enabledModules: z.array(z.string().min(1).max(80)).default(DEFAULT_MODULES),
   status: z.enum(['active', 'inactive']).default('active'),
+  /** Beta Fechada — preenchidos pelo super-admin a partir de lookup CNPJ. */
+  cnpj: z.string().regex(/^\d{14}$/, 'CNPJ deve ter 14 digitos').nullable().optional(),
+  contactEmail: z.string().email().max(254).nullable().optional(),
+  contactPhone: z.string().max(40).nullable().optional(),
+  betaNotes: z.string().max(2000).nullable().optional(),
 })
 
 function usePostgresStorage(): boolean {
@@ -152,13 +157,14 @@ superAdminRouter.use(requireSuperAdmin)
 
 /** GET /api/v1/super-admin/tenants — lista tenants com metricas. */
 superAdminRouter.get('/tenants', async (_req, res) => {
-  type RawRow = { id: string; slug: string; name: string; subtitle: string | null; logo_url: string | null; primary_color: string | null; connector_id: string | null; segment: string | null; enabled_modules: unknown; plan: string; status: string; trial_ends_at: string | null; created_at: string; updated_at: string | null }
+  type RawRow = { id: string; slug: string; name: string; subtitle: string | null; logo_url: string | null; primary_color: string | null; connector_id: string | null; segment: string | null; enabled_modules: unknown; plan: string; status: string; trial_ends_at: string | null; cnpj: string | null; contact_email: string | null; contact_phone: string | null; beta_notes: string | null; created_at: string; updated_at: string | null }
   let tenantsRaw: RawRow[]
   if (usePostgresStorage()) {
     /** Ja roda fora do RLS context — ainda assim, se tenant_context nao esta setado, RLS nao filtra. */
     const result = await getPostgresPool().query<RawRow>(
       `SELECT id, slug, name, subtitle, logo_url, primary_color, connector_id, segment, enabled_modules,
               plan, status, trial_ends_at::text AS trial_ends_at,
+              cnpj, contact_email, contact_phone, beta_notes,
               created_at::text AS created_at, updated_at::text AS updated_at
        FROM tenants ORDER BY created_at DESC`,
     )
@@ -167,7 +173,8 @@ superAdminRouter.get('/tenants', async (_req, res) => {
     tenantsRaw = db.prepare(
       `SELECT id, slug, name, subtitle, logo_url, primary_color, connector_id, segment,
               enabled_modules_json AS enabled_modules,
-              plan, status, trial_ends_at, created_at, updated_at
+              plan, status, trial_ends_at, cnpj, contact_email, contact_phone, beta_notes,
+              created_at, updated_at
        FROM tenants ORDER BY created_at DESC`,
     ).all() as RawRow[]
   }
@@ -204,6 +211,10 @@ superAdminRouter.get('/tenants', async (_req, res) => {
     plan: t.plan,
     status: t.status,
     trialEndsAt: t.trial_ends_at,
+    cnpj: t.cnpj,
+    contactEmail: t.contact_email,
+    contactPhone: t.contact_phone,
+    betaNotes: t.beta_notes,
     createdAt: t.created_at,
     updatedAt: t.updated_at,
     userCount: userCount.get(t.id) ?? 0,
@@ -248,6 +259,10 @@ superAdminRouter.post('/tenants', async (req, res: Response) => {
     plan: parsed.data.plan,
     trialEndsAt: parsed.data.trialEndsAt ?? null,
     status: parsed.data.status,
+    cnpj: parsed.data.cnpj ?? null,
+    contactEmail: parsed.data.contactEmail ?? null,
+    contactPhone: parsed.data.contactPhone ?? null,
+    betaNotes: parsed.data.betaNotes ?? null,
   })
   logAudit({ userId: authReq.userId, tenantId: authReq.tenantId, action: 'super_admin_tenant_created', resource: 'super_admin', metadata: { tenantId: tenant.id, slug: tenant.slug } })
   res.status(201).json(tenant)
@@ -277,6 +292,10 @@ superAdminRouter.put('/tenants/:id', async (req, res: Response) => {
     plan: parsed.data.plan ?? current.plan,
     trialEndsAt: parsed.data.trialEndsAt === undefined ? current.trialEndsAt : parsed.data.trialEndsAt,
     status: parsed.data.status ?? current.status,
+    cnpj: parsed.data.cnpj === undefined ? current.cnpj : parsed.data.cnpj,
+    contactEmail: parsed.data.contactEmail === undefined ? current.contactEmail : parsed.data.contactEmail,
+    contactPhone: parsed.data.contactPhone === undefined ? current.contactPhone : parsed.data.contactPhone,
+    betaNotes: parsed.data.betaNotes === undefined ? current.betaNotes : parsed.data.betaNotes,
   })
   logAudit({ userId: authReq.userId, tenantId: authReq.tenantId, action: 'super_admin_tenant_updated', resource: 'super_admin', metadata: { tenantId: tenant.id, slug: tenant.slug } })
   res.json(tenant)

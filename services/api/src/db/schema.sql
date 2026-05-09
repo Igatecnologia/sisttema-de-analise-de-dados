@@ -33,6 +33,10 @@ CREATE TABLE IF NOT EXISTS tenants (
   plan TEXT NOT NULL DEFAULT 'trial',
   trial_ends_at TEXT NULL,
   status TEXT NOT NULL DEFAULT 'active',
+  cnpj TEXT NULL,
+  contact_email TEXT NULL,
+  contact_phone TEXT NULL,
+  beta_notes TEXT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

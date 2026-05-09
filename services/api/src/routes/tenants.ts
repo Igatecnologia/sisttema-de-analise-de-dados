@@ -194,6 +194,10 @@ tenantsRouter.post('/', async (req, res) => {
     trialEndsAt: parsed.data.trialEndsAt ?? null,
     enabledModules: [...new Set(parsed.data.enabledModules)].sort(),
     status: parsed.data.status,
+    cnpj: null,
+    contactEmail: null,
+    contactPhone: null,
+    betaNotes: null,
   })
   const authReq = req as unknown as AuthenticatedRequest
   logAudit({ userId: authReq.userId, action: 'tenant_created', resource: 'tenants', metadata: { tenantId: tenant.id, slug } })
@@ -228,6 +232,10 @@ tenantsRouter.put('/:slug', async (req, res) => {
     trialEndsAt: parsed.data.trialEndsAt === undefined ? current.trialEndsAt : parsed.data.trialEndsAt,
     enabledModules: parsed.data.enabledModules ? [...new Set(parsed.data.enabledModules)].sort() : current.enabledModules,
     status: parsed.data.status ?? current.status,
+    cnpj: current.cnpj,
+    contactEmail: current.contactEmail,
+    contactPhone: current.contactPhone,
+    betaNotes: current.betaNotes,
   })
   const authReq = req as unknown as AuthenticatedRequest
   logAudit({ userId: authReq.userId, action: 'tenant_updated', resource: 'tenants', metadata: { tenantId: tenant.id, slug: tenant.slug } })

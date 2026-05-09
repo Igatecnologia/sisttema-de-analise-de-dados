@@ -350,6 +350,12 @@ try { db.exec("ALTER TABLE tenants ADD COLUMN trial_ends_at TEXT NULL") } catch 
 // Migracao v10: segment de negocio por tenant (industry/commerce/services/distribution)
 try { db.exec("ALTER TABLE tenants ADD COLUMN segment TEXT NOT NULL DEFAULT 'industry'") } catch { /* ja existe */ }
 
+// Beta Fechada: CNPJ + contato livre (preenchido automaticamente via BrasilAPI no admin).
+try { db.exec('ALTER TABLE tenants ADD COLUMN cnpj TEXT NULL') } catch { /* ja existe */ }
+try { db.exec('ALTER TABLE tenants ADD COLUMN contact_email TEXT NULL') } catch { /* ja existe */ }
+try { db.exec('ALTER TABLE tenants ADD COLUMN contact_phone TEXT NULL') } catch { /* ja existe */ }
+try { db.exec('ALTER TABLE tenants ADD COLUMN beta_notes TEXT NULL') } catch { /* ja existe */ }
+
 // Migracao v11: customers (CRM minimo) — entidade primaria do tenant
 db.exec(`
   CREATE TABLE IF NOT EXISTS customers (

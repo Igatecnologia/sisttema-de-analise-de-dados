@@ -31,7 +31,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PageHeaderCard } from '../components/PageHeaderCard'
 import { MetricCard } from '../components/MetricCard'
-import { DataPanel } from '../components/DataPanel'
 import {
   createCustomer,
   deleteCustomer,

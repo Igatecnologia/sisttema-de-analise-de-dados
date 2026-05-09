@@ -55,6 +55,11 @@ export type Tenant = {
   plan: 'trial' | 'starter' | 'pro' | 'enterprise'
   status: 'active' | 'inactive' | 'suspended'
   trialEndsAt: string | null
+  /** Beta Fechada — dados livres do cliente (CNPJ + contato + notas). Opcionais. */
+  cnpj: string | null
+  contactEmail: string | null
+  contactPhone: string | null
+  betaNotes: string | null
   createdAt: string
   updatedAt: string | null
   userCount: number
@@ -105,6 +110,10 @@ export type TenantInput = {
   connectorId?: string
   trialEndsAt?: string | null
   enabledModules?: string[]
+  cnpj?: string | null
+  contactEmail?: string | null
+  contactPhone?: string | null
+  betaNotes?: string | null
 }
 
 export type TenantDetail = {

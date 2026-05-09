@@ -17,6 +17,11 @@ export type TenantRecord = {
   plan: 'trial' | 'starter' | 'pro' | 'enterprise'
   trialEndsAt: string | null
   status: 'active' | 'inactive'
+  /** Beta Fechada — preenchidos pelo super-admin via lookup de CNPJ. Opcionais. */
+  cnpj: string | null
+  contactEmail: string | null
+  contactPhone: string | null
+  betaNotes: string | null
   createdAt: string
   updatedAt: string
 }
@@ -57,6 +62,10 @@ function mapTenant(row: Record<string, unknown>): TenantRecord {
     plan: row.plan === 'starter' || row.plan === 'pro' || row.plan === 'enterprise' ? row.plan : 'trial',
     trialEndsAt: row.trial_ends_at ? String(row.trial_ends_at) : null,
     status: row.status === 'inactive' ? 'inactive' : 'active',
+    cnpj: row.cnpj ? String(row.cnpj) : null,
+    contactEmail: row.contact_email ? String(row.contact_email) : null,
+    contactPhone: row.contact_phone ? String(row.contact_phone) : null,
+    betaNotes: row.beta_notes ? String(row.beta_notes) : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   }
@@ -109,8 +118,8 @@ export async function upsertTenant(input: Omit<TenantRecord, 'createdAt' | 'upda
     const result = await queryPostgres(
       `
       INSERT INTO tenants (
-        id, slug, name, subtitle, logo_url, primary_color, enabled_modules, connector_id, segment, plan, trial_ends_at, status, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13, $14)
+        id, slug, name, subtitle, logo_url, primary_color, enabled_modules, connector_id, segment, plan, trial_ends_at, status, cnpj, contact_email, contact_phone, beta_notes, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       ON CONFLICT (id) DO UPDATE SET
         slug = EXCLUDED.slug,
         name = EXCLUDED.name,
@@ -123,6 +132,10 @@ export async function upsertTenant(input: Omit<TenantRecord, 'createdAt' | 'upda
         plan = EXCLUDED.plan,
         trial_ends_at = EXCLUDED.trial_ends_at,
         status = EXCLUDED.status,
+        cnpj = EXCLUDED.cnpj,
+        contact_email = EXCLUDED.contact_email,
+        contact_phone = EXCLUDED.contact_phone,
+        beta_notes = EXCLUDED.beta_notes,
         updated_at = EXCLUDED.updated_at
       RETURNING *
       `,
@@ -139,6 +152,10 @@ export async function upsertTenant(input: Omit<TenantRecord, 'createdAt' | 'upda
         record.plan,
         record.trialEndsAt,
         record.status,
+        record.cnpj,
+        record.contactEmail,
+        record.contactPhone,
+        record.betaNotes,
         record.createdAt,
         record.updatedAt,
       ],
@@ -148,9 +165,9 @@ export async function upsertTenant(input: Omit<TenantRecord, 'createdAt' | 'upda
 
   db.prepare(`
     INSERT INTO tenants (
-      id, slug, name, subtitle, logo_url, primary_color, enabled_modules_json, connector_id, segment, plan, trial_ends_at, status, created_at, updated_at
+      id, slug, name, subtitle, logo_url, primary_color, enabled_modules_json, connector_id, segment, plan, trial_ends_at, status, cnpj, contact_email, contact_phone, beta_notes, created_at, updated_at
     ) VALUES (
-      @id, @slug, @name, @subtitle, @logo_url, @primary_color, @enabled_modules_json, @connector_id, @segment, @plan, @trial_ends_at, @status, @created_at, @updated_at
+      @id, @slug, @name, @subtitle, @logo_url, @primary_color, @enabled_modules_json, @connector_id, @segment, @plan, @trial_ends_at, @status, @cnpj, @contact_email, @contact_phone, @beta_notes, @created_at, @updated_at
     )
     ON CONFLICT(id) DO UPDATE SET
       slug = excluded.slug,
@@ -164,6 +181,10 @@ export async function upsertTenant(input: Omit<TenantRecord, 'createdAt' | 'upda
       plan = excluded.plan,
       trial_ends_at = excluded.trial_ends_at,
       status = excluded.status,
+      cnpj = excluded.cnpj,
+      contact_email = excluded.contact_email,
+      contact_phone = excluded.contact_phone,
+      beta_notes = excluded.beta_notes,
       updated_at = excluded.updated_at
   `).run({
     id: record.id,
@@ -178,6 +199,10 @@ export async function upsertTenant(input: Omit<TenantRecord, 'createdAt' | 'upda
     plan: record.plan,
     trial_ends_at: record.trialEndsAt,
     status: record.status,
+    cnpj: record.cnpj,
+    contact_email: record.contactEmail,
+    contact_phone: record.contactPhone,
+    beta_notes: record.betaNotes,
     created_at: record.createdAt,
     updated_at: record.updatedAt,
   })
