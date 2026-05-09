@@ -1,5 +1,6 @@
 import { http } from './http'
 import { API_BASE_URL } from '../api/apiEnv'
+import { trackEvent } from './analytics'
 
 export type AppAlert = {
   id: string
@@ -19,6 +20,7 @@ export async function listAlerts() {
 
 export async function markAlertAsRead(id: string) {
   await http.post(`/api/v1/alerts/${id}/read`)
+  trackEvent('alert_acknowledged', { alertId: id.slice(0, 8) })
 }
 
 export function subscribeAlerts(onAlert: (alert: AppAlert) => void) {

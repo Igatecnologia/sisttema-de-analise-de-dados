@@ -29,4 +29,20 @@ test.describe('A11y baseline (axe-core)', () => {
     const result = await runAxe(page)
     expect(result.violations.filter((v) => v.impact === 'critical')).toHaveLength(0)
   })
+
+  test('Login sem violacoes critical', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'a11y rodado apenas em chromium')
+    await page.goto('/login')
+    await expect(page.getByRole('heading', { name: /entrar|login/i })).toBeVisible()
+    const result = await runAxe(page)
+    expect(result.violations.filter((v) => v.impact === 'critical')).toHaveLength(0)
+  })
+
+  test('Register sem violacoes critical', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'a11y rodado apenas em chromium')
+    await page.goto('/register')
+    await expect(page.getByRole('heading', { name: /criar conta|register/i })).toBeVisible()
+    const result = await runAxe(page)
+    expect(result.violations.filter((v) => v.impact === 'critical')).toHaveLength(0)
+  })
 })

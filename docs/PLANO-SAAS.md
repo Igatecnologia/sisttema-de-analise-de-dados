@@ -20,9 +20,9 @@
 > | **SEC-4 Compliance** | **55%** | LGPD endpoints, cookie consent, security.txt, sub-processors page, IR runbook, aceite versionado de Termos, backup workflow done. Falta DPIA/DPA com advogado + pentest (R$ 10-30k, operacional) |
 > | INT-1 a INT-7 | 0% | pos-GA por design. Trilha de diferenciacao competitiva (multi-protocol, mapping studio, write-back) |
 > | **OPS-1** Time + Budget | 0% | Operacional (CLT/PJ, ESOP, hiring) — fora do escopo de codigo |
-> | **OPS-2** Performance/Load | 25% | k6 nao implementado, mas Sentry tracesSampleRate ativo + DORA via GitHub Actions |
-> | **OPS-3** A11y WCAG 2.2 AA | 30% | Landmarks ARIA (banner/navigation/main), aria-labels em botoes acoes criticas, axe-core no e2e. Falta audit externo |
-> | **OPS-4 Analytics** | **75%** | PostHog wiring + 26+ eventos trackados (auth, copilot, customer, connector, onboarding, bulk_import, forecast, public_shares, billing, segment) + audit events backend. Falta 30+ eventos + funnels + cohorts no dashboard PostHog |
+> | **OPS-2** Performance/Load | **45%** | k6 baseline em `back-end-gest-o/tests/load/` (smoke/load/spike profiles) + Sentry tracesSampleRate + DORA via GitHub Actions. Falta APM detalhado e CI integration |
+> | **OPS-3** A11y WCAG 2.2 AA | **45%** | Skip-link, focus-visible rings (light/dark), landmarks ARIA, aria-labels em buttons icon-only, axe-core em 3 paginas criticas (dashboard, login, register), prefers-reduced-motion. Falta audit externo + WCAG 2.2 AA full sweep |
+> | **OPS-4 Analytics** | **80%** | PostHog wiring + 30+ eventos (auth, copilot, customer, connector, onboarding, bulk_import, forecast, public_shares, billing, segment, alert, savedview, scheduled_report, audit_export, mfa, lgpd, terms) + audit events backend. Falta funnels + cohorts no dashboard PostHog |
 >
 > ## Resumo de progresso: 18 de 22 blocos com >=75% done.
 >

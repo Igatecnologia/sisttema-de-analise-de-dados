@@ -1,4 +1,5 @@
 import { http } from './http'
+import { trackEvent } from './analytics'
 
 export type ScheduledReport = {
   id: string
@@ -31,6 +32,7 @@ export async function listScheduledReports(): Promise<ScheduledReport[]> {
 
 export async function createScheduledReport(input: ScheduledReportInput): Promise<ScheduledReport> {
   const { data } = await http.post<ScheduledReport>(BASE, input)
+  trackEvent('scheduled_report_created', { frequency: input.frequency, format: input.format, recipients: input.recipients.length })
   return data
 }
 

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { getValidated, postValidated } from '../api/validatedHttp'
 import { http } from './http'
+import { trackEvent } from './analytics'
 
 const savedViewSchema = z.object({
   id: z.string(),
@@ -76,7 +77,9 @@ export async function listSavedViewsApi(pageKey?: string): Promise<ApiSavedView[
 }
 
 export async function saveViewApi(input: { pageKey: string; name: string; params: string }): Promise<ApiSavedView> {
-  return postValidated(http, '/api/v1/saved-views', input, apiSavedViewSchema)
+  const result = await postValidated(http, '/api/v1/saved-views', input, apiSavedViewSchema)
+  trackEvent('savedview_created', { pageKey: input.pageKey })
+  return result
 }
 
 export async function deleteViewApi(id: string): Promise<void> {

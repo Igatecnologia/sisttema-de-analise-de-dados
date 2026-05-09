@@ -290,9 +290,8 @@ cd front-end-gest-o && npm run dev
 
 - `PLANO-SAAS.md` — Plano canonico SaaS (9 sprints, 15 semanas)
 - `PLANO-IGA-IA.md` — Migracao do Copilot para Python (FastAPI + Claude + RAG, AI-1 a AI-6)
-- `AUDITORIA-COMPLETA-2026-05-09.md` — Auditoria atual + benchmark de mercado
+- `BLOQUEADORES-EXTERNOS.md` — O que falta para GA que NAO e codigo (DPIA, pentest, infra paga, hiring)
 - `DEPLOY-TODAY.md` — Runbook 1-2h Beta Fechada (Render+Vercel+Supabase+Upstash)
-- `CRITERIO-100.md` — Definition of Done para release publico
 - `INCIDENT-RESPONSE.md`, `SECURITY-BASELINE.md`, `TROUBLESHOOTING.md` — runbooks operacionais
 - `beta/` — emails, onboarding, runbook, termo Beta
 - `compliance/` — DPIA, RoPA, DPA-template (LGPD)

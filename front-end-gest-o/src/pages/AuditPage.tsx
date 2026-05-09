@@ -199,7 +199,10 @@ export function AuditPage() {
             <Button
               icon={<DownloadOutlined />}
               disabled={!canExport || !data.length}
-              onClick={() => downloadCsv(data)}
+              onClick={() => {
+                downloadCsv(data)
+                void import('../services/analytics').then((m) => m.trackEvent('audit_export_requested', { rows: data.length }))
+              }}
             >
               Exportar CSV
             </Button>
