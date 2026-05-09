@@ -60,6 +60,7 @@ services:
       IGA_DATA_DIR: /app/services/api/data
       ADMIN_DEFAULT_EMAIL: admin@iga.com
       ADMIN_DEFAULT_PASSWORD: IgaGestao@2026!
+      SUPER_ADMIN_EMAILS: admin@iga.com
       DATABASE_URL: postgresql://iga:iga_dev_password@postgres:5432/iga_gestao
       REDIS_URL: redis://redis:6379
       PROXY_CACHE_TTL_MS: "300000"
@@ -125,6 +126,26 @@ services:
       - ./apps/landing:/app/apps/landing
       - landing_node_modules:/app/apps/landing/node_modules
       - landing_next_cache:/app/apps/landing/.next
+
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: admin-dev
+    working_dir: /app/apps/admin
+    command: ["sh", "-c", "npm install && npm run dev -- --hostname 0.0.0.0 --port 3003"]
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://backend:3000
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./apps/admin:/app/apps/admin
+      - admin_node_modules:/app/apps/admin/node_modules
+      - admin_next_cache:/app/apps/admin/.next
+    depends_on:
+      backend:
+        condition: service_healthy
 
   iga-ai:
     profiles: ["ai"]
@@ -195,3 +216,5 @@ volumes:
   frontend_node_modules:
   landing_node_modules:
   landing_next_cache:
+  admin_node_modules:
+  admin_next_cache:

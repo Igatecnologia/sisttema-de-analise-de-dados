@@ -43,6 +43,17 @@ COPY apps/landing ./
 EXPOSE 3000
 CMD ["npm", "run", "dev"]
 
+FROM node:22-bookworm-slim AS admin-deps
+WORKDIR /app/apps/admin
+COPY apps/admin/package*.json ./
+RUN npm install
+
+FROM admin-deps AS admin-dev
+ENV NODE_ENV=development
+COPY apps/admin ./
+EXPOSE 3003
+CMD ["npm", "run", "dev"]
+
 FROM node:22-bookworm-slim AS production
 WORKDIR /app
 ENV NODE_ENV=production \

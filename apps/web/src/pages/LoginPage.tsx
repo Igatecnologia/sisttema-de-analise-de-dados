@@ -1,5 +1,12 @@
-import { LockOutlined, MailOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
-import { Alert, Button, Checkbox, Divider, Form, Input, Space, Tag, Typography } from 'antd'
+import { Alert, Button, Checkbox, Form, Input, Typography } from 'antd'
+import {
+  ArrowRight,
+  KeyRound,
+  Lock,
+  Mail,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
@@ -117,6 +124,7 @@ export function LoginPage() {
   }
 
   const primaryColor = tenant.primaryColor || '#1677ff'
+  const inputIconStyle = { color: 'var(--qc-text-muted, #94a3b8)', flexShrink: 0 } as const
 
   return (
     <div className="login-shell-premium">
@@ -127,7 +135,19 @@ export function LoginPage() {
           <header className="login-header">
             {tenant.logoUrl ? (
               <img src={tenant.logoUrl} alt={tenant.companyName} className="login-logo" />
-            ) : null}
+            ) : (
+              <div
+                className="login-logo"
+                style={{
+                  background: `linear-gradient(135deg, ${primaryColor}, ${primaryColor}cc)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Sparkles size={18} color="#fff" />
+              </div>
+            )}
             <div className="login-brand">
               <Typography.Text strong style={{ fontSize: 14, lineHeight: 1.2 }}>
                 {tenant.companyName}
@@ -140,7 +160,7 @@ export function LoginPage() {
 
           <div className="login-form-content">
             <div className="login-headline">
-              <Typography.Title level={2} style={{ marginBottom: 4, fontWeight: 700, letterSpacing: '-0.02em' }}>
+              <Typography.Title level={2} style={{ marginBottom: 6, fontWeight: 700, letterSpacing: '-0.02em' }}>
                 Bem-vindo de volta
               </Typography.Title>
               <Typography.Text type="secondary" style={{ fontSize: 14 }}>
@@ -179,16 +199,16 @@ export function LoginPage() {
               ) : null}
 
               <Form.Item
-                label="Email ou usuário"
+                label="Email"
                 name="email"
                 rules={[
-                  { required: true, message: 'Informe o email ou usuário.' },
+                  { required: true, message: 'Informe o email.' },
                   { max: 254, message: 'Máximo 254 caracteres.' },
                 ]}
                 normalize={(v: string) => v.trim()}
               >
                 <Input
-                  prefix={<MailOutlined style={{ color: 'var(--qc-text-muted, #8c8c8c)' }} />}
+                  prefix={<Mail size={16} style={inputIconStyle} />}
                   placeholder="seu@email.com"
                   autoComplete="username"
                   maxLength={254}
@@ -197,27 +217,35 @@ export function LoginPage() {
               </Form.Item>
 
               <Form.Item
-                label={
-                  <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                    <span>Senha</span>
-                    <Link to="/forgot-password" style={{ fontSize: 13, fontWeight: 400 }}>
-                      Esqueci minha senha
-                    </Link>
-                  </div>
-                }
+                label="Senha"
                 name="password"
                 rules={[
                   { required: true, message: 'Informe a senha.' },
                   { min: 1, message: 'Senha não pode ser vazia.' },
                 ]}
+                style={{ marginBottom: 8 }}
               >
                 <Input.Password
-                  prefix={<LockOutlined style={{ color: 'var(--qc-text-muted, #8c8c8c)' }} />}
+                  prefix={<Lock size={16} style={inputIconStyle} />}
                   placeholder="••••••••"
                   autoComplete="current-password"
                   maxLength={128}
                 />
               </Form.Item>
+
+              {/* Forgot password — link discreto, alinhado à direita, em sua propria linha */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+                <Link
+                  to="/forgot-password"
+                  style={{
+                    fontSize: 13,
+                    color: primaryColor,
+                    fontWeight: 500,
+                  }}
+                >
+                  Esqueci minha senha
+                </Link>
+              </div>
 
               {mfaRequired ? (
                 <Form.Item
@@ -231,7 +259,7 @@ export function LoginPage() {
                   extra="Use o código de 6 dígitos do seu app autenticador ou um código de backup."
                 >
                   <Input
-                    prefix={<SafetyCertificateOutlined style={{ color: 'var(--qc-text-muted, #8c8c8c)' }} />}
+                    prefix={<KeyRound size={16} style={inputIconStyle} />}
                     placeholder="123 456"
                     autoComplete="one-time-code"
                     inputMode="numeric"
@@ -260,36 +288,92 @@ export function LoginPage() {
                   fontWeight: 600,
                   background: primaryColor,
                   borderColor: primaryColor,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
                 }}
               >
                 {mfaRequired ? 'Verificar código' : 'Entrar'}
+                {!submitting && <ArrowRight size={18} />}
               </Button>
 
-              <Divider style={{ margin: '24px 0 16px', fontSize: 12 }}>ou</Divider>
-
-              <div style={{ textAlign: 'center' }}>
-                <Typography.Text type="secondary" style={{ fontSize: 14 }}>
-                  Ainda não tem conta?{' '}
+              {/* Bloco "criar conta" — destacado e visível com fundo proprio */}
+              <div
+                style={{
+                  marginTop: 24,
+                  padding: '16px 20px',
+                  background: 'var(--qc-surface-2, rgba(22, 119, 255, 0.05))',
+                  border: '1px solid var(--qc-border, rgba(22, 119, 255, 0.12))',
+                  borderRadius: 12,
+                  textAlign: 'center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Typography.Text style={{ fontSize: 14, color: 'var(--qc-text)' }}>
+                  Ainda não tem uma conta?
                 </Typography.Text>
-                <Link to="/register" style={{ fontWeight: 600 }}>
+                <Link
+                  to="/register"
+                  style={{
+                    fontWeight: 600,
+                    color: primaryColor,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: 14,
+                  }}
+                >
                   Criar trial grátis
+                  <ArrowRight size={14} />
                 </Link>
               </div>
             </Form>
           </div>
 
           <footer className="login-footer">
-            <Space size={12} wrap>
-              <Tag icon={<SafetyCertificateOutlined />} color="green" bordered={false} style={{ fontSize: 11 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center' }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 11,
+                  color: 'var(--qc-text-muted, #94a3b8)',
+                }}
+              >
+                <ShieldCheck size={13} style={{ color: '#10b981' }} />
                 SSL/TLS
-              </Tag>
-              <Tag color="blue" bordered={false} style={{ fontSize: 11 }}>
+              </span>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 11,
+                  color: 'var(--qc-text-muted, #94a3b8)',
+                }}
+              >
+                <KeyRound size={13} style={{ color: '#3b82f6' }} />
                 MFA disponível
-              </Tag>
-              <Tag color="purple" bordered={false} style={{ fontSize: 11 }}>
+              </span>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 11,
+                  color: 'var(--qc-text-muted, #94a3b8)',
+                }}
+              >
+                <Lock size={13} style={{ color: '#a78bfa' }} />
                 LGPD
-              </Tag>
-            </Space>
+              </span>
+            </div>
             <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 12 }}>
               Ao entrar, você concorda com os{' '}
               <Link to="/legal/termos" style={{ fontSize: 11 }}>
@@ -306,14 +390,24 @@ export function LoginPage() {
       </div>
 
       {/* Coluna direita: hero/branding (escondida em mobile) */}
-      <aside className="login-hero-pane" style={{ background: `linear-gradient(135deg, ${primaryColor}f0 0%, ${primaryColor}c0 60%, #0a1628 100%)` }}>
+      <aside
+        className="login-hero-pane"
+        style={{ background: `linear-gradient(135deg, ${primaryColor}f0 0%, ${primaryColor}c0 60%, #0a1628 100%)` }}
+      >
         <div className="login-hero-mesh" aria-hidden />
         <div className="login-hero-content">
           <div className="login-hero-top">
             {tenant.logoUrl ? (
               <img src={tenant.logoUrl} alt={tenant.companyName} className="login-hero-logo" />
             ) : null}
-            <Typography.Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <Typography.Text
+              style={{
+                color: 'rgba(255,255,255,0.85)',
+                fontSize: 13,
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+              }}
+            >
               {tenant.companyName} · {tenant.subtitle}
             </Typography.Text>
           </div>
@@ -390,7 +484,13 @@ function FeatureRow({ title, description }: { title: string; description: string
     <div className="login-hero-feature">
       <div className="login-hero-feature-bullet">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-          <path d="M11.667 4L5.5 10.167 2.333 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M11.667 4L5.5 10.167 2.333 7"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       </div>
       <div>
