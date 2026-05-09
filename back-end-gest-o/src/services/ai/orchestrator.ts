@@ -2,6 +2,7 @@ import { resolveProvider } from './providerFactory.js'
 import { TOOL_DEFINITIONS, executeTool } from './tools.js'
 import { buildDynamicSystemPrompt, resolvePromptContext } from './systemPrompt.js'
 import type { AiProvider, ChatMessage, StreamEvent } from './types.js'
+import { logAudit } from '../auditLog.js'
 
 type OrchestratorOptions = {
   history: ChatMessage[]
@@ -31,6 +32,17 @@ function isRateLimitLikeError(message: string): boolean {
   )
 }
 
+/** Classifica o erro em buckets — útil para audit/analytics sem vazar mensagem. */
+function classifyError(message: string): string {
+  const m = message.toLowerCase()
+  if (isRateLimitLikeError(m)) return 'rate_limit'
+  if (m.includes('401') || m.includes('403')) return 'auth'
+  if (m.includes('timeout') || m.includes('aborted')) return 'timeout'
+  if (m.includes('rede') || m.includes('network') || m.includes('fetch')) return 'network'
+  if (m.includes('500') || m.includes('502') || m.includes('503')) return 'upstream_5xx'
+  return 'other'
+}
+
 /**
  * Executa o ciclo chat ↔ tool calling e emite StreamEvents prontos para SSE.
  * Mantém contrato estável: consumer só precisa lidar com 'token', 'done', 'error'
@@ -56,7 +68,26 @@ export async function* runCopilot(opts: OrchestratorOptions): AsyncGenerator<Str
     console.log(`[copilot] provider=${provider.name} tenant=${opts.tenantId} userPromptLen=${opts.userPrompt.length}`)
   }
 
+  /**
+   * Telemetria: registramos METADATA apenas, nunca conteúdo.
+   * Útil para descobrir top intents (via tools chamadas), tempo médio,
+   * taxa de erro e custo aproximado por tenant — base para decidir
+   * cutover Python (AI-3) com dados reais.
+   */
+  const startedAt = Date.now()
+  const toolsCalledThisConversation: string[] = []
+  let totalRounds = 0
+  let hadError = false
+  logAudit({
+    userId: opts.userId,
+    tenantId: opts.tenantId,
+    action: 'copilot_message_started',
+    resource: 'copilot',
+    metadata: { provider: provider.name, userPromptLen: opts.userPrompt.length },
+  })
+
   for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+    totalRounds = round + 1
     if (!isProduction) console.log(`[copilot] round ${round + 1} de ${MAX_TOOL_ROUNDS}`)
     const toolCallsThisRound: Array<{ id: string; name: string; args: Record<string, unknown> }> = []
     let assistantText = ''
@@ -77,6 +108,7 @@ export async function* runCopilot(opts: OrchestratorOptions): AsyncGenerator<Str
         // Não vazamos o tool_call para o cliente — é detalhe interno.
       } else if (evt.type === 'error') {
         console.error(`[copilot] erro: ${evt.message}`)
+        hadError = true
         const shouldFallbackLocal =
           provider.name !== 'local' &&
           (
@@ -89,9 +121,23 @@ export async function* runCopilot(opts: OrchestratorOptions): AsyncGenerator<Str
           const { LocalProvider } = await import('./localProvider.js')
           const fallback = new LocalProvider()
           console.warn('[copilot] fallback para provider local por erro no provider remoto')
+          logAudit({
+            userId: opts.userId,
+            tenantId: opts.tenantId,
+            action: 'copilot_provider_fallback',
+            resource: 'copilot',
+            metadata: { from: provider.name, to: 'local' },
+          })
           yield* runCopilot({ ...opts, provider: fallback })
           return
         }
+        logAudit({
+          userId: opts.userId,
+          tenantId: opts.tenantId,
+          action: 'copilot_error',
+          resource: 'copilot',
+          metadata: { provider: provider.name, round, errorClass: classifyError(evt.message) },
+        })
         yield evt
         return
       } else if (evt.type === 'done') {
@@ -104,6 +150,20 @@ export async function* runCopilot(opts: OrchestratorOptions): AsyncGenerator<Str
 
     // Sem tool calls: resposta final
     if (toolCallsThisRound.length === 0) {
+      logAudit({
+        userId: opts.userId,
+        tenantId: opts.tenantId,
+        action: 'copilot_response_completed',
+        resource: 'copilot',
+        metadata: {
+          provider: provider.name,
+          rounds: totalRounds,
+          toolsCalled: toolsCalledThisConversation,
+          uniqueTools: [...new Set(toolsCalledThisConversation)].length,
+          latencyMs: Date.now() - startedAt,
+          hadError,
+        },
+      })
       yield { type: 'done' }
       return
     }
@@ -125,16 +185,35 @@ export async function* runCopilot(opts: OrchestratorOptions): AsyncGenerator<Str
       } else {
         console.log(`[copilot] executando tool: ${call.name}`)
       }
+      toolsCalledThisConversation.push(call.name)
+      const toolStartedAt = Date.now()
       let result: unknown
+      let toolError = false
       try {
         result = await executeTool(call.name, call.args, {
           userId: opts.userId,
           userRole: opts.userRole,
           tenantId: opts.tenantId,
         })
+        if (typeof result === 'object' && result !== null && 'error' in result) {
+          toolError = true
+        }
       } catch (err) {
+        toolError = true
         result = { error: `Falha ao executar ${call.name}: ${(err as Error).message}` }
       }
+      logAudit({
+        userId: opts.userId,
+        tenantId: opts.tenantId,
+        action: 'copilot_tool_called',
+        resource: 'copilot',
+        metadata: {
+          tool: call.name,
+          round: totalRounds,
+          latencyMs: Date.now() - toolStartedAt,
+          ok: !toolError,
+        },
+      })
       messages.push({
         role: 'tool',
         toolName: call.name,
@@ -145,5 +224,20 @@ export async function* runCopilot(opts: OrchestratorOptions): AsyncGenerator<Str
   }
 
   // Se saiu do loop por limite de rounds, emite fechamento limpo
+  logAudit({
+    userId: opts.userId,
+    tenantId: opts.tenantId,
+    action: 'copilot_response_completed',
+    resource: 'copilot',
+    metadata: {
+      provider: provider.name,
+      rounds: totalRounds,
+      toolsCalled: toolsCalledThisConversation,
+      uniqueTools: [...new Set(toolsCalledThisConversation)].length,
+      latencyMs: Date.now() - startedAt,
+      hadError,
+      exitReason: 'max_rounds',
+    },
+  })
   yield { type: 'done' }
 }

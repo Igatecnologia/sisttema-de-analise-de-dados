@@ -3,6 +3,7 @@ import { getPostgresPool, hasPostgresConfig } from '../../db/postgres.js'
 import { readAll as readAllDataSources, type DataSource } from '../../storage.js'
 import { fetchProxyDataForTool, getProxyOperationalSnapshot } from '../../routes/proxy.js'
 import type { ToolDefinition } from './types.js'
+import { validateToolArgs } from './toolSchemas.js'
 
 function usePostgresStorage(): boolean {
   return process.env.IGA_STORAGE_DRIVER === 'postgres' && hasPostgresConfig()
@@ -674,9 +675,22 @@ function byTenant(all: DataSource[], tenantId: string): DataSource[] {
 
 export async function executeTool(
   name: string,
-  args: Record<string, unknown>,
+  rawArgs: Record<string, unknown>,
   ctx: ToolContext,
 ): Promise<ToolResult> {
+  /**
+   * Valida args contra o schema Zod antes de executar. Args malformados
+   * (campo errado, tipo errado, enum inválido) viram um tool result com
+   * `error` legível em PT-BR — modelo recebe e tenta de novo na próxima
+   * rodada com args corrigidos. Sem isso, o erro só aparece como exceção
+   * em runtime (query/proxy), com mensagem técnica que confunde o usuário.
+   */
+  const validation = validateToolArgs(name, rawArgs ?? {})
+  if (!validation.ok) {
+    return { error: validation.error, toolName: name }
+  }
+  const args = validation.data
+
   switch (name) {
     case 'get_overview': {
       const [usersTotal, usersActive, alertsTotal, alertsUnread] = await Promise.all([
