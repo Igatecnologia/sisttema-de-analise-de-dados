@@ -48,10 +48,16 @@ export async function* runCopilot(opts: OrchestratorOptions): AsyncGenerator<Str
   })
   const systemPrompt = buildDynamicSystemPrompt(promptCtx)
 
-  console.log(`[copilot] provider=${provider.name} rounds=iniciando prompt="${opts.userPrompt.slice(0, 60)}"`)
+  /** Em prod, NÃO logar prompt do usuário — pode conter dados sensíveis do tenant. */
+  const isProduction = process.env.NODE_ENV === 'production'
+  if (!isProduction) {
+    console.log(`[copilot] provider=${provider.name} rounds=iniciando prompt="${opts.userPrompt.slice(0, 60)}"`)
+  } else {
+    console.log(`[copilot] provider=${provider.name} tenant=${opts.tenantId} userPromptLen=${opts.userPrompt.length}`)
+  }
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
-    console.log(`[copilot] round ${round + 1} de ${MAX_TOOL_ROUNDS}`)
+    if (!isProduction) console.log(`[copilot] round ${round + 1} de ${MAX_TOOL_ROUNDS}`)
     const toolCallsThisRound: Array<{ id: string; name: string; args: Record<string, unknown> }> = []
     let assistantText = ''
 
@@ -89,7 +95,9 @@ export async function* runCopilot(opts: OrchestratorOptions): AsyncGenerator<Str
         yield evt
         return
       } else if (evt.type === 'done') {
-        console.log(`[copilot] round ${round + 1} fim — text=${assistantText.length}ch tools=${toolCallsThisRound.length}`)
+        if (!isProduction) {
+          console.log(`[copilot] round ${round + 1} fim — text=${assistantText.length}ch tools=${toolCallsThisRound.length}`)
+        }
         break
       }
     }
@@ -111,7 +119,12 @@ export async function* runCopilot(opts: OrchestratorOptions): AsyncGenerator<Str
 
     // Executa cada tool e anexa como mensagem role:'tool'
     for (const call of toolCallsThisRound) {
-      console.log(`[copilot] executando tool: ${call.name}`, call.args)
+      /** Em prod, NÃO logar args — podem conter filtros com dados de cliente. */
+      if (!isProduction) {
+        console.log(`[copilot] executando tool: ${call.name}`, call.args)
+      } else {
+        console.log(`[copilot] executando tool: ${call.name}`)
+      }
       let result: unknown
       try {
         result = await executeTool(call.name, call.args, {

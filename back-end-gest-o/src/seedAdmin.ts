@@ -90,13 +90,23 @@ export function seedDefaultAdmin() {
   writeAllUsers([admin])
 
   const filePath = source === 'random' ? writeFirstLoginFile(email, password) : null
+  const isProduction = process.env.NODE_ENV === 'production'
   const box = '═'.repeat(60)
   console.log(`\n${box}\n[IGA Backend] ADMIN CRIADO — ${source === 'env' ? 'senha via ADMIN_DEFAULT_PASSWORD' : 'SENHA GERADA ALEATORIAMENTE'}`)
   console.log(`              email:    ${admin.email}`)
   if (source === 'random') {
-    console.log(`              senha:    ${password}`)
+    /**
+     * NUNCA logar senha em texto claro em produção — Render/CloudWatch retêm
+     * stdout. Em desktop/dev, gravamos no FIRST_LOGIN.txt (mode 0o600) que o
+     * usuário lê localmente e apaga após o primeiro login.
+     */
+    if (!isProduction) {
+      console.log(`              senha:    ${password}`)
+    } else {
+      console.log(`              senha:    (não logada em produção — defina ADMIN_DEFAULT_PASSWORD ou faça reset por email)`)
+    }
     if (filePath) console.log(`              arquivo:  ${filePath}`)
-    console.log(`              >>> anote esta senha agora; será exigida troca no 1º login.`)
+    console.log(`              >>> troca obrigatória no 1º login.`)
   } else {
     console.log(`              senha:    (definida via ADMIN_DEFAULT_PASSWORD)`)
   }

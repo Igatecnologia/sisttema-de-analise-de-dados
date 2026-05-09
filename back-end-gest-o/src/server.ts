@@ -1,5 +1,9 @@
 import 'dotenv/config'
 import { createApp } from './app.js'
+import { assertEnvValid } from './envValidation.js'
+
+/** Em produção, aborta o boot se faltarem env vars críticas. No-op em dev. */
+assertEnvValid()
 
 const startSchedulers =
   process.env.IGA_PROCESS_ROLE !== 'web' && process.env.START_SCHEDULERS !== '0'

@@ -14,7 +14,8 @@ services:
     runtime: node
     region: oregon
     plan: free
-    healthCheckPath: /health/live
+    # /health/ready valida DB + Redis. /health/live só checa o processo.
+    healthCheckPath: /health/ready
     buildCommand: cd back-end-gest-o && npm ci && npm run build
     startCommand: cd back-end-gest-o && node dist/server.js
     autoDeploy: true
