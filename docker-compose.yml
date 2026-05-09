@@ -1,6 +1,7 @@
 services:
   postgres:
-    image: postgres:17-alpine
+    # pgvector image requerida pela migration 016 (RAG embeddings).
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: iga
       POSTGRES_PASSWORD: iga_dev_password
