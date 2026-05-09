@@ -6,7 +6,9 @@ import {
 } from './registrationAntiFraud.js'
 
 describe('registrationAntiFraud', () => {
-  afterEach(() => _resetVelocityForTests())
+  afterEach(async () => {
+    await _resetVelocityForTests()
+  })
 
   describe('isDisposableEmail', () => {
     it('bloqueia mailinator.com', () => {
@@ -31,23 +33,26 @@ describe('registrationAntiFraud', () => {
   })
 
   describe('checkRegistrationVelocity', () => {
-    it('permite ate 5 registros do mesmo IP em 1h', () => {
+    it('permite ate 5 registros do mesmo IP em 1h', async () => {
       for (let i = 0; i < 5; i += 1) {
-        expect(checkRegistrationVelocity('1.2.3.4').allowed).toBe(true)
+        const r = await checkRegistrationVelocity('1.2.3.4')
+        expect(r.allowed).toBe(true)
       }
     })
 
-    it('bloqueia o 6o registro do mesmo IP', () => {
-      for (let i = 0; i < 5; i += 1) checkRegistrationVelocity('5.6.7.8')
-      const result = checkRegistrationVelocity('5.6.7.8')
+    it('bloqueia o 6o registro do mesmo IP', async () => {
+      for (let i = 0; i < 5; i += 1) await checkRegistrationVelocity('5.6.7.8')
+      const result = await checkRegistrationVelocity('5.6.7.8')
       expect(result.allowed).toBe(false)
       if (!result.allowed) expect(result.retryAfterSec).toBeGreaterThan(0)
     })
 
-    it('IPs diferentes nao se afetam', () => {
-      for (let i = 0; i < 5; i += 1) checkRegistrationVelocity('9.9.9.9')
-      expect(checkRegistrationVelocity('9.9.9.9').allowed).toBe(false)
-      expect(checkRegistrationVelocity('10.10.10.10').allowed).toBe(true)
+    it('IPs diferentes nao se afetam', async () => {
+      for (let i = 0; i < 5; i += 1) await checkRegistrationVelocity('9.9.9.9')
+      const blocked = await checkRegistrationVelocity('9.9.9.9')
+      const fresh = await checkRegistrationVelocity('10.10.10.10')
+      expect(blocked.allowed).toBe(false)
+      expect(fresh.allowed).toBe(true)
     })
   })
 })

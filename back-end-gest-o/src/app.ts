@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
+import { Sentry } from './observability/sentry.js'
 import compression from 'compression'
 import { existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -311,10 +312,21 @@ export function createApp(options: CreateAppOptions = {}) {
     })
   }
 
-  app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const status = (err as { status?: number }).status ?? 500
     if (status >= 500) {
       console.error('[IGA Backend] Erro interno:', err.message)
+      /**
+       * Sentry captura apenas 5xx — 4xx são erros de cliente esperados
+       * (validation, auth) e gerariam ruído. Tags ajudam a filtrar no
+       * dashboard sem expor PII.
+       */
+      Sentry.withScope((scope) => {
+        scope.setTag('http.method', req.method)
+        scope.setTag('http.route', req.route?.path ?? req.path)
+        scope.setTag('http.status', String(status))
+        Sentry.captureException(err)
+      })
     }
     res.status(status).json({
       message: status < 500 ? err.message : 'Erro interno do servidor',

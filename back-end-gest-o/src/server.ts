@@ -1,4 +1,11 @@
 import 'dotenv/config'
+/**
+ * Sentry init DEVE vir antes de qualquer outro import que possa lançar
+ * erros — assim a primeira exceção do processo já chega ao Sentry.
+ */
+import { initSentry, Sentry } from './observability/sentry.js'
+initSentry()
+
 import { createApp } from './app.js'
 import { assertEnvValid } from './envValidation.js'
 
@@ -31,8 +38,27 @@ let server = startServer(PREFERRED_PORT)
 
 function shutdown(signal: string) {
   console.log(`[IGA Backend] ${signal} — encerrando...`)
-  server.close(() => process.exit(0))
-  setTimeout(() => process.exit(1), 10_000)
+  /** Garante que eventos pendentes do Sentry sejam enviados antes do exit. */
+  Sentry.close(2000).finally(() => {
+    server.close(() => process.exit(0))
+    setTimeout(() => process.exit(1), 10_000)
+  })
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'))
 process.on('SIGINT', () => shutdown('SIGINT'))
+
+/**
+ * Captura exceções que escapam de qualquer middleware/handler.
+ * Sem isso, o processo Node morre silencioso em prod (sem stack no Sentry).
+ */
+process.on('uncaughtException', (err) => {
+  Sentry.captureException(err)
+  console.error('[IGA Backend] uncaughtException:', err)
+  /** Política conservadora: deixa o process manager (Render) reiniciar. */
+  Sentry.close(2000).finally(() => process.exit(1))
+})
+
+process.on('unhandledRejection', (reason) => {
+  Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason)))
+  console.error('[IGA Backend] unhandledRejection:', reason)
+})

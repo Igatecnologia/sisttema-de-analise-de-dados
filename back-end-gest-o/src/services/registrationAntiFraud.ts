@@ -1,5 +1,6 @@
 import { promises as dns } from 'node:dns'
 import { logWarn } from './structuredLog.js'
+import { getRedisClient, hasRedisConfig } from './redis.js'
 
 /**
  * SEC-3.9 — Anti-fraud no registro.
@@ -73,15 +74,29 @@ export async function validateMx(email: string): Promise<MxValidation> {
   }
 }
 
-/** Velocity check em memoria. Para producao multi-instancia, migrar para Redis. */
+/**
+ * Velocity check do registro — limita N registros por IP em uma janela de tempo.
+ *
+ * Quando há Redis configurado (`REDIS_URL`), usa contador atomico Redis com TTL —
+ * funciona corretamente com 2+ replicas (caso real de Render scale-out). Sem
+ * Redis, cai para Map em memória — OK em dev e single-instance.
+ *
+ * Algoritmo Redis: `INCR` em `iga:rl:reg-velocity:<ip>`; se for o primeiro
+ * incremento (count===1), seta `EXPIRE` para a janela. Atomicidade: INCR
+ * sempre retorna o novo valor — mesmo com N processos concorrentes, o valor
+ * é monotonicamente crescente.
+ */
+
 type VelocityEntry = { count: number; firstAt: number }
 const velocityByIp = new Map<string, VelocityEntry>()
 const VELOCITY_WINDOW_MS = 60 * 60 * 1000 /** 1h */
+const VELOCITY_WINDOW_SEC = Math.floor(VELOCITY_WINDOW_MS / 1000)
 const VELOCITY_MAX = Number(process.env.REGISTER_VELOCITY_MAX ?? 5)
+const REDIS_PREFIX = 'iga:rl:reg-velocity:'
 
 export type VelocityResult = { allowed: true } | { allowed: false; retryAfterSec: number }
 
-export function checkRegistrationVelocity(ip: string): VelocityResult {
+function checkInMemory(ip: string): VelocityResult {
   const now = Date.now()
   const entry = velocityByIp.get(ip)
   if (!entry || now - entry.firstAt > VELOCITY_WINDOW_MS) {
@@ -97,7 +112,54 @@ export function checkRegistrationVelocity(ip: string): VelocityResult {
   return { allowed: true }
 }
 
-/** Util para testes — limpa estado interno. */
-export function _resetVelocityForTests() {
+async function checkInRedis(ip: string): Promise<VelocityResult> {
+  const client = getRedisClient()
+  if (client.status === 'wait') await client.connect()
+  const key = `${REDIS_PREFIX}${ip}`
+  /** INCR atômico — se a chave não existe, cria com 1; senão incrementa. */
+  const count = await client.incr(key)
+  if (count === 1) {
+    /** Primeira request na janela — seta TTL. EX em segundos. */
+    await client.expire(key, VELOCITY_WINDOW_SEC)
+  }
+  if (count > VELOCITY_MAX) {
+    /** Pega TTL real para informar retry-after preciso. */
+    const ttl = await client.ttl(key)
+    const retryAfterSec = ttl > 0 ? ttl : VELOCITY_WINDOW_SEC
+    return { allowed: false, retryAfterSec }
+  }
+  return { allowed: true }
+}
+
+export async function checkRegistrationVelocity(ip: string): Promise<VelocityResult> {
+  if (hasRedisConfig()) {
+    try {
+      return await checkInRedis(ip)
+    } catch (err) {
+      /** Falha no Redis (network, etc.) não bloqueia — degrada para memory. */
+      logWarn('antifraud.velocity_redis_failed', { ip, err: (err as Error).message })
+      return checkInMemory(ip)
+    }
+  }
+  return checkInMemory(ip)
+}
+
+/** Util para testes — limpa estado interno (memory + Redis). */
+export async function _resetVelocityForTests(ip?: string): Promise<void> {
   velocityByIp.clear()
+  if (hasRedisConfig()) {
+    try {
+      const client = getRedisClient()
+      if (client.status === 'wait') await client.connect()
+      if (ip) {
+        await client.del(`${REDIS_PREFIX}${ip}`)
+      } else {
+        /** Limpa todas as chaves de velocity — usar com cuidado em prod. */
+        const keys = await client.keys(`${REDIS_PREFIX}*`)
+        if (keys.length > 0) await client.del(...keys)
+      }
+    } catch {
+      /** OK em testes — ambiente sem Redis. */
+    }
+  }
 }

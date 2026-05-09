@@ -55,7 +55,7 @@ leadsRouter.post('/', async (req, res) => {
   }
 
   const ip = (req.ip ?? req.socket?.remoteAddress ?? 'unknown').toString()
-  const velocity = checkRegistrationVelocity(ip)
+  const velocity = await checkRegistrationVelocity(ip)
   if (!velocity.allowed) {
     logWarn('leads.blocked_velocity', { ip })
     res.setHeader('Retry-After', String(velocity.retryAfterSec))

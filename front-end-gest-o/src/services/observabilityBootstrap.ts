@@ -1,19 +1,20 @@
 /**
- * Carrega Sentry e PostHog via CDN snippet — somente se env vars estiverem setadas.
- * Zero impacto no bundle quando desabilitado (sem dependencias instaladas).
+ * Bootstrap de Sentry (errors) + PostHog (analytics).
  *
- * Para ativar:
+ * Sentry usa SDK npm direto (`@sentry/react`) — instalado no package.json e
+ * tree-shaken pelo Vite. Anti-PII filtros idênticos ao backend.
+ *
+ * PostHog continua via snippet CDN (zero impacto no bundle).
+ *
+ * Para ativar em produção:
  *   VITE_SENTRY_DSN=https://...@sentry.io/...
  *   VITE_POSTHOG_KEY=phc_...
  *   VITE_POSTHOG_HOST=https://app.posthog.com (opcional)
  */
+import * as Sentry from '@sentry/react'
 
 declare global {
   interface Window {
-    Sentry?: {
-      onLoad?: (cb: () => void) => void
-      init?: (options: Record<string, unknown>) => void
-    }
     posthog?: {
       capture: (name: string, props?: Record<string, unknown>) => void
       identify: (id: string, props?: Record<string, unknown>) => void
@@ -23,42 +24,96 @@ declare global {
   }
 }
 
-function injectScript(src: string, opts: { async?: boolean; defer?: boolean; integrity?: string; crossOrigin?: string } = {}): void {
-  const script = document.createElement('script')
-  script.src = src
-  if (opts.async) script.async = true
-  if (opts.defer) script.defer = true
-  if (opts.integrity) script.integrity = opts.integrity
-  if (opts.crossOrigin) script.crossOrigin = opts.crossOrigin
-  document.head.appendChild(script)
+const SENSITIVE_KEYS = new Set([
+  'password',
+  'senha',
+  'pwd',
+  'secret',
+  'token',
+  'api_key',
+  'apikey',
+  'access_token',
+  'refresh_token',
+  'authorization',
+  'cookie',
+  'cpf',
+  'cnpj',
+  'card_number',
+  'cardnumber',
+  'cvv',
+])
+
+function redactValue(value: unknown, depth = 0): unknown {
+  if (depth > 6 || value == null) return value
+  if (Array.isArray(value)) return value.map((v) => redactValue(v, depth + 1))
+  if (typeof value !== 'object') return value
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    out[k] = SENSITIVE_KEYS.has(k.toLowerCase()) ? '[redacted]' : redactValue(v, depth + 1)
+  }
+  return out
 }
 
 function bootstrapSentry(): void {
   const dsn = import.meta.env.VITE_SENTRY_DSN as string | undefined
   if (!dsn) return
-  /** Sentry Loader Script — single line CDN, ~50ms para carregar, sem afetar TTI. */
-  const sentryProjectId = dsn.split('/').pop()
-  if (!sentryProjectId) return
-  injectScript(`https://browser.sentry-cdn.com/8.45.0/loader.min.js`, { async: true, crossOrigin: 'anonymous' })
-  /** Inicializacao tardia: o loader carrega Sentry quando primeira excecao acontece. */
-  ;(window as Window).Sentry = {
-    onLoad: (cb) => cb(),
-    init: () => {
-      /** Configurado via Sentry CDN console — ou re-init manual aqui. */
+  const env = (import.meta.env.MODE ?? 'development') as string
+  const isProduction = env === 'production'
+
+  Sentry.init({
+    dsn,
+    environment: env,
+    release: import.meta.env.VITE_RELEASE_VERSION as string | undefined,
+    tracesSampleRate: isProduction ? 0.1 : 1.0,
+    /** Replay desligado por default (custo + privacy). Usuário pode habilitar via env. */
+    replaysSessionSampleRate: 0,
+    replaysOnErrorSampleRate: isProduction ? 0.1 : 0,
+    sendDefaultPii: false,
+    integrations: [
+      Sentry.browserTracingIntegration(),
+    ],
+    beforeSend(event) {
+      if (event.request) {
+        if (event.request.headers) {
+          event.request.headers = redactValue(event.request.headers) as Record<string, string>
+        }
+        if (event.request.cookies) {
+          event.request.cookies = '[redacted]' as unknown as Record<string, string>
+        }
+        if (event.request.data) {
+          event.request.data = redactValue(event.request.data)
+        }
+        if (typeof event.request.query_string === 'string') {
+          event.request.query_string = event.request.query_string.replace(
+            /(token|api_?key|secret|password)=[^&]+/gi,
+            '$1=[redacted]',
+          )
+        }
+      }
+      if (event.extra) event.extra = redactValue(event.extra) as Record<string, unknown>
+      return event
     },
-  }
-  /** Setup minimo via fetch da config: usuario informa DSN e Sentry CDN injeta SDK. */
-  const meta = document.createElement('meta')
-  meta.setAttribute('name', 'sentry-dsn')
-  meta.setAttribute('content', dsn)
-  document.head.appendChild(meta)
+    ignoreErrors: [
+      /** Erros esperados de auth — não bug. */
+      'Unauthorized',
+      'Forbidden',
+      'CSRF token mismatch',
+      /** Aborts de rede (cancelamento de request, navegação). */
+      'NetworkError',
+      'AbortError',
+      'aborted',
+      /** ResizeObserver loop limit — ruído conhecido do navegador. */
+      'ResizeObserver loop limit exceeded',
+      'ResizeObserver loop completed with undelivered notifications',
+    ],
+  })
 }
 
 function bootstrapPostHog(): void {
   const key = import.meta.env.VITE_POSTHOG_KEY as string | undefined
   if (!key) return
   const host = (import.meta.env.VITE_POSTHOG_HOST as string | undefined) ?? 'https://app.posthog.com'
-  /** Snippet oficial PostHog (versao reduzida — autocapture + capture). */
+  /** Snippet oficial PostHog reduzido. */
   /* eslint-disable */
   ;(function (t: any, e: any) {
     const o = (t.posthog = t.posthog || []) as any
@@ -67,7 +122,7 @@ function bootstrapPostHog(): void {
       o.init = function (i: any, s: any, a: any) {
         function g(t2: any, e2: string) {
           const o2 = e2.split('.')
-          o2.length === 2 && (t2 = t2[o2[0]], e2 = o2[1])
+          o2.length === 2 && ((t2 = t2[o2[0]]), (e2 = o2[1]))
           t2[e2] = function () {
             t2.push([e2].concat(Array.prototype.slice.call(arguments, 0)))
           }
@@ -95,14 +150,17 @@ function bootstrapPostHog(): void {
     }
   })(window, document)
   /* eslint-enable */
-  ;(window as any).posthog?.init?.(key, { api_host: host, persistence: 'localStorage+cookie' })
+  ;(window as { posthog?: { init: (k: string, opts: Record<string, unknown>) => void } }).posthog?.init?.(key, {
+    api_host: host,
+    persistence: 'localStorage+cookie',
+  })
 }
 
 export function bootstrapObservability(): void {
   try {
     bootstrapSentry()
   } catch {
-    /** Falhas em observability nao podem derrubar o app. */
+    /** Falhas em observability não podem derrubar o app. */
   }
   try {
     bootstrapPostHog()
@@ -110,3 +168,5 @@ export function bootstrapObservability(): void {
     /** ignore */
   }
 }
+
+export { Sentry }

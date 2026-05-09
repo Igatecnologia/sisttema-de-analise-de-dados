@@ -36,6 +36,18 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm run test
+      # Coverage report (não-bloqueante: sucesso mesmo se script não existir)
+      - name: Coverage report
+        if: always()
+        run: npm run test:coverage || true
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: back-end-gest-o/coverage/
+          if-no-files-found: ignore
+          retention-days: 7
 
   frontend:
     name: Frontend
@@ -57,6 +69,14 @@ jobs:
       - run: npm run check
       - run: npm run build
       - run: npm run test:unit
+      - name: Upload frontend bundle stats
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: front-end-gest-o/dist/
+          if-no-files-found: ignore
+          retention-days: 3
 
   docker:
     name: Docker

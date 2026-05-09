@@ -519,7 +519,7 @@ authRouter.post('/register', tenantAuthLimiter, requireTurnstile, async (req, re
     return res.status(400).json({ message: 'Use um email corporativo valido (descartaveis nao sao aceitos)' })
   }
   const ip = (req.ip ?? req.socket?.remoteAddress ?? 'unknown').toString()
-  const velocity = checkRegistrationVelocity(ip)
+  const velocity = await checkRegistrationVelocity(ip)
   if (!velocity.allowed) {
     logAudit({ action: 'register_blocked_velocity', resource: 'auth', metadata: { ip, retryAfterSec: velocity.retryAfterSec } })
     res.setHeader('Retry-After', String(velocity.retryAfterSec))
