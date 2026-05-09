@@ -60,6 +60,7 @@ import { formatBRL, formatCompact } from '../utils/formatters'
 import { DashboardSkeleton } from '../components/skeletons/DashboardSkeleton'
 import { CriticalAlertsCard } from '../components/CriticalAlertsCard'
 import { RevenueForecastCard } from '../components/RevenueForecastCard'
+import { SegmentDashboardHints } from '../components/SegmentDashboardHints'
 
 function formatBRLAxisShort(n: number) {
   if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
@@ -315,6 +316,9 @@ export function DashboardPage() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       {header}
+
+      {/** Hints contextuais por segmento — adapta o painel de chegada por nicho do tenant. */}
+      <SegmentDashboardHints />
 
       {/** Alertas críticos abertos — só renderiza se houver pendentes (zero noise quando tudo OK). */}
       <CriticalAlertsCard />

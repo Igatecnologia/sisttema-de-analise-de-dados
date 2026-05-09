@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     environment: 'jsdom',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
     globals: true,
     setupFiles: ['src/test/setup.ts'],
     /** Evita que o `.env` local (ex.: SGBR `proxy`) force login HTTP nos unit tests. */

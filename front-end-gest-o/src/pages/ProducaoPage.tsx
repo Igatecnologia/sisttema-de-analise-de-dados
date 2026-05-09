@@ -198,7 +198,7 @@ function ProducaoSgbrTab() {
   }, [filtered])
 
   const columns: ColumnsType<ProduzidoRow> = [
-    { title: '', key: 'eye', width: 44, fixed: 'left', render: (_: unknown, r) => <Tooltip title="Ver detalhes"><Button type="text" size="small" icon={<EyeOutlined />} onClick={() => setDetailRow(r)} /></Tooltip> },
+    { title: '', key: 'eye', width: 44, fixed: 'left', render: (_: unknown, r) => <Tooltip title="Ver detalhes"><Button type="text" size="small" icon={<EyeOutlined />} onClick={() => setDetailRow(r)} aria-label={`Ver detalhes de ${r.produto}`} /></Tooltip> },
     { title: 'Produto', key: 'produto', fixed: 'left', ellipsis: true, render: (_: unknown, r) => <Typography.Text strong>{r.produto}</Typography.Text>, sorter: (a, b) => a.produto.localeCompare(b.produto, 'pt-BR') },
     { title: 'Data', dataIndex: 'data', key: 'data', width: 110, render: (v: string) => dayjs(v).format('DD/MM/YYYY'), sorter: (a, b) => a.data.localeCompare(b.data), defaultSortOrder: 'descend' },
     { title: 'Qtde', dataIndex: 'qtdeproduzida', key: 'qtde', width: 100, align: 'right', render: (v: number) => <Typography.Text strong>{v.toLocaleString('pt-BR')}</Typography.Text>, sorter: (a, b) => a.qtdeproduzida - b.qtdeproduzida },

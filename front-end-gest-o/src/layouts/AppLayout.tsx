@@ -631,6 +631,8 @@ export function AppLayout() {
       </a>
       {!screens.xs ? (
         <Sider
+          role="navigation"
+          aria-label="Navegação principal"
           className="app-sider-premium"
           breakpoint="lg"
           width={240}
@@ -764,6 +766,8 @@ export function AppLayout() {
         <OfflineBanner />
         <TrialBanner />
         <Header
+          role="banner"
+          aria-label="Cabeçalho da aplicação"
           style={{
             padding: '0 20px',
             background: token.colorBgContainer,
