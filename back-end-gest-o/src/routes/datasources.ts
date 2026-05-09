@@ -317,6 +317,94 @@ dataSourceRouter.post('/', async (req, res) => {
   res.status(201).json(toPublicDataSource(ds))
 })
 
+/**
+ * POST /api/v1/datasources/bulk — cria múltiplas fontes em uma única operação.
+ * Recebe { items: DataSourceBody[] } e retorna { created, failed } com index.
+ *
+ * Caso de uso: cliente Tiete Espumas quer cadastrar 6 endpoints SGBR de uma vez,
+ * ou super-admin importa templates da empresa. Validação por item: se um falha
+ * (URL inválida, plan limit, etc.), os demais ainda são tentados — não é
+ * transacional; o relatório identifica quais falharam por que.
+ */
+dataSourceRouter.post('/bulk', async (req, res) => {
+  const tenantId = resolveTenantId(req)
+  const items = (req.body as { items?: unknown })?.items
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ message: 'Forneça um array `items` com ao menos uma fonte.' })
+  }
+  if (items.length > 50) {
+    return res.status(400).json({ message: 'Máximo de 50 fontes por importação.' })
+  }
+
+  const created: Array<{ index: number; id: string; name: string }> = []
+  const failed: Array<{ index: number; name?: string; reason: string }> = []
+
+  for (let i = 0; i < items.length; i += 1) {
+    const raw = items[i]
+    const limit = await evaluatePlanLimit(tenantId, 'datasources')
+    if (!limit.allowed) {
+      failed.push({ index: i, reason: `Limite de plano atingido (${limit.used}/${limit.limit}).` })
+      break // Sem sentido continuar — todas próximas vão falhar pelo mesmo motivo
+    }
+    const validation = parseDataSourceBody(raw)
+    if (!validation.ok) {
+      failed.push({ index: i, name: (raw as { name?: string })?.name, reason: validation.message })
+      continue
+    }
+    const body = validation.data as DataSourceBody
+    sanitize(body)
+    if (!body.name || !body.apiUrl) {
+      failed.push({ index: i, name: body.name, reason: 'Nome e URL da API são obrigatórios.' })
+      continue
+    }
+    const safety = validateExternalApiUrl(body.apiUrl)
+    if (!safety.ok) {
+      failed.push({ index: i, name: body.name, reason: safety.message ?? 'URL inválida.' })
+      continue
+    }
+    const now = new Date().toISOString()
+    const ds: DataSource = {
+      id: genId(),
+      tenantId,
+      name: body.name,
+      type: body.type ?? 'rest_api',
+      apiUrl: body.apiUrl,
+      authMethod: body.authMethod ?? 'none',
+      authCredentials: resolveAuthCredentials(body),
+      status: 'pending',
+      lastCheckedAt: null,
+      lastError: null,
+      fieldMappings: body.fieldMappings ?? [],
+      erpEndpoints: body.erpEndpoints ?? [],
+      isAuthSource: body.isAuthSource ?? false,
+      loginEndpoint: body.loginEndpoint,
+      dataEndpoint: body.dataEndpoint,
+      passwordMode: body.passwordMode ?? 'plain',
+      loginFieldUser: body.loginFieldUser ?? 'login',
+      loginFieldPassword: body.loginFieldPassword ?? 'senha',
+      paginationStyle: body.paginationStyle,
+      pageParam: body.pageParam,
+      perPageParam: body.perPageParam,
+      defaultPerPage: body.defaultPerPage,
+      cursorParam: body.cursorParam,
+      cursorResponseField: body.cursorResponseField,
+      createdAt: now,
+      updatedAt: now,
+    }
+    try {
+      await runWithDatasourcesLock(async () => {
+        const all = await readAllAsync()
+        await writeAllAsync([...all, ds])
+      })
+      created.push({ index: i, id: ds.id, name: ds.name })
+    } catch (err) {
+      failed.push({ index: i, name: body.name, reason: (err as Error).message ?? 'Falha ao gravar' })
+    }
+  }
+
+  res.status(failed.length === 0 ? 201 : 207).json({ created, failed, total: items.length })
+})
+
 // PUT /:id — atualiza
 dataSourceRouter.put('/:id', async (req, res) => {
   const tenantId = resolveTenantId(req)

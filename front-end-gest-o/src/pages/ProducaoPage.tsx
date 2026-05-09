@@ -34,7 +34,7 @@ import {
   PlusOutlined,
 } from '@ant-design/icons'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createTarget, deleteTarget, getOee, listTargets } from '../services/productionService'
+import { createTarget, deleteTarget, getOee, listTargets, type ProductionTarget } from '../services/productionService'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -656,13 +656,13 @@ function OeeTab() {
             columns={[
               { title: 'SKU', dataIndex: 'sku', render: (v: string | null) => v ?? <Tag>Agregada</Tag> },
               { title: 'Tipo', dataIndex: 'targetType' },
-              { title: 'Valor', dataIndex: 'targetValue', align: 'right', render: (v: number, r: { unit: string }) => `${v.toLocaleString('pt-BR')} ${r.unit}` },
-              { title: 'Vigência', key: 'validity', render: (_: unknown, r: { validFrom: string; validTo: string | null }) => `${r.validFrom}${r.validTo ? ` → ${r.validTo}` : ''}` },
+              { title: 'Valor', dataIndex: 'targetValue', align: 'right', render: (v: number, r: ProductionTarget) => `${v.toLocaleString('pt-BR')} ${r.unit}` },
+              { title: 'Vigência', key: 'validity', render: (_: unknown, r: ProductionTarget) => `${r.validFrom}${r.validTo ? ` → ${r.validTo}` : ''}` },
               {
                 title: '',
                 key: 'actions',
                 width: 60,
-                render: (_: unknown, r: { id: string }) => (
+                render: (_: unknown, r: ProductionTarget) => (
                   <Button
                     type="text"
                     size="small"

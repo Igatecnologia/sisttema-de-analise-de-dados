@@ -13,10 +13,13 @@ import {
   Empty,
   Form,
   Input,
+  Modal,
   Row,
   Select,
   Space,
   Spin,
+  Segmented,
+  Steps,
   Switch,
   Table,
   Tag,
@@ -34,6 +37,7 @@ import {
   CopyOutlined,
   DeleteOutlined,
   EditOutlined,
+  ImportOutlined,
   KeyOutlined,
   LinkOutlined,
   LoadingOutlined,
@@ -60,6 +64,15 @@ import { DataSourceStatus } from '../components/DataSourceStatus'
 import { ERP_STANDARD_FIELDS, ERP_ENDPOINT_OPTIONS } from '../api/erpStandardFields'
 import { diagnoseFields, type DiagnosticResult, type FieldAnalysis } from '../utils/dataSourceDiagnostic'
 import { CsvDatasetsSection } from '../components/CsvDatasetsSection'
+import { BulkImportDataSourcesModal } from '../components/BulkImportDataSourcesModal'
+import { useTenant } from '../tenant/TenantContext'
+import {
+  deleteTemplate,
+  listTemplates,
+  markTemplateUsed,
+  saveTemplate,
+  type DataSourceTemplate,
+} from '../services/datasourceTemplatesStorage'
 
 const TYPE_OPTIONS = [
   { value: 'rest_api', label: 'Conexao direta' },
@@ -178,8 +191,17 @@ export function DataSourceConfigPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [dataSources, setDataSources] = useState<DataSource[]>([])
   const [loading, setLoading] = useState(true)
+  const tenant = useTenant()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [bulkImportOpen, setBulkImportOpen] = useState(false)
+  const [templates, setTemplates] = useState<DataSourceTemplate[]>(() => listTemplates(tenant.tenantId))
+  /** Modo do form: 'guided' = wizard 4 passos (admin não-técnico),
+   *               'advanced' = formulário completo numa página (admin técnico). */
+  const [formMode, setFormMode] = useState<'guided' | 'advanced'>('guided')
+  const [wizardStep, setWizardStep] = useState(0)
+
+  const refreshTemplates = () => setTemplates(listTemplates(tenant.tenantId))
   const [saving, setSaving] = useState(false)
   const [testResult, setTestResult] = useState<DataSourceTestResult | null>(null)
   const [diagnostic, setDiagnostic] = useState<DiagnosticResult | null>(null)
@@ -283,7 +305,46 @@ export function DataSourceConfigPage() {
       setEditingId(null)
       form.resetFields()
     }
+    setWizardStep(0)
     setDrawerOpen(true)
+  }
+
+  /** Abre o drawer com payload de um template salvo. */
+  const applyTemplate = (tpl: DataSourceTemplate) => {
+    setTestResult(null)
+    setDiagnostic(null)
+    setEditingId(null)
+    form.resetFields()
+    form.setFieldsValue({
+      type: 'rest_api',
+      authMethod: 'none',
+      isAuthSource: false,
+      passwordMode: 'plain',
+      loginFieldUser: 'login',
+      loginFieldPassword: 'senha',
+      erpEndpoints: [],
+      fieldMappings: [],
+      ...tpl.payload,
+    })
+    setWizardStep(0)
+    setDrawerOpen(true)
+    markTemplateUsed(tenant.tenantId, tpl.id)
+    refreshTemplates()
+  }
+
+  /**
+   * Salva o estado atual do form como template — sem credenciais.
+   * Disponível depois que o usuário preencheu o form e quer reusar a estrutura
+   * para outros datasources do mesmo tipo (ex.: Tiete Espumas com 6 endpoints).
+   */
+  const saveCurrentAsTemplate = (templateName: string, notes?: string) => {
+    const v = form.getFieldsValue() as Record<string, unknown>
+    saveTemplate(tenant.tenantId, {
+      name: templateName,
+      notes,
+      payload: v,
+    })
+    refreshTemplates()
   }
 
   /**
@@ -318,6 +379,7 @@ export function DataSourceConfigPage() {
       erpEndpoints: ds.erpEndpoints,
       fieldMappings: ds.fieldMappings,
     })
+    setWizardStep(0)
     setDrawerOpen(true)
   }
 
@@ -666,9 +728,55 @@ export function DataSourceConfigPage() {
               Conecte o BI ou ERP ao painel. Credenciais ficam no servidor.
             </Typography.Text>
           </div>
-          <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => openDrawer()}>
-            Nova conexão
-          </Button>
+          <Space>
+            {templates.length > 0 ? (
+              <Dropdown
+                trigger={['click']}
+                menu={{
+                  items: [
+                    ...templates.slice(0, 8).map((tpl) => ({
+                      key: tpl.id,
+                      label: (
+                        <Space style={{ width: 240, justifyContent: 'space-between' }}>
+                          <span>
+                            <Typography.Text strong>{tpl.name}</Typography.Text>
+                            {tpl.notes ? (
+                              <Typography.Text type="secondary" style={{ display: 'block', fontSize: 11 }}>
+                                {tpl.notes}
+                              </Typography.Text>
+                            ) : null}
+                          </span>
+                          <Button
+                            type="text"
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              deleteTemplate(tenant.tenantId, tpl.id)
+                              refreshTemplates()
+                            }}
+                            aria-label="Excluir template"
+                          />
+                        </Space>
+                      ),
+                      onClick: () => applyTemplate(tpl),
+                    })),
+                  ],
+                }}
+              >
+                <Button size="large" icon={<BulbOutlined />}>
+                  Meus templates ({templates.length})
+                </Button>
+              </Dropdown>
+            ) : null}
+            <Button size="large" icon={<ImportOutlined />} onClick={() => setBulkImportOpen(true)}>
+              Importar lote
+            </Button>
+            <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => openDrawer()}>
+              Nova conexão
+            </Button>
+          </Space>
         </div>
 
         <CsvDatasetsSection />
@@ -740,31 +848,107 @@ export function DataSourceConfigPage() {
 
       <Drawer
         title={
-          <Space direction="vertical" size={0}>
-            <Typography.Text strong style={{ fontSize: 16 }}>
-              {editingId ? 'Editar fonte' : 'Nova fonte'}
-            </Typography.Text>
-            {editingId && (
-              <Typography.Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>
-                {dataSources.find((d) => d.id === editingId)?.name}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+            <Space direction="vertical" size={0}>
+              <Typography.Text strong style={{ fontSize: 16 }}>
+                {editingId ? 'Editar fonte' : 'Nova fonte'}
               </Typography.Text>
-            )}
-          </Space>
+              {editingId && (
+                <Typography.Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>
+                  {dataSources.find((d) => d.id === editingId)?.name}
+                </Typography.Text>
+              )}
+            </Space>
+            <Segmented
+              size="small"
+              value={formMode}
+              onChange={(v) => {
+                setFormMode(v as 'guided' | 'advanced')
+                setWizardStep(0)
+              }}
+              options={[
+                { label: 'Guiado', value: 'guided' },
+                { label: 'Avançado', value: 'advanced' },
+              ]}
+            />
+          </div>
         }
         open={drawerOpen}
         onClose={() => {
           setDrawerOpen(false)
           setTestResult(null)
           setDiagnostic(null)
+          setWizardStep(0)
         }}
-        width={640}
+        width={680}
         styles={{ footer: { borderTop: '1px solid var(--qc-border, rgba(255,255,255,0.08))' } }}
         footer={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <Button onClick={() => setDrawerOpen(false)}>Cancelar</Button>
-            <Button type="primary" loading={saving} onClick={handleSave}>
-              Salvar
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+            <Button
+              size="small"
+              type="dashed"
+              icon={<BulbOutlined />}
+              onClick={() => {
+                const v = form.getFieldsValue() as Record<string, unknown>
+                if (!v.name) {
+                  notification.warning({ message: 'Preencha ao menos o nome antes de salvar como template.' })
+                  return
+                }
+                Modal.confirm({
+                  title: 'Salvar como template',
+                  content: (
+                    <div>
+                      <Typography.Paragraph style={{ marginBottom: 8 }}>
+                        O template guarda os campos preenchidos (sem senhas) para reutilizar depois.
+                      </Typography.Paragraph>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        Nome do template: <Typography.Text code>{String(v.name)}</Typography.Text>
+                      </Typography.Text>
+                    </div>
+                  ),
+                  okText: 'Salvar template',
+                  cancelText: 'Cancelar',
+                  onOk: () => {
+                    saveCurrentAsTemplate(String(v.name))
+                    notification.success({ message: 'Template salvo.' })
+                  },
+                })
+              }}
+            >
+              Salvar como template
             </Button>
+            <Space>
+              <Button onClick={() => setDrawerOpen(false)}>Cancelar</Button>
+              {formMode === 'guided' && wizardStep > 0 ? (
+                <Button onClick={() => setWizardStep((s) => Math.max(0, s - 1))}>Anterior</Button>
+              ) : null}
+              {formMode === 'guided' && wizardStep < 3 ? (
+                <Button
+                  type="primary"
+                  onClick={async () => {
+                    /** Valida campos obrigatórios do passo atual antes de avançar. */
+                    const fieldsByStep: Array<string[]> = [
+                      ['name', 'type', 'apiUrl', 'authMethod'],   // step 0
+                      ['loginEndpoint', 'apiLogin'],               // step 1 — só se houver login
+                      [],                                          // step 2 — teste é opcional
+                    ]
+                    try {
+                      const fields = fieldsByStep[wizardStep] ?? []
+                      if (fields.length > 0) await form.validateFields(fields)
+                      setWizardStep((s) => Math.min(3, s + 1))
+                    } catch {
+                      /** Form mostra os erros visualmente. */
+                    }
+                  }}
+                >
+                  Próximo
+                </Button>
+              ) : (
+                <Button type="primary" loading={saving} onClick={handleSave}>
+                  Salvar
+                </Button>
+              )}
+            </Space>
           </div>
         }
       >
@@ -779,6 +963,21 @@ export function DataSourceConfigPage() {
             erpEndpoints: [], fieldMappings: [],
           }}
         >
+          {formMode === 'guided' ? (
+            <Steps
+              size="small"
+              current={wizardStep}
+              style={{ marginBottom: 24 }}
+              items={[
+                { title: 'Servidor' },
+                { title: 'Login' },
+                { title: 'Teste' },
+                { title: 'Mapeamento' },
+              ]}
+            />
+          ) : null}
+
+          <div style={{ display: formMode === 'advanced' || wizardStep === 0 ? 'block' : 'none' }}>
           <FormSection icon={<CloudServerOutlined />} title="Servidor e rotas" subtitle="URL base e caminhos exatamente como no manual da API.">
             <Form.Item label="Nome" name="name" rules={[{ required: true, message: 'Informe um nome' }]}>
               <Input placeholder="Ex.: Vendas · Produção" />
@@ -824,7 +1023,9 @@ export function DataSourceConfigPage() {
               }}
             </Form.Item>
           </FormSection>
+          </div>
 
+          <div style={{ display: formMode === 'advanced' || wizardStep === 1 ? 'block' : 'none' }}>
           <FormSection icon={<KeyOutlined />} title="Login no app e JWT" subtitle="Usuários do painel e token para consultas automáticas.">
             <Form.Item name="isAuthSource" valuePropName="checked" label="Permitir login do app por esta fonte">
               <Switch checkedChildren="Sim" unCheckedChildren="Não" />
@@ -912,7 +1113,9 @@ export function DataSourceConfigPage() {
               }}
             </Form.Item>
           </FormSection>
+          </div>
 
+          <div style={{ display: formMode === 'advanced' || wizardStep === 2 ? 'block' : 'none' }}>
           <FormSection icon={<ThunderboltOutlined />} title="Teste de conexão" subtitle="Valida login e leitura do endpoint.">
             <Button
               type="primary"
@@ -1004,9 +1207,12 @@ export function DataSourceConfigPage() {
               </div>
             )}
           </FormSection>
+          </div>
 
+          <div style={{ display: formMode === 'advanced' || wizardStep === 3 ? 'block' : 'none' }}>
           <Collapse
             bordered={false}
+            defaultActiveKey={formMode === 'guided' ? ['erp'] : undefined}
             style={{ background: 'transparent' }}
             items={[
               {
@@ -1062,8 +1268,15 @@ export function DataSourceConfigPage() {
               },
             ]}
           />
+          </div>
         </Form>
       </Drawer>
+
+      <BulkImportDataSourcesModal
+        open={bulkImportOpen}
+        onClose={() => setBulkImportOpen(false)}
+        onCompleted={() => load()}
+      />
     </div>
   )
 }
