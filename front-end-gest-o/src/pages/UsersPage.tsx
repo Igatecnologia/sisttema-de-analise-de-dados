@@ -2,6 +2,7 @@ import { RangePickerBR } from '../components/DatePickerPtBR'
 import {
   DeleteOutlined,
   EditOutlined,
+  MailOutlined,
   PlusOutlined,
   ReloadOutlined,
 } from '@ant-design/icons'
@@ -39,7 +40,7 @@ import {
   type Permission,
 } from '../auth/permissions'
 import type { User, UserRole } from '../types/models'
-import { createUser, deleteUser, listUsers, updateUser } from '../services/usersService'
+import { createUser, deleteUser, inviteUserByEmail, listUsers, updateUser } from '../services/usersService'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../query/queryKeys'
 import { DevErrorDetail } from '../components/DevErrorDetail'
@@ -83,6 +84,48 @@ export function UsersPage() {
   const [editing, setEditing] = useState<User | null>(null)
   const [saving, setSaving] = useState(false)
   const [form] = Form.useForm<UserForm>()
+
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkEmails, setBulkEmails] = useState('')
+  const [bulkRole, setBulkRole] = useState<UserRole>('viewer')
+  const [bulkSending, setBulkSending] = useState(false)
+  const [bulkResult, setBulkResult] = useState<{ ok: string[]; failed: Array<{ email: string; reason: string }> } | null>(null)
+
+  async function runBulkInvite() {
+    const emails = Array.from(
+      new Set(
+        bulkEmails
+          .split(/[\s,;]+/)
+          .map((e) => e.trim().toLowerCase())
+          .filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)),
+      ),
+    )
+    if (emails.length === 0) {
+      notification.warning({ message: 'Cole ao menos um email válido' })
+      return
+    }
+    setBulkSending(true)
+    const ok: string[] = []
+    const failed: Array<{ email: string; reason: string }> = []
+    await Promise.all(
+      emails.map(async (email) => {
+        try {
+          await inviteUserByEmail({ email, role: bulkRole })
+          ok.push(email)
+        } catch (err) {
+          failed.push({ email, reason: getErrorMessage(err, 'falhou') })
+        }
+      }),
+    )
+    setBulkResult({ ok, failed })
+    setBulkSending(false)
+    if (ok.length > 0) {
+      void queryClient.invalidateQueries({ queryKey: ['users'] })
+      void import('../services/analytics').then((m) =>
+        m.trackEvent('user_invited_bulk', { count: ok.length, role: bulkRole }),
+      )
+    }
+  }
 
   const usersQuery = useQuery({
     queryKey: queryKeys.users({ q: debouncedSearch, role: roleFilter, status: statusFilter }),
@@ -253,6 +296,18 @@ export function UsersPage() {
     <Space>
       <Button icon={<ReloadOutlined />} onClick={() => usersQuery.refetch()}>
         Atualizar
+      </Button>
+      <Button
+        icon={<MailOutlined />}
+        disabled={!canWrite}
+        onClick={() => {
+          setBulkEmails('')
+          setBulkRole('viewer')
+          setBulkResult(null)
+          setBulkOpen(true)
+        }}
+      >
+        Convidar por email
       </Button>
       <Button
         type="primary"
@@ -609,6 +664,78 @@ export function UsersPage() {
             </Space>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        open={bulkOpen}
+        title="Convidar usuários por email"
+        okText={bulkResult ? 'Concluir' : `Enviar convites${bulkSending ? '...' : ''}`}
+        cancelText="Cancelar"
+        confirmLoading={bulkSending}
+        onCancel={() => setBulkOpen(false)}
+        onOk={async () => {
+          if (bulkResult) {
+            setBulkOpen(false)
+            return
+          }
+          await runBulkInvite()
+        }}
+        width={560}
+      >
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          {bulkResult ? (
+            <>
+              {bulkResult.ok.length > 0 ? (
+                <Alert
+                  type="success"
+                  showIcon
+                  message={`${bulkResult.ok.length} convite${bulkResult.ok.length > 1 ? 's' : ''} enviado${bulkResult.ok.length > 1 ? 's' : ''}`}
+                  description={bulkResult.ok.join(', ')}
+                />
+              ) : null}
+              {bulkResult.failed.length > 0 ? (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message={`${bulkResult.failed.length} falha${bulkResult.failed.length > 1 ? 's' : ''}`}
+                  description={
+                    <ul style={{ margin: 0, paddingLeft: 20 }}>
+                      {bulkResult.failed.map((f) => (
+                        <li key={f.email}><Typography.Text code>{f.email}</Typography.Text> — {f.reason}</li>
+                      ))}
+                    </ul>
+                  }
+                />
+              ) : null}
+            </>
+          ) : (
+            <>
+              <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                Cole os emails (um por linha, separados por vírgula ou ponto-e-vírgula). Cada pessoa receberá um link para criar a senha.
+              </Typography.Text>
+              <Input.TextArea
+                value={bulkEmails}
+                onChange={(e) => setBulkEmails(e.target.value)}
+                placeholder="maria@empresa.com&#10;joao@empresa.com"
+                autoSize={{ minRows: 5, maxRows: 12 }}
+                style={{ fontFamily: 'monospace' }}
+              />
+              <Space>
+                <Typography.Text>Perfil:</Typography.Text>
+                <Select
+                  value={bulkRole}
+                  onChange={setBulkRole}
+                  style={{ width: 200 }}
+                  options={[
+                    { value: 'viewer', label: 'Visualizador' },
+                    { value: 'manager', label: 'Gerente' },
+                    { value: 'admin', label: 'Administrador' },
+                  ]}
+                />
+              </Space>
+            </>
+          )}
+        </Space>
       </Modal>
     </Space>
   )

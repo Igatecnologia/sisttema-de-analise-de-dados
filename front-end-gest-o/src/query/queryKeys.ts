@@ -50,6 +50,11 @@ export const queryKeys = {
   custoRealProdutos: () => ['custoRealProdutos'] as const,
   alertasOperacionais: () => ['alertasOperacionais'] as const,
   alerts: () => ['alerts'] as const,
+  apiKeys: () => ['apiKeys'] as const,
+  organizations: () => ['organizations'] as const,
+  savedViews: (pageKey?: string) => ['savedViews', pageKey ?? 'all'] as const,
+  changelog: () => ['changelog'] as const,
+  publicShares: () => ['publicShares'] as const,
   userPreferences: () => ['userPreferences'] as const,
 
   /* ── Fontes de Dados ── */

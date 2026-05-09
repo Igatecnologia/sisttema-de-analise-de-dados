@@ -4,17 +4,14 @@ const isCi = process.env.CI === 'true'
 
 export default defineConfig({
   testDir: './tests/e2e',
+  globalSetup: './tests/e2e/global-setup.ts',
+  globalTeardown: './tests/e2e/global-teardown.ts',
   fullyParallel: true,
   retries: isCi ? 2 : 0,
   use: {
     baseURL: 'http://127.0.0.1:4173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-  },
-  webServer: {
-    command: 'npm run build:e2e && npm run preview -- --host 127.0.0.1 --port 4173',
-    url: 'http://127.0.0.1:4173',
-    reuseExistingServer: process.env.CI !== 'true',
   },
   projects: [
     {
@@ -35,12 +32,14 @@ export default defineConfig({
       name: 'api',
       testMatch: /smoke-saas\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
     },
     ...(isCi
       ? []
       : [
           {
             name: 'rbac-viewer',
+            testMatch: /rbac-and-crud\.spec\.ts/,
             use: {
               ...devices['Desktop Chrome'],
               storageState: 'tests/e2e/.auth/viewer.json',

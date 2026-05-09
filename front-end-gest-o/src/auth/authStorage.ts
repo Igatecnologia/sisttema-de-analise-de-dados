@@ -21,6 +21,7 @@ const sessionSchema = z.object({
     mustChangePassword: z.boolean().optional(),
   }),
   permissions: z.array(z.string()),
+  isSuperAdmin: z.boolean().optional(),
   impersonation: z
     .object({
       active: z.boolean(),

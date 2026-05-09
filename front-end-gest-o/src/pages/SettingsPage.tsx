@@ -1,6 +1,7 @@
 import {
   ApiOutlined,
   DatabaseOutlined,
+  DownloadOutlined,
   ReloadOutlined,
   SaveOutlined,
   TeamOutlined,
@@ -289,6 +290,43 @@ export function SettingsPage() {
                   <UsageBar label="Copiloto neste mês" used={billingQuery.data?.usage?.copilotMessagesMonthly ?? 0} limit={billingQuery.data?.limits?.copilotMessagesMonthly} />
                 </Space>
               </Card>
+
+              {canEditCompany ? (
+                <Card className="app-card" variant="borderless" title="Backup e exportação">
+                  <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                    <Typography.Text type="secondary">
+                      Baixe um JSON com tudo do tenant — usuários, fontes, configurações, audit. Útil para backup ou portabilidade.
+                    </Typography.Text>
+                    <Button
+                      icon={<DownloadOutlined />}
+                      onClick={async () => {
+                        const tenantId = settingsQuery.data?.id
+                        if (!tenantId) return
+                        try {
+                          const response = await fetch(`/api/v1/tenants/${tenantId}/export`, {
+                            credentials: 'include',
+                          })
+                          if (!response.ok) throw new Error(String(response.status))
+                          const blob = await response.blob()
+                          const url = URL.createObjectURL(blob)
+                          const a = document.createElement('a')
+                          a.href = url
+                          a.download = `iga-tenant-${tenantId}-${Date.now()}.json`
+                          document.body.appendChild(a)
+                          a.click()
+                          document.body.removeChild(a)
+                          URL.revokeObjectURL(url)
+                          notification.success({ message: 'Export concluído' })
+                        } catch {
+                          notification.error({ message: 'Falha ao exportar' })
+                        }
+                      }}
+                    >
+                      Exportar dados do tenant
+                    </Button>
+                  </Space>
+                </Card>
+              ) : null}
             </Space>
           </Col>
         </Row>

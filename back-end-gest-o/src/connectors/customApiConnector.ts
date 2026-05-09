@@ -1,3 +1,4 @@
+import type { BusinessSegment } from '../segments.js'
 import { GenericConnector } from './genericConnector.js'
 import type { ConnectorArea, WarmTarget } from './industryConnector.js'
 
@@ -10,6 +11,8 @@ export class IgaCustomApiConnector extends GenericConnector {
   id = 'iga-custom-api'
   name = 'API propria IGA'
   cspConnectSrc: string[] = []
+  /** Custom API atende qualquer segmento — a normalização vem do mapeamento. */
+  segments: BusinessSegment[] = ['industry', 'commerce', 'services', 'distribution']
 
   areaHints: Record<ConnectorArea, string[]> = {
     estoque: ['/iga/v1/estoque', '/api/iga/estoque', 'iga/estoque', 'estoque'],

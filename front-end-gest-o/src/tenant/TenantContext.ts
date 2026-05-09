@@ -6,6 +6,9 @@ export function defaultBrandLogoUrl(): string {
   return base.endsWith('/') ? `${base}logo.png.png` : `${base}/logo.png.png`
 }
 
+/** Segmentos de negócio suportados pelo SaaS — espelha back-end/src/segments.ts. */
+export type BusinessSegment = 'industry' | 'commerce' | 'services' | 'distribution'
+
 export type TenantConfig = {
   /** Identificador único do tenant (ex: slug, UUID) */
   tenantId: string
@@ -19,6 +22,8 @@ export type TenantConfig = {
   primaryColor?: string
   /** Modulos habilitados para o tenant atual */
   enabledModules: string[]
+  /** Segmento de negócio escolhido no signup. Direciona labels e módulos. */
+  segment?: BusinessSegment
   connector?: {
     id: string
     name: string
@@ -31,6 +36,8 @@ export type TenantConfig = {
       stock: string
       sales: string
     }
+    /** Segmentos de negócio suportados por este connector. */
+    segments?: BusinessSegment[]
     productTypes: string[]
     demoData?: {
       stockRows: Record<string, unknown>[]
@@ -46,12 +53,16 @@ export type TenantContextValue = {
   refreshTenant: () => Promise<void>
 }
 
-/** Tenant padrão — usado quando nenhum tenant é resolvido */
+/**
+ * Tenant padrão — usado quando nenhum tenant é resolvido (ex.: tela de login,
+ * primeira renderização). Labels neutros, sem amarração a um nicho específico.
+ */
 export const DEFAULT_TENANT: TenantConfig = {
   tenantId: 'default',
   companyName: 'IGA',
   logoUrl: defaultBrandLogoUrl(),
-  subtitle: 'Automação & Tecnologia',
+  subtitle: 'Gestão & Análise de Dados',
+  segment: 'industry',
   enabledModules: [
     'dashboard',
     'financeiro',
@@ -69,18 +80,19 @@ export const DEFAULT_TENANT: TenantConfig = {
     'operations',
   ],
   connector: {
-    id: 'sgbr-espuma',
-    name: 'SGBR Espuma',
+    id: 'iga-custom-api',
+    name: 'API IGA',
     labels: {
-      product: 'Espuma',
-      productPlural: 'Espumas',
-      rawMaterial: 'Materia-prima',
+      product: 'Produto',
+      productPlural: 'Produtos',
+      rawMaterial: 'Matéria-prima',
       finishedProduct: 'Produto final',
-      production: 'Producao de espuma',
-      stock: 'Estoque de espuma',
-      sales: 'Vendas SGBR',
+      production: 'Produção',
+      stock: 'Estoque',
+      sales: 'Vendas',
     },
-    productTypes: ['materia-prima', 'espuma', 'aglomerado', 'produto-final', 'outro'],
+    segments: ['industry', 'commerce', 'services', 'distribution'],
+    productTypes: ['materia-prima', 'produto-final', 'outro'],
   },
   plan: 'trial',
   trialEndsAt: null,

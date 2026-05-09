@@ -116,7 +116,7 @@ export function EstoqueProdutoFinalTab() {
         if (v <= 0) {
           return (
             <Space size={4}>
-              <Tooltip title="Sem estoque"><WarningOutlined style={{ color: '#faad14' }} /></Tooltip>
+              <Tooltip title="Sem estoque"><WarningOutlined style={{ color: 'var(--qc-warning)' }} /></Tooltip>
               {node}
             </Space>
           )

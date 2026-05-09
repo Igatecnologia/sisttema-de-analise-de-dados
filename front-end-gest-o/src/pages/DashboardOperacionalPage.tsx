@@ -392,7 +392,7 @@ export function DashboardOperacionalPage() {
       render: (v: string, r) =>
         r.margemRealPct < 30 ? (
           <Space size={4}>
-            <WarningOutlined style={{ color: '#f5222d' }} />
+            <WarningOutlined style={{ color: 'var(--qc-error)' }} />
             {v}
           </Space>
         ) : (

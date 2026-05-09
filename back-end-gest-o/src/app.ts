@@ -19,6 +19,7 @@ import { seedDefaultDataSources } from './seedDataSources.js'
 import { readAll as ensureDataSourcesFile } from './storage.js'
 import { readAllUsers as ensureUsersFile } from './userStorage.js'
 import { requireAuth, requireAdmin } from './middleware/auth.js'
+import { requireAuthOrApiKeyScope } from './middleware/apiKeyAuth.js'
 import { csrfProtection } from './middleware/csrf.js'
 import { jsonRequestLog } from './middleware/requestLog.js'
 import { blockPrototypePollution } from './middleware/blockPrototypePollution.js'
@@ -28,6 +29,7 @@ import { userPreferencesRouter } from './routes/userPreferences.js'
 import { searchRouter } from './routes/search.js'
 import { copilotRouter } from './routes/copilot.js'
 import { scheduledReportsRouter } from './routes/scheduledReports.js'
+import { csvDatasetsRouter } from './routes/csvDatasets.js'
 import { tenantsRouter } from './routes/tenants.js'
 import { onboardingRouter } from './routes/onboarding.js'
 import { billingRouter, stripeWebhookRouter } from './routes/billing.js'
@@ -40,6 +42,13 @@ import { webhooksRouter } from './routes/webhooks.js'
 import { legalRouter } from './routes/legal.js'
 import { analyticsRouter } from './routes/analytics.js'
 import { leadsRouter } from './routes/leads.js'
+import { apiKeysRouter } from './routes/apiKeys.js'
+import { savedViewsRouter } from './routes/savedViews.js'
+import { organizationsRouter } from './routes/organizations.js'
+import { changelogRouter } from './routes/changelog.js'
+import { helpRouter } from './routes/help.js'
+import { publicSharesRouter } from './routes/publicShares.js'
+import { segmentsRouter } from './routes/segments.js'
 import { startScheduledReportsJob } from './jobs/scheduledReports.js'
 import { startBackupScheduler } from './jobs/dbBackup.js'
 import { startCopilotRetentionJob } from './jobs/copilotRetention.js'
@@ -148,7 +157,7 @@ export function createApp(options: CreateAppOptions = {}) {
     : /^https:\/\/([a-z0-9-]+\.igagestao\.com\.br|[a-z0-9-]+\.vercel\.app|[a-z0-9-]+\.onrender\.com)$/
   const staticAllowed = new Set(
     isStrictlyDev
-      ? [FRONTEND_URL, 'http://localhost:5173', 'http://localhost:4173']
+      ? [FRONTEND_URL, 'http://localhost:5173', 'http://localhost:4173', 'http://localhost:3002', 'http://localhost:3003']
       : [FRONTEND_URL],
   )
   app.use(cors({
@@ -163,7 +172,13 @@ export function createApp(options: CreateAppOptions = {}) {
   }))
   /** Stripe webhook precisa de raw body para validar assinatura — registrado ANTES do json. */
   app.use('/api/v1/billing', stripeWebhookRouter)
-  app.use(express.json({ limit: '1mb' }))
+  /** Limite default 1mb pra todas as rotas; CSV upload usa endpoint dedicado abaixo com 12mb. */
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/v1/csv-datasets') && req.method === 'POST') {
+      return express.json({ limit: '12mb' })(req, res, next)
+    }
+    return express.json({ limit: '1mb' })(req, res, next)
+  })
   app.use(blockPrototypePollution)
   app.use(csrfProtection)
   app.use(jsonRequestLog)
@@ -237,6 +252,7 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/api/v1/search', searchRouter)
   app.use('/api/v1/copilot', copilotRouter)
   app.use('/api/v1/scheduled-reports', scheduledReportsRouter)
+  app.use('/api/v1/csv-datasets', csvDatasetsRouter)
   app.use('/api/v1/tenants', tenantsRouter)
   app.use('/api/v1/onboarding', onboardingRouter)
   app.use('/api/v1/billing', billingRouter)
@@ -250,14 +266,21 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/api/v1/analytics', analyticsRouter)
   /** Leads (Beta capture) — sem auth, com anti-fraud + rate limit. */
   app.use('/api/v1/leads', leadsRouter)
+  app.use('/api/v1/changelog', changelogRouter)
+  app.use('/api/v1/help', helpRouter)
+  app.use('/api/v1/public-shares', publicSharesRouter)
+  app.use('/api/v1/segments', segmentsRouter)
   /** Gate de billing apos as rotas de auth/billing/onboarding/tenant config. */
   app.use(subscriptionGate)
 
   app.use('/api/v1/users', requireAdmin, usersRouter)
+  app.use('/api/v1/api-keys', apiKeysRouter)
+  app.use('/api/v1/saved-views', savedViewsRouter)
+  app.use('/api/v1/orgs', organizationsRouter)
   app.use('/api/v1/datasources', dataSourceRouter)
   app.use('/api/proxy', proxyRouter)
-  app.use('/dashboard', requireAuth, dashboardRouter)
-  app.use('/reports', requireAuth, reportsRouter)
+  app.use('/dashboard', requireAuthOrApiKeyScope('dashboards:read'), dashboardRouter)
+  app.use('/reports', requireAuthOrApiKeyScope('reports:read'), reportsRouter)
   app.use('/audit', requireAdmin, auditRouter)
   app.use('/erp', requireAuth, erpRouter)
   app.use('/finance', requireAuth, financeRouter)

@@ -58,6 +58,7 @@ import {
 import { DataSourceStatus } from '../components/DataSourceStatus'
 import { ERP_STANDARD_FIELDS, ERP_ENDPOINT_OPTIONS } from '../api/erpStandardFields'
 import { diagnoseFields, type DiagnosticResult, type FieldAnalysis } from '../utils/dataSourceDiagnostic'
+import { CsvDatasetsSection } from '../components/CsvDatasetsSection'
 
 const TYPE_OPTIONS = [
   { value: 'rest_api', label: 'Conexao direta' },
@@ -545,7 +546,7 @@ export function DataSourceConfigPage() {
         return (
           <Tooltip title={d.toLocaleString('pt-BR')}>
             <Space size={4}>
-              <ClockCircleOutlined style={{ fontSize: 11, color: '#999' }} />
+              <ClockCircleOutlined style={{ fontSize: 11, color: 'var(--qc-text-muted)' }} />
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                 {d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </Typography.Text>
@@ -630,6 +631,8 @@ export function DataSourceConfigPage() {
             Nova conexão
           </Button>
         </div>
+
+        <CsvDatasetsSection />
 
         {dataSources.length > 0 && (
           <Card size="small" variant="borderless" style={{ borderRadius: 12, border: '1px solid var(--qc-border, rgba(255,255,255,0.08))' }}>

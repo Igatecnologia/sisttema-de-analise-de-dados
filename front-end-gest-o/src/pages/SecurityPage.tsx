@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Input, Modal, Space, Tag, Typography, message } from 'antd'
+import { Alert, Button, Card, Input, Modal, Popconfirm, Space, Tag, Typography, message } from 'antd'
 import { useEffect, useState } from 'react'
 import { PageHeaderCard } from '../components/PageHeaderCard'
 import { MfaSetupModal } from '../components/MfaSetupModal'
@@ -8,11 +8,15 @@ import {
   regenerateMfaBackupCodes,
   type MfaStatus,
 } from '../services/mfaService'
+import { http } from '../services/http'
+import { useAuth } from '../auth/AuthContext'
 
 export function SecurityPage() {
+  const { signOut } = useAuth()
   const [status, setStatus] = useState<MfaStatus | null>(null)
   const [loading, setLoading] = useState(false)
   const [setupOpen, setSetupOpen] = useState(false)
+  const [logoutAllLoading, setLogoutAllLoading] = useState(false)
 
   const [disableOpen, setDisableOpen] = useState(false)
   const [disablePassword, setDisablePassword] = useState('')
@@ -97,6 +101,38 @@ export function SecurityPage() {
             <Button type="primary" onClick={() => setSetupOpen(true)}>Configurar 2FA</Button>
           </Space>
         )}
+      </Card>
+
+      <Card title="Sessões ativas">
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Typography.Text>
+            Se você suspeita que sua conta foi acessada em outro dispositivo, encerre todas as sessões.
+            Você precisará fazer login novamente em todos os dispositivos.
+          </Typography.Text>
+          <Popconfirm
+            title="Encerrar todas as sessões?"
+            description="Você será desconectado deste e de todos os outros dispositivos."
+            okText="Sair de tudo"
+            okButtonProps={{ danger: true }}
+            cancelText="Cancelar"
+            onConfirm={async () => {
+              setLogoutAllLoading(true)
+              try {
+                await http.post('/api/v1/auth/logout-all')
+                message.success('Todas as sessões foram encerradas')
+                await signOut()
+              } catch {
+                message.error('Falha ao encerrar sessões')
+              } finally {
+                setLogoutAllLoading(false)
+              }
+            }}
+          >
+            <Button danger loading={logoutAllLoading}>
+              Sair de todos os dispositivos
+            </Button>
+          </Popconfirm>
+        </Space>
       </Card>
 
       <MfaSetupModal

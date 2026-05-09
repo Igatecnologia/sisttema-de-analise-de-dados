@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS tenants (
   logo_url TEXT NULL,
   primary_color TEXT NULL,
   enabled_modules_json TEXT NOT NULL DEFAULT '[]',
-  connector_id TEXT NOT NULL DEFAULT 'sgbr-espuma',
+  connector_id TEXT NOT NULL DEFAULT 'iga-custom-api',
+  segment TEXT NOT NULL DEFAULT 'industry',
   plan TEXT NOT NULL DEFAULT 'trial',
   trial_ends_at TEXT NULL,
   status TEXT NOT NULL DEFAULT 'active',
@@ -152,6 +153,43 @@ CREATE TABLE IF NOT EXISTS tenant_onboarding (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS api_keys (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  prefix TEXT NOT NULL,
+  secret_hash TEXT NOT NULL,
+  scopes_json TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  last_used_at TEXT NULL,
+  created_at TEXT NOT NULL,
+  revoked_at TEXT NULL
+);
+
+CREATE TABLE IF NOT EXISTS saved_views (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  page_key TEXT NOT NULL,
+  name TEXT NOT NULL,
+  params TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public_shares (
+  token TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT NULL,
+  payload_json TEXT NOT NULL,
+  expires_at TEXT NULL,
+  revoked_at TEXT NULL,
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_tenant_email ON users(tenant_id, email);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tenant_email_unique ON users(tenant_id, lower(email));
@@ -163,3 +201,7 @@ CREATE INDEX IF NOT EXISTS idx_copilot_user_created ON copilot_messages(user_id,
 CREATE INDEX IF NOT EXISTS idx_scheduled_reports_active ON scheduled_reports(active, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_user_created ON audit_log(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_auth_action_tokens_lookup ON auth_action_tokens(type, token_hash, expires_at);
+CREATE INDEX IF NOT EXISTS idx_api_keys_tenant ON api_keys(tenant_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_api_keys_secret_hash ON api_keys(secret_hash);
+CREATE INDEX IF NOT EXISTS idx_saved_views_tenant_page ON saved_views(tenant_id, page_key, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_public_shares_tenant ON public_shares(tenant_id, created_at DESC);

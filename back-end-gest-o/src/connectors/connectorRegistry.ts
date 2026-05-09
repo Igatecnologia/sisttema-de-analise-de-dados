@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { resolveDataDir } from '../paths.js'
+import { BUSINESS_SEGMENTS, type BusinessSegment, isBusinessSegment } from '../segments.js'
 import { GenericConnector } from './genericConnector.js'
 import { SgbrEspumaConnector } from './sgbrEspumaConnector.js'
 import { BlingConnector, CsvConnector, OmieConnector, TinyConnector } from './csvConnector.js'
@@ -11,6 +12,7 @@ type ExternalConnectorConfig = {
   id: string
   name: string
   cspConnectSrc?: string[]
+  segments?: BusinessSegment[]
   areaHints?: Partial<Record<ConnectorArea, string[]>>
   warmTargets?: WarmTarget[]
 }
@@ -21,6 +23,9 @@ class ExternalConnector extends GenericConnector {
     this.id = config.id
     this.name = config.name
     this.cspConnectSrc = config.cspConnectSrc ?? []
+    /** Segmentos do JSON externo são validados; default cobre todos. */
+    this.segments = (config.segments ?? BUSINESS_SEGMENTS).filter((s): s is BusinessSegment => isBusinessSegment(s))
+    if (this.segments.length === 0) this.segments = [...BUSINESS_SEGMENTS]
     this.areaHints = { ...this.areaHints, ...(config.areaHints ?? {}) }
     this.warmTargets = config.warmTargets ?? []
   }
@@ -68,6 +73,10 @@ export const ConnectorRegistry = {
   },
   list(): IndustryConnector[] {
     return [...connectors.values()]
+  },
+  /** Lista connectors compatíveis com um segmento — usado pelo onboarding/UI. */
+  listBySegment(segment: BusinessSegment): IndustryConnector[] {
+    return [...connectors.values()].filter((c) => c.segments.includes(segment))
   },
   reload(): { total: number; external: number } {
     loadConnectors()

@@ -79,14 +79,17 @@ const BillingPortalPage = lazy(() =>
 const LgpdPage = lazy(() =>
   import('../pages/LgpdPage').then((m) => ({ default: m.LgpdPage })),
 )
-const SuperAdminPage = lazy(() =>
-  import('../pages/SuperAdminPage').then((m) => ({ default: m.SuperAdminPage })),
+const SuperAdminMovedPage = lazy(() =>
+  import('../pages/SuperAdminMovedPage').then((m) => ({ default: m.SuperAdminMovedPage })),
 )
 const ConnectorsMarketplacePage = lazy(() =>
   import('../pages/ConnectorsMarketplacePage').then((m) => ({ default: m.ConnectorsMarketplacePage })),
 )
 const WebhooksPage = lazy(() =>
   import('../pages/WebhooksPage').then((m) => ({ default: m.WebhooksPage })),
+)
+const ScheduledReportsPage = lazy(() =>
+  import('../pages/ScheduledReportsPage').then((m) => ({ default: m.ScheduledReportsPage })),
 )
 const PrivacyPolicyPage = lazy(() =>
   import('../pages/LegalPages').then((m) => ({ default: m.PrivacyPolicyPage })),
@@ -133,6 +136,45 @@ const FaleConoscoSuportePage = lazy(() =>
 const DesignTokensPage = lazy(() =>
   import('../pages/DesignTokensPage').then((m) => ({ default: m.DesignTokensPage })),
 )
+const ProfilePage = lazy(() =>
+  import('../pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
+)
+const NotificationsPage = lazy(() =>
+  import('../pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })),
+)
+const TenantSwitcherPage = lazy(() =>
+  import('../pages/TenantSwitcherPage').then((m) => ({ default: m.TenantSwitcherPage })),
+)
+const APIKeysPage = lazy(() =>
+  import('../pages/APIKeysPage').then((m) => ({ default: m.APIKeysPage })),
+)
+const SavedViewsPage = lazy(() =>
+  import('../pages/SavedViewsPage').then((m) => ({ default: m.SavedViewsPage })),
+)
+const HelpCenterPage = lazy(() =>
+  import('../pages/HelpCenterPage').then((m) => ({ default: m.HelpCenterPage })),
+)
+const ChangelogPage = lazy(() =>
+  import('../pages/ChangelogPage').then((m) => ({ default: m.ChangelogPage })),
+)
+const IntegrationHealthPage = lazy(() =>
+  import('../pages/IntegrationHealthPage').then((m) => ({ default: m.IntegrationHealthPage })),
+)
+const PlanComparisonWizardPage = lazy(() =>
+  import('../pages/PlanComparisonWizardPage').then((m) => ({ default: m.PlanComparisonWizardPage })),
+)
+const ReportsGalleryPage = lazy(() =>
+  import('../pages/ReportsGalleryPage').then((m) => ({ default: m.ReportsGalleryPage })),
+)
+const PublicShareLinkPage = lazy(() =>
+  import('../pages/PublicShareLinkPage').then((m) => ({ default: m.PublicShareLinkPage })),
+)
+const AuditLogPerUserPage = lazy(() =>
+  import('../pages/AuditLogPerUserPage').then((m) => ({ default: m.AuditLogPerUserPage })),
+)
+const WelcomeTourPage = lazy(() =>
+  import('../pages/WelcomeTourPage').then((m) => ({ default: m.WelcomeTourPage })),
+)
 
 function HomeRedirect() {
   const { session } = useAuth()
@@ -157,9 +199,14 @@ function moduleForPath(path: string): string {
   if (path.startsWith('/compras')) return 'compras'
   if (path.startsWith('/estoque')) return 'estoque'
   if (path.startsWith('/alertas')) return 'alertas'
+  if (path.startsWith('/notificacoes')) return 'alertas'
   if (path.startsWith('/fontes-de-dados')) return 'datasources'
+  if (path.startsWith('/integracoes')) return 'datasources'
   if (path.startsWith('/admin/operacao')) return 'operations'
-  if (path.startsWith('/suporte') || path.startsWith('/tokens')) return 'suporte'
+  if (path.startsWith('/api-keys')) return 'auditoria'
+  if (path.startsWith('/visoes-salvas')) return 'relatorios'
+  if (path.startsWith('/orgs')) return 'usuarios'
+  if (path.startsWith('/ajuda') || path.startsWith('/novidades') || path.startsWith('/suporte') || path.startsWith('/tokens')) return 'suporte'
   return 'dashboard'
 }
 
@@ -198,6 +245,7 @@ export function AppRouter() {
             <Route path="/legal/termos" element={<PageErrorBoundary><TermsOfServicePage /></PageErrorBoundary>} />
             <Route path="/legal/cookies" element={<PageErrorBoundary><CookiesPolicyPage /></PageErrorBoundary>} />
             <Route path="/legal/sub-processors" element={<PageErrorBoundary><SubProcessorsPage /></PageErrorBoundary>} />
+            <Route path="/p/:token" element={<PageErrorBoundary><PublicShareLinkPage /></PageErrorBoundary>} />
             <Route path="/onboarding" element={<RequireAuth><OnboardingPage /></RequireAuth>} />
             <Route path="/importando-dados" element={<RequireAuth><ImportingDataPage /></RequireAuth>} />
             <Route
@@ -261,10 +309,54 @@ export function AppRouter() {
             }
           />
           <Route
+            path="/relatorios/agendados"
+            element={
+              <RequirePermission permission="reports:view">
+                <PageErrorBoundary><ScheduledReportsPage /></PageErrorBoundary>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="/relatorios/galeria"
+            element={
+              <RequirePermission permission="reports:view">
+                <PageErrorBoundary><ReportsGalleryPage /></PageErrorBoundary>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="/visoes-salvas"
+            element={
+              <RequirePermission permission="reports:view">
+                <PageErrorBoundary><SavedViewsPage /></PageErrorBoundary>
+              </RequirePermission>
+            }
+          />
+          <Route path="/boas-vindas" element={<PageErrorBoundary><WelcomeTourPage /></PageErrorBoundary>} />
+          <Route path="/perfil" element={<PageErrorBoundary><ProfilePage /></PageErrorBoundary>} />
+          <Route path="/notificacoes" element={<PageErrorBoundary><NotificationsPage /></PageErrorBoundary>} />
+          <Route path="/orgs" element={<PageErrorBoundary><TenantSwitcherPage /></PageErrorBoundary>} />
+          <Route
+            path="/api-keys"
+            element={
+              <RequirePermission permission="audit:view">
+                <PageErrorBoundary><APIKeysPage /></PageErrorBoundary>
+              </RequirePermission>
+            }
+          />
+          <Route
             path="/usuarios"
             element={
               <RequirePermission permission="users:view">
                 <RequireTenantModule path="/usuarios"><PageErrorBoundary><UsersPage /></PageErrorBoundary></RequireTenantModule>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="/usuarios/:id/historico"
+            element={
+              <RequirePermission permission="audit:view">
+                <PageErrorBoundary><AuditLogPerUserPage /></PageErrorBoundary>
               </RequirePermission>
             }
           />
@@ -297,12 +389,24 @@ export function AppRouter() {
             element={<PageErrorBoundary><BillingPlansPage /></PageErrorBoundary>}
           />
           <Route
+            path="/planos/recomendar"
+            element={<PageErrorBoundary><PlanComparisonWizardPage /></PageErrorBoundary>}
+          />
+          <Route
             path="/billing"
             element={<PageErrorBoundary><BillingPortalPage /></PageErrorBoundary>}
           />
           <Route
             path="/connectors"
             element={<PageErrorBoundary><ConnectorsMarketplacePage /></PageErrorBoundary>}
+          />
+          <Route
+            path="/integracoes/saude"
+            element={
+              <RequirePermission permission="datasources:view">
+                <PageErrorBoundary><IntegrationHealthPage /></PageErrorBoundary>
+              </RequirePermission>
+            }
           />
           <Route
             path="/webhooks"
@@ -314,7 +418,7 @@ export function AppRouter() {
           />
           <Route
             path="/super-admin"
-            element={<PageErrorBoundary><SuperAdminPage /></PageErrorBoundary>}
+            element={<PageErrorBoundary><SuperAdminMovedPage /></PageErrorBoundary>}
           />
           <Route
             path="/producao"
@@ -366,6 +470,8 @@ export function AppRouter() {
             }
           />
           <Route path="/suporte/fale-conosco" element={<FaleConoscoSuportePage />} />
+          <Route path="/ajuda" element={<PageErrorBoundary><HelpCenterPage /></PageErrorBoundary>} />
+          <Route path="/novidades" element={<PageErrorBoundary><ChangelogPage /></PageErrorBoundary>} />
           <Route
             path="/tokens"
             element={

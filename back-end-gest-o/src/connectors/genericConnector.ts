@@ -1,3 +1,4 @@
+import type { BusinessSegment } from '../segments.js'
 import {
   type ConnectorArea,
   type ConnectorDemoData,
@@ -11,6 +12,8 @@ export class GenericConnector implements IndustryConnector {
   id = 'generic'
   name = 'Generic'
   cspConnectSrc: string[] = []
+  /** Generic é compatível com todos os segmentos — fallback universal. */
+  segments: BusinessSegment[] = ['industry', 'commerce', 'services', 'distribution']
   labels = {
     product: 'Produto',
     productPlural: 'Produtos',

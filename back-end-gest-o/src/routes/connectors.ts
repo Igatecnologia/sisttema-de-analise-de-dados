@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { ConnectorRegistry } from '../connectors/connectorRegistry.js'
 import type { ConnectorArea } from '../connectors/industryConnector.js'
+import { isBusinessSegment } from '../segments.js'
 
 type ConnectorSchemaEndpoint = {
   area: ConnectorArea
@@ -115,11 +116,17 @@ function buildSchema(id: string) {
 export const connectorsRouter = Router()
 connectorsRouter.use(requireAuth)
 
-connectorsRouter.get('/', (_req, res) => {
-  const list = ConnectorRegistry.list().map((c) => ({
+connectorsRouter.get('/', (req, res) => {
+  /** Filtro opcional ?segment=industry|commerce|services|distribution. */
+  const segmentFilter = typeof req.query.segment === 'string' && isBusinessSegment(req.query.segment)
+    ? req.query.segment
+    : null
+  const source = segmentFilter ? ConnectorRegistry.listBySegment(segmentFilter) : ConnectorRegistry.list()
+  const list = source.map((c) => ({
     id: c.id,
     name: c.name,
     labels: c.labels,
+    segments: c.segments,
     cspConnectSrc: c.cspConnectSrc,
     /** Areas que o connector suporta (chaves nao vazias em areaHints). */
     areas: Object.entries(c.areaHints)

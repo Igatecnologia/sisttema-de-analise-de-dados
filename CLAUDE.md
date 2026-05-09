@@ -4,9 +4,17 @@ Contexto para o Claude Code trabalhar neste repositorio.
 
 ## O que e este projeto
 
-Sistema de gestao industrial (BI) que conecta a ERPs via proxy de API e exibe dashboards de producao, estoque, financeiro, vendas e compras. Inclui IA Copilot integrada.
+SaaS multi-tenant de gestao operacional (BI) que conecta a ERPs via proxy de API e exibe dashboards de producao, estoque, financeiro, vendas e compras. Inclui IA Copilot integrada.
 
-**Estado atual**: Aplicativo desktop single-tenant sendo transformado em SaaS multi-tenant.
+**Estado atual**: SaaS multi-tenant em producao. Suporta 4 segmentos de negocio (industria, comercio, servicos, distribuicao) com modulos, conectores e templates por segmento.
+
+**Segmentos**: Cada tenant escolhe um segmento no signup que determina:
+- Conectores recomendados (filtrados por compatibilidade — ex: SGBR Espuma so atende industry)
+- Modulos habilitados por padrao
+- Labels da UI (override em cima dos labels do connector)
+- Templates de dashboard
+
+Ver `back-end-gest-o/src/segments.ts` para o registro canonico e `front-end-gest-o/src/services/authService.ts::listSegments()` para o consumo no front.
 
 ## Estrutura do repositorio
 
@@ -27,11 +35,15 @@ sistema de gestão/
 │   │   │   ├── auth.ts    # requireAuth, sessao via cookie httpOnly
 │   │   │   ├── csrf.ts    # Protecao CSRF
 │   │   │   └── requestLog.ts
+│   │   ├── segments.ts    # Definicao dos 4 segmentos de negocio + helpers
+│   │   ├── connectors/    # IndustryConnector + 7 connectors (sgbr-espuma, iga-custom-api, csv, bling, tiny, omie, generic)
 │   │   ├── db/
-│   │   │   ├── sqlite.ts  # Banco SQLite (sera migrado para PostgreSQL)
-│   │   │   └── schema.sql
+│   │   │   ├── sqlite.ts          # SQLite local (dev) — DEFAULT
+│   │   │   ├── postgres.ts        # PostgreSQL prod (com RLS) quando IGA_STORAGE_DRIVER=postgres
+│   │   │   ├── postgresMigrations.ts  # 12 migrations sequenciais
+│   │   │   └── schema.sql         # Espelho canonico do SQLite
 │   │   ├── services/ai/   # Copilot: orchestrator, providers, tools
-│   │   └── jobs/          # warmCache, dbBackup, copilotRetention, scheduledReports
+│   │   └── jobs/          # BullMQ + fallback setInterval (warmCache, dbBackup, copilotRetention, scheduledReports, alertsEngine, trialLifecycle)
 │   ├── .env               # Variaveis de ambiente (NAO commitar)
 │   ├── .env.example       # Template de variaveis
 │   └── package.json
@@ -92,11 +104,14 @@ npm run size:check   # Bundle size check
 ### Backend
 - **Runtime**: Node.js + TypeScript
 - **Framework**: Express
-- **Banco**: SQLite (via better-sqlite3) — sera migrado para PostgreSQL
-- **Auth**: Sessoes em SQLite, cookie httpOnly `iga_session`, CSRF via `X-XSRF-TOKEN`
-- **Jobs**: setInterval (sera migrado para BullMQ)
-- **Email**: Nodemailer (scheduled reports)
-- **IA**: Groq API (Copilot), abstraction layer em `services/ai/`
+- **Banco**: SQLite (dev) ou PostgreSQL com RLS (prod) — controlado por `IGA_STORAGE_DRIVER`
+- **Auth**: JWT em cookie httpOnly `iga_session` (access) + `iga_refresh` (refresh com rotacao + reuse detection), CSRF via `X-XSRF-TOKEN`, MFA/TOTP, account lockout, HIBP pwned-password
+- **API Keys**: 4 scopes (`reports:read`, `dashboards:read`, `datasources:read`, `webhooks:write`) com hash SHA256 timing-safe, prefixo `iga_live_`
+- **Billing**: Stripe (checkout, customer portal, webhook validado). Bypass `BILLING_GATE_DISABLED=1` so funciona fora de prod
+- **RBAC**: 19 permissoes granulares (admin/manager/viewer + custom per-user) — ver `permissions.ts`
+- **Jobs**: BullMQ (Redis) com fallback para `setInterval` se Redis ausente
+- **Email**: Nodemailer (scheduled reports, transactional)
+- **IA**: AI SDK abstraction com Groq como provider default (free tier 30 req/min)
 
 ### Frontend
 - **Framework**: React 19 + TypeScript
@@ -112,21 +127,46 @@ npm run size:check   # Bundle size check
 
 ## Variaveis de ambiente
 
-### Backend (.env) — obrigatorias
+### Backend — obrigatorias em DEV
 ```
 PORT=3001
 FRONTEND_URL=http://localhost:5173
-SGBR_CREDENTIALS=usuario:senha
 ADMIN_DEFAULT_EMAIL=admin@iga.com
-ADMIN_DEFAULT_PASSWORD=SenhaForte123
+ADMIN_DEFAULT_PASSWORD=SenhaForte@2026!
 ```
+
+### Backend — obrigatorias em PRODUCAO
+```
+NODE_ENV=production
+IGA_SECRETS_KEY=<base64 32 bytes>          # criptografia at rest de credenciais
+IGA_SESSION_JWT_SECRET=<32+ bytes>          # assinatura do JWT de sessao
+DATABASE_URL=postgresql://...               # PostgreSQL gerenciado
+IGA_STORAGE_DRIVER=postgres
+REDIS_URL=redis://...                       # BullMQ + sharedCache
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_PRO=price_...
+STRIPE_PRICE_ENTERPRISE=price_...
+SUPER_ADMIN_EMAILS=admin@empresa.com        # acesso ao painel cross-tenant
+SMTP_HOST=...                               # transactional email
+SMTP_USER=...
+SMTP_PASS=...
+SMTP_FROM=no-reply@empresa.com
+```
+
+### Backend — opcionais (segmentacao por feature)
+- `SGBR_CREDENTIALS`, `SGBR_API_URL` — apenas para tenants com connector `sgbr-espuma`
+- `GROQ_API_KEY`, `COPILOT_PROVIDER` — IA Copilot (default: groq free tier)
+- `BILLING_GATE_DISABLED=1` — DEV-ONLY: pula o gate de assinatura. Bloqueado em `NODE_ENV=production`
+- `ALLOW_PRIVATE_HOSTS` — DEV-ONLY: permite conectar ERP em localhost
+- `IGA_DATA_DIR`, `SERVE_FRONTEND_DIR` — paths customizados
 
 ### Frontend (.env.local) — obrigatorias
 ```
 VITE_API_BASE_URL=http://localhost:3001
 ```
 
-Ver `TROUBLESHOOTING.md` para lista completa de variaveis opcionais.
+Ver `back-end-gest-o/.env.example` para lista completa de variaveis opcionais.
 
 ## Arquitetura de dados
 
@@ -176,14 +216,39 @@ Ver `TROUBLESHOOTING.md` para lista completa de variaveis opcionais.
 - Services: `nomeService.ts` (camelCase)
 - Rotas backend: `nome.ts` (camelCase)
 
-## O que esta hardcoded para SGBR (precisa desacoplar)
+## SaaS core vs. por segmento vs. opcional
 
-- `routes/erp.ts` — 10 referencias a `/sgbrbi/*`
-- `routes/finance.ts` — `classifyEstoqueItem()` classifica por espuma/aglomerado
-- `routes/proxy.ts` — `SGBR_CREDENTIALS` fallback, token retry SGBR-specific
-- `jobs/warmCache.ts` — `tenantId='default'` hardcoded
-- `app.ts` — CSP whitelist `*.sgbrbi.com.br`
-- Frontend: schemas com tipos fixos de espuma, 4 arquivos `sgbr*Normalize`
+### SaaS core (todos os tenants)
+- Auth (login, refresh, MFA), RBAC (19 permissoes), API Keys (4 scopes)
+- Billing Stripe (checkout, portal, webhook), TrialBanner
+- Tenants CRUD, Users CRUD, DataSources CRUD
+- Reports, ScheduledReports, Alerts, Webhooks, AuditLog
+- SavedViews, PublicShares, OrgSwitcher (header)
+- Help Center, Changelog, Onboarding (5 passos com CSV import)
+- Copilot IA (Groq), CommandPalette (Cmd+K)
+
+### Por segmento (4 perfis)
+- **Industria**: producao, ficha_tecnica, estoque (com aba "Produto base"), compras
+- **Comercio**: comercial, estoque (sem aba intermediaria), compras
+- **Servicos**: comercial, operations (sem producao/estoque/ficha_tecnica)
+- **Distribuicao**: comercial, compras, estoque, operations
+
+Cada segmento tem connector recomendado (ver `segments.ts::recommendedConnectorForSegment`) e templates de dashboard pre-configurados.
+
+### Opcional (instalavel/configuravel por tenant)
+- Connector SGBR Espuma (so atende segmento `industry`, requer `SGBR_CREDENTIALS`)
+- Connectors Bling/Tiny/Omie (status `coming-soon`, requer credenciais OAuth)
+- Connector CSV (qualquer segmento, sem auth)
+- IA Copilot (configuravel via tela de admin OU env vars)
+
+## SGBR-specific (legado tornado opcional)
+
+Era hardcoded no codigo, agora eh um connector entre outros:
+- `connectors/sgbrEspumaConnector.ts` — connector com `segments=['industry']`
+- `routes/finance.ts::classifyEstoqueItem()` — delega ao `connector.classifyProduct()` (generico)
+- Endpoint `/finance/estoque-espuma` — alias depreciado de `/finance/estoque-intermediario`
+- `SGBR_CREDENTIALS` env var — fallback opcional do proxy
+- Frontend `EstoqueEspumaTab` — so renderizada quando `tenant.segment === 'industry'`
 
 ## O que ja existe e funciona
 
@@ -201,10 +266,10 @@ Ver `TROUBLESHOOTING.md` para lista completa de variaveis opcionais.
 
 ## Testes
 
-- Backend: 4 test files (vitest) — app, permissions, localProvider, crypto
-- Frontend: 11 test files (vitest) — normalizers, contracts, utils
-- E2E: 3 specs Playwright (auth, rbac, bi-reports) — nao executados em CI
-- Cobertura geral: baixa. Priorizar testes de isolamento quando migrar para multi-tenant.
+- Backend: 11 test files (vitest) — 76 testes. Cobre app, permissions, segments, connectorSegments, MFA, account lockout, refresh tokens, RLS Postgres, crypto, registration anti-fraud, audit chain hash, shared cache, AI local provider
+- Frontend: 11 test files (vitest) — 34 testes. Cobre auth service, normalizers, contracts, utils
+- E2E: 5 specs Playwright (a11y, bi-reports, ops-admin, rbac-and-crud, smoke-saas) — rodam via `npm run test:e2e`
+- Total: 110 testes unitarios + 5 specs e2e. Build limpo back e front sem erros TypeScript.
 
 ## Deploy
 

@@ -5,6 +5,7 @@ import { deleteTenant, findTenantBySlug, genTenantId, listTenants, upsertTenant,
 import { logAudit } from '../services/auditLog.js'
 import { ConnectorRegistry } from '../connectors/connectorRegistry.js'
 import { buildTenantExport } from '../services/tenantExport.js'
+import { BUSINESS_SEGMENTS } from '../segments.js'
 
 export const tenantsRouter = Router()
 
@@ -31,7 +32,8 @@ const tenantSchema = z.object({
   subtitle: z.string().min(1).max(160).default('Automacao & Tecnologia'),
   logoUrl: z.string().url().max(600).nullable().optional(),
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{3,8}$/, 'Cor primaria invalida').nullable().optional(),
-  connectorId: z.string().min(2).max(64).default('sgbr-espuma'),
+  connectorId: z.string().min(2).max(64).default('iga-custom-api'),
+  segment: z.enum(BUSINESS_SEGMENTS as [string, ...string[]]).default('industry'),
   plan: z.enum(['trial', 'starter', 'pro', 'enterprise']).default('trial'),
   trialEndsAt: z.string().datetime().nullable().optional(),
   enabledModules: z.array(enabledModuleSchema).default(['dashboard']),
@@ -55,6 +57,7 @@ function sanitizeTenant(tenant: TenantRecord) {
     primaryColor: tenant.primaryColor,
     enabledModules: tenant.enabledModules,
     connectorId: tenant.connectorId,
+    segment: tenant.segment,
     plan: tenant.plan,
     trialEndsAt: tenant.trialEndsAt,
     status: tenant.status,
@@ -73,10 +76,12 @@ function sanitizePublicTenantConfig(tenant: TenantRecord) {
     logoUrl: tenant.logoUrl,
     primaryColor: tenant.primaryColor,
     enabledModules: tenant.enabledModules,
+    segment: tenant.segment,
     connector: {
       id: connector.id,
       name: connector.name,
       labels: connector.labels,
+      segments: connector.segments,
       productTypes: connector.getProductTypes(),
       demoData: connector.getDemoData(),
     },
@@ -184,6 +189,7 @@ tenantsRouter.post('/', async (req, res) => {
     logoUrl: parsed.data.logoUrl ?? null,
     primaryColor: parsed.data.primaryColor ?? null,
     connectorId: parsed.data.connectorId,
+    segment: parsed.data.segment as TenantRecord['segment'],
     plan: parsed.data.plan,
     trialEndsAt: parsed.data.trialEndsAt ?? null,
     enabledModules: [...new Set(parsed.data.enabledModules)].sort(),
@@ -217,6 +223,7 @@ tenantsRouter.put('/:slug', async (req, res) => {
     logoUrl: parsed.data.logoUrl === undefined ? current.logoUrl : parsed.data.logoUrl,
     primaryColor: parsed.data.primaryColor === undefined ? current.primaryColor : parsed.data.primaryColor,
     connectorId: parsed.data.connectorId ?? current.connectorId,
+    segment: (parsed.data.segment as TenantRecord['segment'] | undefined) ?? current.segment,
     plan: parsed.data.plan ?? current.plan,
     trialEndsAt: parsed.data.trialEndsAt === undefined ? current.trialEndsAt : parsed.data.trialEndsAt,
     enabledModules: parsed.data.enabledModules ? [...new Set(parsed.data.enabledModules)].sort() : current.enabledModules,

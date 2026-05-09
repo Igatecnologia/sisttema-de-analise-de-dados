@@ -31,11 +31,12 @@ test.describe('SaaS smoke — backend HTTP', () => {
     const body = await res.json()
     token = body.token
     expect(token).toBeTruthy()
-    expect(body.refreshToken).toBeTruthy()
+    expect(body.refreshToken).toBeUndefined()
     expect(body.permissions).toContain('dashboard:view')
     /** Captura cookies (httpOnly session + CSRF) — Playwright nao expoe httpOnly direto. */
     const setCookies = res.headersArray().filter((h) => h.name.toLowerCase() === 'set-cookie')
     expect(setCookies.some((c) => c.value.startsWith('iga_session='))).toBeTruthy()
+    expect(setCookies.some((c) => c.value.startsWith('iga_refresh='))).toBeTruthy()
     expect(setCookies.some((c) => c.value.startsWith('XSRF-TOKEN='))).toBeTruthy()
     await ctx.dispose()
   })
@@ -159,6 +160,47 @@ test.describe('SaaS smoke — backend HTTP', () => {
     await ctx.dispose()
   })
 
+  test('API Key com scopes acessa apenas rotas autorizadas', async () => {
+    const ctx = await request.newContext()
+    const create = await ctx.post(`${apiUrl}/api/v1/api-keys`, {
+      headers: authHeaders(),
+      data: {
+        name: 'E2E read key',
+        scopes: ['reports:read', 'dashboards:read', 'datasources:read'],
+      },
+    })
+    expect(create.status()).toBe(201)
+    const created = await create.json()
+    expect(created.secret).toMatch(/^iga_live_/)
+
+    const keyHeaders = {
+      Authorization: `Bearer ${created.secret}`,
+      Origin: 'http://127.0.0.1:4173',
+    }
+
+    const reports = await ctx.get(`${apiUrl}/reports`, { headers: keyHeaders })
+    expect(reports.status()).toBe(200)
+    const dashboard = await ctx.get(`${apiUrl}/dashboard`, { headers: keyHeaders })
+    expect(dashboard.status()).toBe(200)
+    const datasources = await ctx.get(`${apiUrl}/api/v1/datasources`, { headers: keyHeaders })
+    expect(datasources.status()).toBe(200)
+
+    const limited = await ctx.post(`${apiUrl}/api/v1/api-keys`, {
+      headers: authHeaders(),
+      data: { name: 'E2E reports only', scopes: ['reports:read'] },
+    })
+    expect(limited.status()).toBe(201)
+    const limitedBody = await limited.json()
+    const forbidden = await ctx.get(`${apiUrl}/dashboard`, {
+      headers: {
+        Authorization: `Bearer ${limitedBody.secret}`,
+        Origin: 'http://127.0.0.1:4173',
+      },
+    })
+    expect(forbidden.status()).toBe(403)
+    await ctx.dispose()
+  })
+
   test('GET /api/v1/super-admin/tenants exige super-admin (403 sem env)', async () => {
     const ctx = await request.newContext()
     const res = await ctx.get(`${apiUrl}/api/v1/super-admin/tenants`, { headers: authHeaders() })
@@ -181,29 +223,40 @@ test.describe('SaaS smoke — backend HTTP', () => {
   })
 
   test('POST /api/v1/auth/refresh rotaciona token e detecta reuse', async () => {
-    /** Faz login fresh para nao mexer no token global. */
     const ctx = await request.newContext()
+    const refreshEmail = `refresh-${Date.now()}@admin.com`
+    await ctx.post(`${apiUrl}/api/v1/users`, {
+      data: {
+        name: 'Refresh E2E',
+        email: refreshEmail,
+        password: 'AdminTeste2026!',
+        role: 'viewer',
+        status: 'active',
+      },
+      headers: authHeaders(),
+    })
+
     const login = await ctx.post(`${apiUrl}/api/v1/auth/login`, {
-      data: { email: adminEmail, password: adminPass },
+      data: { email: refreshEmail, password: 'AdminTeste2026!' },
       headers: { Origin: 'http://127.0.0.1:4173' },
     })
-    const loginBody = await login.json()
-    const refreshToken = loginBody.refreshToken
-    expect(refreshToken).toBeTruthy()
+    const setCookies = login.headersArray().filter((h) => h.name.toLowerCase() === 'set-cookie')
+    const refreshCookie = setCookies.find((c) => c.value.startsWith('iga_refresh='))
+    expect(refreshCookie).toBeTruthy()
 
     const r1 = await ctx.post(`${apiUrl}/api/v1/auth/refresh`, {
-      data: { refreshToken },
+      data: {},
       headers: { Origin: 'http://127.0.0.1:4173' },
     })
     expect(r1.status()).toBe(200)
     const r1Body = await r1.json()
     expect(r1Body.token).toBeTruthy()
-    expect(r1Body.refreshToken).toBeTruthy()
-    expect(r1Body.refreshToken).not.toBe(refreshToken) // rotacionou
+    expect(r1Body.refreshToken).toBeUndefined()
 
-    /** Reuse do token original deve detectar e retornar 401 + revoga familia. */
+    /** Reuse manual do token original deve detectar e retornar 401 + revoga familia. */
+    const originalRefreshToken = decodeURIComponent(refreshCookie?.value.match(/^iga_refresh=([^;]+)/)?.[1] ?? '')
     const r2 = await ctx.post(`${apiUrl}/api/v1/auth/refresh`, {
-      data: { refreshToken },
+      data: { refreshToken: originalRefreshToken },
       headers: { Origin: 'http://127.0.0.1:4173' },
     })
     expect(r2.status()).toBe(401)

@@ -53,6 +53,14 @@ import {
   isDisposableEmail,
   validateMx,
 } from '../services/registrationAntiFraud.js'
+import {
+  BUSINESS_SEGMENTS,
+  type BusinessSegment,
+  defaultModulesForSegment,
+  isBusinessSegment,
+  recommendedConnectorForSegment,
+} from '../segments.js'
+import { ConnectorRegistry } from '../connectors/connectorRegistry.js'
 
 export const authRouter = Router()
 
@@ -78,11 +86,36 @@ function buildSessionCookie(token: string): string {
   return parts.join('; ')
 }
 
+function buildRefreshCookie(token: string, expiresAt: number): string {
+  const maxAge = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000))
+  const parts = [
+    `iga_refresh=${encodeURIComponent(token)}`,
+    'HttpOnly',
+    'Path=/api/v1/auth/refresh',
+    `Max-Age=${maxAge}`,
+    'SameSite=Strict',
+  ]
+  if (useSecureCookie) parts.push('Secure')
+  return parts.join('; ')
+}
+
 function clearSessionCookie(): string {
   const parts = [
     'iga_session=',
     'HttpOnly',
     'Path=/',
+    'Max-Age=0',
+    'SameSite=Strict',
+  ]
+  if (useSecureCookie) parts.push('Secure')
+  return parts.join('; ')
+}
+
+function clearRefreshCookie(): string {
+  const parts = [
+    'iga_refresh=',
+    'HttpOnly',
+    'Path=/api/v1/auth/refresh',
     'Max-Age=0',
     'SameSite=Strict',
   ]
@@ -134,7 +167,10 @@ const registerSchema = z.object({
   name: z.string().min(2, 'Nome obrigatorio').max(120),
   email: z.string().email('Email invalido').max(254).trim().toLowerCase(),
   password: z.string(),
-  connectorId: z.string().min(2).max(64).default('sgbr-espuma'),
+  /** Segmento de negocio — direciona connector e modulos default. Default 'industry' por compatibilidade. */
+  segment: z.enum(BUSINESS_SEGMENTS as [string, ...string[]]).default('industry'),
+  /** Connector explicito; se omitido, escolhemos o recomendado pelo segmento. */
+  connectorId: z.string().min(2).max(64).optional(),
 })
 
 const inviteSchema = z.object({
@@ -306,14 +342,16 @@ authRouter.post('/login', tenantAuthLimiter, loginLimiter, requireTurnstile, asy
     binding.uaHash,
   )
   const csrfToken = generateCsrfToken()
-  res.setHeader('Set-Cookie', [buildSessionCookie(token), buildCsrfCookie(csrfToken)])
+  res.setHeader('Set-Cookie', [
+    buildSessionCookie(token),
+    buildCsrfCookie(csrfToken),
+    ...(refreshIssue ? [buildRefreshCookie(refreshIssue.token, refreshIssue.expiresAt)] : []),
+  ])
 
   const permissions = resolveEffectivePermissions(user.role, user.permissions)
 
   res.json({
     token,
-    /** SEC-2.6: refresh token entregue para clients que querem long-lived sessions. */
-    ...(refreshIssue ? { refreshToken: refreshIssue.token, refreshExpiresAt: refreshIssue.expiresAt } : {}),
     user: {
       id: user.id,
       name: user.name,
@@ -331,17 +369,22 @@ authRouter.post('/login', tenantAuthLimiter, loginLimiter, requireTurnstile, asy
  * Rotaciona refresh token e emite novo access token (session). Detecta reuse:
  * se o mesmo token eh apresentado 2x, revoga a familia inteira.
  */
-const refreshSchema = z.object({ refreshToken: z.string().min(20) })
+const refreshSchema = z.object({ refreshToken: z.string().min(20).optional() }).optional()
 
 authRouter.post('/refresh', async (req, res) => {
   const parsed = refreshSchema.safeParse(req.body)
   if (!parsed.success) {
     return res.status(400).json({ message: 'refreshToken obrigatorio' })
   }
+  const refreshToken = parsed.data?.refreshToken ?? readCookieToken(req.headers.cookie, 'iga_refresh')
+  if (!refreshToken) {
+    return res.status(400).json({ message: 'refreshToken obrigatorio' })
+  }
   const userAgent = typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : ''
   const binding = buildSessionBinding(req.ip ?? '', userAgent)
-  const result = await rotateRefreshToken(parsed.data.refreshToken, { ipHash: binding.ipHash, uaHash: binding.uaHash })
+  const result = await rotateRefreshToken(refreshToken, { ipHash: binding.ipHash, uaHash: binding.uaHash })
   if (!result.ok) {
+    res.setHeader('Set-Cookie', clearRefreshCookie())
     if (result.reason === 'reuse_detected') {
       logAudit({ action: 'refresh_reuse_detected', resource: 'auth', metadata: { ip: req.ip } })
       return res.status(401).json({ message: 'Sessao comprometida. Faca login novamente.', revoked: true })
@@ -358,10 +401,13 @@ authRouter.post('/refresh', async (req, res) => {
   })
   await registerToken(accessToken, result.userId, result.tenantId, binding)
   logAudit({ userId: result.userId, action: 'refresh_rotated', resource: 'auth', metadata: { ip: req.ip, familyId: result.familyId } })
+  /** Atualiza o cookie httpOnly da sessão pra que o frontend continue navegando sem novo login. */
+  res.setHeader('Set-Cookie', [
+    buildSessionCookie(accessToken),
+    buildRefreshCookie(result.issue.token, result.issue.expiresAt),
+  ])
   res.json({
     token: accessToken,
-    refreshToken: result.issue.token,
-    refreshExpiresAt: result.issue.expiresAt,
   })
 })
 
@@ -500,6 +546,18 @@ authRouter.post('/register', tenantAuthLimiter, requireTurnstile, async (req, re
 
   const tenantId = genTenantId(slug)
   const now = new Date().toISOString()
+  const segment: BusinessSegment = isBusinessSegment(parsed.data.segment) ? parsed.data.segment : 'industry'
+  /**
+   * Connector: usa o explicito se compativel com o segmento; senao,
+   * cai no recomendado para o segmento. Evita escolher connector que
+   * nao atende o nicho do tenant.
+   */
+  const requestedConnectorId = parsed.data.connectorId?.trim() ?? ''
+  const candidateConnector = requestedConnectorId ? ConnectorRegistry.get(requestedConnectorId) : null
+  const connectorId =
+    candidateConnector && candidateConnector.segments.includes(segment)
+      ? candidateConnector.id
+      : recommendedConnectorForSegment(segment)
   const tenant = await upsertTenant({
     id: tenantId,
     slug,
@@ -507,8 +565,9 @@ authRouter.post('/register', tenantAuthLimiter, requireTurnstile, async (req, re
     subtitle: 'Gestao e Analise de Dados',
     logoUrl: null,
     primaryColor: null,
-    enabledModules: ['dashboard', 'financeiro', 'relatorios', 'usuarios', 'auditoria', 'datasources', 'operations'],
-    connectorId: parsed.data.connectorId,
+    enabledModules: defaultModulesForSegment(segment),
+    connectorId,
+    segment,
     plan: 'trial',
     trialEndsAt: trialEndsAt(),
     status: 'active',
@@ -737,6 +796,11 @@ authRouter.get('/me', requireAuth, async (req, res) => {
   if (!user) return res.status(401).json({ message: 'Sessão inválida' })
   const permissions = resolveEffectivePermissions(user.role, user.permissions)
   const impersonatorToken = readCookieToken(req.headers.cookie, 'iga_impersonator')
+  const superAdminEmails = (process.env.SUPER_ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+  const isSuperAdmin = superAdminEmails.includes(user.email.toLowerCase())
   return res.json({
     user: {
       id: user.id,
@@ -746,6 +810,7 @@ authRouter.get('/me', requireAuth, async (req, res) => {
       mustChangePassword: user.mustChangePassword ?? false,
     },
     permissions,
+    isSuperAdmin,
     ...(impersonatorToken
       ? {
           impersonation: {
@@ -767,7 +832,7 @@ authRouter.post('/logout', async (req, res) => {
     : readSessionCookieToken(req.headers.cookie)
   if (token) await revokeToken(token)
   logAudit({ action: 'logout', resource: 'auth', metadata: { ip: req.ip } })
-  res.setHeader('Set-Cookie', clearSessionCookie())
+  res.setHeader('Set-Cookie', [clearSessionCookie(), clearRefreshCookie()])
   res.json({ ok: true })
 })
 
@@ -780,7 +845,7 @@ authRouter.post('/logout-all', requireAuth, async (req, res) => {
   const revoked = await revokeAllUserSessions(authReq.userId)
   await revokeAllRefreshForUser(authReq.userId).catch(() => undefined)
   logAudit({ userId: authReq.userId, action: 'logout_all', resource: 'auth', metadata: { ip: req.ip, sessionsRevoked: revoked } })
-  res.setHeader('Set-Cookie', clearSessionCookie())
+  res.setHeader('Set-Cookie', [clearSessionCookie(), clearRefreshCookie()])
   res.json({ ok: true, sessionsRevoked: revoked })
 })
 

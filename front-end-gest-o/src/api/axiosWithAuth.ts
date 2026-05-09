@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance } from 'axios'
+import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 import { setStoredSession } from '../auth/authStorage'
 import { emitAuthSignOut } from '../auth/authEvents'
 import { getHttpStatusMessage } from './httpError'
@@ -49,19 +49,52 @@ export function createAuthorizedAxios(baseURL: string, timeoutMs = 180_000): Axi
   /** Evita múltiplos logouts simultâneos */
   let logoutEmitted = false
 
+  /** Promessa única de refresh em curso — todas as 401s aguardam a mesma. */
+  let refreshInflight: Promise<boolean> | null = null
+
+  async function tryRefresh(): Promise<boolean> {
+    if (refreshInflight) return refreshInflight
+    refreshInflight = (async () => {
+      try {
+        await axios.post<{ token: string }>(
+          `${baseURL}/api/v1/auth/refresh`,
+          {},
+          { withCredentials: true, timeout: 15_000 },
+        )
+        return true
+      } catch {
+        return false
+      } finally {
+        setTimeout(() => { refreshInflight = null }, 50)
+      }
+    })()
+    return refreshInflight
+  }
+
   instance.interceptors.response.use(
     (res) => res,
-    (err) => {
+    async (err) => {
       const status = err?.response?.status
-      const url = err?.config?.url ?? ''
-      // Não fazer logout automático em chamadas de proxy/login — usam tokens externos
-      const isProxyOrLogin = url.includes('/api/proxy') || url.includes('/auth/login')
-      if (status === 401 && !isProxyOrLogin && !logoutEmitted) {
-        logoutEmitted = true
-        setStoredSession(null)
-        emitAuthSignOut()
-        // Reset após um breve delay para permitir novos logouts após re-login
-        setTimeout(() => { logoutEmitted = false }, 2000)
+      const config = err?.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined
+      const url = config?.url ?? ''
+      const isAuthFlow =
+        url.includes('/api/proxy') ||
+        url.includes('/auth/login') ||
+        url.includes('/auth/refresh') ||
+        url.includes('/auth/logout')
+
+      if (status === 401 && !isAuthFlow && config && !config._retried) {
+        config._retried = true
+        const ok = await tryRefresh()
+        if (ok) {
+          return instance.request(config)
+        }
+        if (!logoutEmitted) {
+          logoutEmitted = true
+          setStoredSession(null)
+          emitAuthSignOut()
+          setTimeout(() => { logoutEmitted = false }, 2000)
+        }
       }
       if (err && typeof err === 'object') {
         ;(err as { contextMessage?: string }).contextMessage = getHttpStatusMessage(status)

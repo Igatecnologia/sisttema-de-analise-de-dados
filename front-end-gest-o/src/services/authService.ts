@@ -9,12 +9,17 @@ type SignInInput = { email: string; password: string; totp?: string }
 export type SignInResult =
   | { kind: 'ok'; session: AuthSession }
   | { kind: 'mfa-required' }
+export type BusinessSegment = 'industry' | 'commerce' | 'services' | 'distribution'
+
 export type RegisterInput = {
   companyName: string
   slug: string
   name: string
   email: string
   password: string
+  /** Segmento de negocio escolhido no signup. Backend usa para selecionar connector e modulos default. */
+  segment?: BusinessSegment
+  /** Connector explicito; se omitido, backend usa o recomendado para o segmento. */
   connectorId?: string
 }
 export type AcceptInviteInput = {
@@ -113,15 +118,36 @@ export async function signIn(input: SignInInput): Promise<SignInResult> {
 }
 
 export async function registerSelfService(input: RegisterInput) {
+  /**
+   * Backend escolhe connector e modulos default a partir do segmento se
+   * nao forem passados explicitamente. Default 'industry' para retro-
+   * compatibilidade com clientes que ainda nao informam segmento.
+   */
   const { data } = await http.post('/api/v1/auth/register', {
     ...input,
-    connectorId: input.connectorId ?? 'sgbr-espuma',
+    segment: input.segment ?? 'industry',
+    ...(input.connectorId ? { connectorId: input.connectorId } : {}),
   })
   return data as {
     tenant: { id: string; slug: string; companyName: string; trialEndsAt: string | null }
     user: { id: string; name: string; email: string; role: 'admin' }
     verification?: { token?: string }
   }
+}
+
+export type SegmentInfo = {
+  id: BusinessSegment
+  name: string
+  description: string
+  defaultModules: string[]
+  recommendedConnectorId: string
+  compatibleConnectors: { id: string; name: string }[]
+}
+
+/** Lista os 4 segmentos publicos com connectors compativeis — endpoint sem auth. */
+export async function listSegments(): Promise<SegmentInfo[]> {
+  const { data } = await http.get('/api/v1/segments')
+  return (data as { segments: SegmentInfo[] }).segments
 }
 
 export async function requestPasswordReset(email: string) {

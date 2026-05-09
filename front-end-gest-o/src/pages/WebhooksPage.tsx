@@ -1,4 +1,4 @@
-import { Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography, message } from 'antd'
+import { Button, Card, Empty, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useEffect, useState } from 'react'
 import { PageHeaderCard } from '../components/PageHeaderCard'
@@ -143,11 +143,50 @@ export function WebhooksPage() {
       />
 
       <Card title="Assinaturas">
-        <Table rowKey="id" loading={loading} columns={subscriptionColumns} dataSource={subscriptions} pagination={false} />
+        <Table
+          rowKey="id"
+          loading={loading}
+          columns={subscriptionColumns}
+          dataSource={subscriptions}
+          pagination={false}
+          locale={{
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="Sem webhooks configurados"
+              >
+                <Button
+                  type="primary"
+                  onClick={() => {
+                    setEditing(null)
+                    form.resetFields()
+                    form.setFieldsValue({ active: true, eventTypes: ['tenant.updated'] })
+                    setModalOpen(true)
+                  }}
+                >
+                  Criar primeiro webhook
+                </Button>
+              </Empty>
+            ),
+          }}
+        />
       </Card>
 
       <Card title="Entregas recentes">
-        <Table rowKey="id" loading={loading} columns={deliveryColumns} dataSource={deliveries} />
+        <Table
+          rowKey="id"
+          loading={loading}
+          columns={deliveryColumns}
+          dataSource={deliveries}
+          locale={{
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="Nenhuma entrega ainda — assim que um evento disparar, aparecerá aqui"
+              />
+            ),
+          }}
+        />
       </Card>
 
       <Modal

@@ -47,7 +47,7 @@ export function AlertsBell() {
           {
             key: 'all',
             label: 'Ver todos alertas',
-            onClick: () => navigate('/alertas'),
+            onClick: () => navigate('/notificacoes'),
           },
         ],
       }}

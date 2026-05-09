@@ -16,7 +16,7 @@ import {
   Typography,
 } from 'antd'
 import dayjs from 'dayjs'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { PageHeaderCard } from '../components/PageHeaderCard'
 
@@ -25,6 +25,7 @@ import { VirtualTable, type VirtualColumn } from '../components/VirtualTable'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/permissions'
 import { listAuditLogs, type AuditAction, type AuditLog } from '../services/auditService'
+import { http } from '../services/http'
 import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '../query/queryKeys'
 import { hasAnySources } from '../services/dataSourceService'
@@ -182,6 +183,7 @@ export function AuditPage() {
 
   return (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+      <AuditChainCard />
       <PageHeaderCard
         title="Auditoria"
         subtitle={
@@ -386,6 +388,86 @@ export function AuditPage() {
         </Card>
       )}
     </Space>
+  )
+}
+
+type ChainResult = {
+  ok: boolean
+  totalRows: number
+  brokenAt?: { id: string; expected: string; actual: string } | null
+}
+
+function AuditChainCard() {
+  const [verifying, setVerifying] = useState(false)
+  const [result, setResult] = useState<ChainResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  async function verify() {
+    setVerifying(true)
+    setError(null)
+    try {
+      const { data } = await http.get<ChainResult>('/api/v1/audit/verify')
+      setResult(data)
+    } catch {
+      setError('Falha ao verificar integridade')
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  return (
+    <Card
+      title={
+        <Space>
+          <span>Integridade do log de auditoria</span>
+          {result?.ok ? <Tag color="success">Íntegra</Tag> : null}
+          {result && !result.ok ? <Tag color="error">Comprometida</Tag> : null}
+        </Space>
+      }
+      extra={
+        <Button onClick={verify} loading={verifying} type="primary" size="small">
+          {result ? 'Reverificar' : 'Verificar agora'}
+        </Button>
+      }
+    >
+      <Space direction="vertical" size={8} style={{ width: '100%' }}>
+        <Typography.Text type="secondary">
+          Cada evento de auditoria carrega um hash encadeado ao anterior. Se algum registro for alterado fora do app, a verificação falha.
+        </Typography.Text>
+        {error ? <Alert type="error" showIcon message={error} /> : null}
+        {result?.ok ? (
+          <Alert
+            type="success"
+            showIcon
+            message={`${result.totalRows.toLocaleString('pt-BR')} eventos verificados — chain íntegra.`}
+          />
+        ) : null}
+        {result && !result.ok ? (
+          <Alert
+            type="error"
+            showIcon
+            message="Cadeia de auditoria comprometida"
+            description={
+              result.brokenAt ? (
+                <Space direction="vertical" size={4}>
+                  <Typography.Text>
+                    Quebra detectada no evento <Typography.Text code>{result.brokenAt.id}</Typography.Text>.
+                  </Typography.Text>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    Esperado: <Typography.Text code>{result.brokenAt.expected.slice(0, 16)}…</Typography.Text>
+                  </Typography.Text>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    Atual: <Typography.Text code>{result.brokenAt.actual.slice(0, 16)}…</Typography.Text>
+                  </Typography.Text>
+                </Space>
+              ) : (
+                'Detalhes não disponíveis.'
+              )
+            }
+          />
+        ) : null}
+      </Space>
+    </Card>
   )
 }
 

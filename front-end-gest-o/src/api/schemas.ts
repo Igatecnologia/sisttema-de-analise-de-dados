@@ -209,6 +209,8 @@ export const sgbrUsuarioLoginResponseSchema = z.object({
 /** Resposta de `POST /api/v1/auth/login` (login local) */
 export const localLoginResponseSchema = z.object({
   token: z.string().min(1),
+  refreshToken: z.string().optional(),
+  refreshExpiresAt: z.number().optional(),
   user: z.object({
     id: z.string(),
     name: z.string(),

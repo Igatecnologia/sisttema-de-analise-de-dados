@@ -1,3 +1,4 @@
+import type { BusinessSegment } from '../segments.js'
 import { GenericConnector } from './genericConnector.js'
 import {
   type ConnectorArea,
@@ -23,6 +24,8 @@ export class SgbrEspumaConnector extends GenericConnector {
   id = 'sgbr-espuma'
   name = 'SGBR Espuma'
   cspConnectSrc = ['https://*.sgbrbi.com.br']
+  /** SGBR Espuma é específico de indústria de espuma — não atende outros segmentos. */
+  segments: BusinessSegment[] = ['industry']
   labels = {
     product: 'Espuma',
     productPlural: 'Espumas',

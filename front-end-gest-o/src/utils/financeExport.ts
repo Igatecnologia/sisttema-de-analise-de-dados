@@ -22,27 +22,25 @@ export async function exportExcel<T extends Record<string, unknown>>(
   sheetName: string,
   reportName: string,
 ) {
-  const { Workbook } = await import('exceljs')
-  const workbook = new Workbook()
-  const worksheet = workbook.addWorksheet(sheetName)
-  worksheet.addRow(columns.map((col) => col.header))
-  for (const row of rows) {
-    worksheet.addRow(
-      columns.map((col) => {
-        const raw = row[col.key]
-        return col.format ? col.format(raw) : String(raw ?? '')
-      }),
-    )
-  }
-  worksheet.columns.forEach((col) => {
-    col.width = Math.min(42, Math.max(14, Number(col.header?.toString().length ?? 14) + 4))
-  })
-  const bytes = await workbook.xlsx.writeBuffer()
-  const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const escapeHtml = (value: unknown) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+  const header = columns.map((col) => `<th>${escapeHtml(col.header)}</th>`).join('')
+  const body = rows.map((row) => {
+    const cells = columns.map((col) => {
+      const raw = row[col.key]
+      return `<td>${escapeHtml(col.format ? col.format(raw) : raw)}</td>`
+    }).join('')
+    return `<tr>${cells}</tr>`
+  }).join('')
+  const html = `<!doctype html><html><head><meta charset="utf-8" /></head><body><table><caption>${escapeHtml(sheetName)}</caption><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table></body></html>`
+  const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `${basename(reportName)}.xlsx`
+  link.download = `${basename(reportName)}.xls`
   link.click()
   URL.revokeObjectURL(url)
 

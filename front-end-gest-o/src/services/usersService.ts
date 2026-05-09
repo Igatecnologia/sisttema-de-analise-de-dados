@@ -41,3 +41,12 @@ export async function deleteUser(id: string): Promise<void> {
   const parsedId = z.string().min(1).parse(id)
   await http.delete(`${BASE}/${parsedId}`)
 }
+
+export async function inviteUserByEmail(input: { email: string; role: UserRole; name?: string }): Promise<{ ok: true; token?: string }> {
+  const { data } = await http.post('/api/v1/auth/invite', {
+    email: input.email.trim().toLowerCase(),
+    role: input.role,
+    ...(input.name?.trim() ? { name: input.name.trim() } : {}),
+  })
+  return data as { ok: true; token?: string }
+}

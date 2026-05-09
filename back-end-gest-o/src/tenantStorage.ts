@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { getDb } from './db/sqlite.js'
 import { hasPostgresConfig, queryPostgres } from './db/postgres.js'
+import { type BusinessSegment, inferSegmentFromConnectorId, isBusinessSegment } from './segments.js'
 
 export type TenantRecord = {
   id: string
@@ -11,6 +12,8 @@ export type TenantRecord = {
   primaryColor: string | null
   enabledModules: string[]
   connectorId: string
+  /** Segmento de negócio escolhido no signup. Vazio em tenants legados é inferido do connector. */
+  segment: BusinessSegment
   plan: 'trial' | 'starter' | 'pro' | 'enterprise'
   trialEndsAt: string | null
   status: 'active' | 'inactive'
@@ -36,6 +39,11 @@ function parseModules(value: unknown): string[] {
 }
 
 function mapTenant(row: Record<string, unknown>): TenantRecord {
+  const connectorId = String(row.connector_id ?? 'iga-custom-api')
+  const rawSegment = row.segment
+  const segment: BusinessSegment = isBusinessSegment(rawSegment)
+    ? rawSegment
+    : inferSegmentFromConnectorId(connectorId)
   return {
     id: String(row.id),
     slug: String(row.slug),
@@ -44,7 +52,8 @@ function mapTenant(row: Record<string, unknown>): TenantRecord {
     logoUrl: row.logo_url ? String(row.logo_url) : null,
     primaryColor: row.primary_color ? String(row.primary_color) : null,
     enabledModules: parseModules(row.enabled_modules ?? row.enabled_modules_json),
-    connectorId: String(row.connector_id ?? 'sgbr-espuma'),
+    connectorId,
+    segment,
     plan: row.plan === 'starter' || row.plan === 'pro' || row.plan === 'enterprise' ? row.plan : 'trial',
     trialEndsAt: row.trial_ends_at ? String(row.trial_ends_at) : null,
     status: row.status === 'inactive' ? 'inactive' : 'active',
@@ -78,6 +87,21 @@ export async function findTenantBySlug(slug: string): Promise<TenantRecord | nul
   return row ? mapTenant(row) : null
 }
 
+export async function findTenantById(id: string): Promise<TenantRecord | null> {
+  const trimmed = id.trim()
+  if (!trimmed) return null
+  if (usePostgresStorage()) {
+    const result = await queryPostgres('SELECT * FROM tenants WHERE id = $1 LIMIT 1', [trimmed])
+    return result.rows[0] ? mapTenant(result.rows[0] as Record<string, unknown>) : null
+  }
+  const row = db.prepare('SELECT * FROM tenants WHERE id = ? LIMIT 1').get(trimmed) as Record<string, unknown> | undefined
+  return row ? mapTenant(row) : null
+}
+
+export async function findTenantByIdOrSlug(value: string): Promise<TenantRecord | null> {
+  return (await findTenantById(value)) ?? findTenantBySlug(value)
+}
+
 export async function upsertTenant(input: Omit<TenantRecord, 'createdAt' | 'updatedAt'>): Promise<TenantRecord> {
   const now = new Date().toISOString()
   const record: TenantRecord = { ...input, createdAt: now, updatedAt: now }
@@ -85,8 +109,8 @@ export async function upsertTenant(input: Omit<TenantRecord, 'createdAt' | 'upda
     const result = await queryPostgres(
       `
       INSERT INTO tenants (
-        id, slug, name, subtitle, logo_url, primary_color, enabled_modules, connector_id, plan, trial_ends_at, status, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13)
+        id, slug, name, subtitle, logo_url, primary_color, enabled_modules, connector_id, segment, plan, trial_ends_at, status, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13, $14)
       ON CONFLICT (id) DO UPDATE SET
         slug = EXCLUDED.slug,
         name = EXCLUDED.name,
@@ -95,6 +119,7 @@ export async function upsertTenant(input: Omit<TenantRecord, 'createdAt' | 'upda
         primary_color = EXCLUDED.primary_color,
         enabled_modules = EXCLUDED.enabled_modules,
         connector_id = EXCLUDED.connector_id,
+        segment = EXCLUDED.segment,
         plan = EXCLUDED.plan,
         trial_ends_at = EXCLUDED.trial_ends_at,
         status = EXCLUDED.status,
@@ -110,6 +135,7 @@ export async function upsertTenant(input: Omit<TenantRecord, 'createdAt' | 'upda
         record.primaryColor,
         JSON.stringify(record.enabledModules),
         record.connectorId,
+        record.segment,
         record.plan,
         record.trialEndsAt,
         record.status,
@@ -122,9 +148,9 @@ export async function upsertTenant(input: Omit<TenantRecord, 'createdAt' | 'upda
 
   db.prepare(`
     INSERT INTO tenants (
-      id, slug, name, subtitle, logo_url, primary_color, enabled_modules_json, connector_id, plan, trial_ends_at, status, created_at, updated_at
+      id, slug, name, subtitle, logo_url, primary_color, enabled_modules_json, connector_id, segment, plan, trial_ends_at, status, created_at, updated_at
     ) VALUES (
-      @id, @slug, @name, @subtitle, @logo_url, @primary_color, @enabled_modules_json, @connector_id, @plan, @trial_ends_at, @status, @created_at, @updated_at
+      @id, @slug, @name, @subtitle, @logo_url, @primary_color, @enabled_modules_json, @connector_id, @segment, @plan, @trial_ends_at, @status, @created_at, @updated_at
     )
     ON CONFLICT(id) DO UPDATE SET
       slug = excluded.slug,
@@ -134,6 +160,7 @@ export async function upsertTenant(input: Omit<TenantRecord, 'createdAt' | 'upda
       primary_color = excluded.primary_color,
       enabled_modules_json = excluded.enabled_modules_json,
       connector_id = excluded.connector_id,
+      segment = excluded.segment,
       plan = excluded.plan,
       trial_ends_at = excluded.trial_ends_at,
       status = excluded.status,
@@ -147,6 +174,7 @@ export async function upsertTenant(input: Omit<TenantRecord, 'createdAt' | 'upda
     primary_color: record.primaryColor,
     enabled_modules_json: JSON.stringify(record.enabledModules),
     connector_id: record.connectorId,
+    segment: record.segment,
     plan: record.plan,
     trial_ends_at: record.trialEndsAt,
     status: record.status,

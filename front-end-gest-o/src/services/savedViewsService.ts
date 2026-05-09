@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { getValidated, postValidated } from '../api/validatedHttp'
+import { http } from './http'
 
 const savedViewSchema = z.object({
   id: z.string(),
@@ -57,5 +59,27 @@ export function deleteView(pageKey: string, id: string) {
   const store = readStore()
   store[pageKey] = (store[pageKey] ?? []).filter((v) => v.id !== id)
   writeStore(store)
+}
+
+const apiSavedViewSchema = savedViewSchema.extend({
+  tenantId: z.string(),
+  userId: z.string(),
+  pageKey: z.string(),
+  updatedAt: z.string(),
+})
+
+export type ApiSavedView = z.infer<typeof apiSavedViewSchema>
+
+export async function listSavedViewsApi(pageKey?: string): Promise<ApiSavedView[]> {
+  const query = pageKey ? `?pageKey=${encodeURIComponent(pageKey)}` : ''
+  return getValidated(http, `/api/v1/saved-views${query}`, z.array(apiSavedViewSchema))
+}
+
+export async function saveViewApi(input: { pageKey: string; name: string; params: string }): Promise<ApiSavedView> {
+  return postValidated(http, '/api/v1/saved-views', input, apiSavedViewSchema)
+}
+
+export async function deleteViewApi(id: string): Promise<void> {
+  await http.delete(`/api/v1/saved-views/${id}`)
 }
 

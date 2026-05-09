@@ -62,21 +62,39 @@ export function TrialBanner() {
 
   if (status.status === 'trialing' || status.plan === 'trial') {
     const days = daysUntil(status.trialEndsAt)
-    if (days != null && days <= 5) {
+    if (days == null) return null
+    if (days <= 0) {
       return (
         <Alert
-          type={days <= 2 ? 'warning' : 'info'}
+          type="error"
           showIcon
           banner
           message={
             <Space>
-              <span>Seu trial expira em <strong>{days} {days === 1 ? 'dia' : 'dias'}</strong>.</span>
-              <Link to="/planos"><Button size="small" type="primary">Assinar agora</Button></Link>
+              <span>Seu trial <strong>expirou</strong>. Acesso somente leitura — assine para continuar.</span>
+              <Link to="/planos"><Button size="small" type="primary">Ver planos</Button></Link>
             </Space>
           }
         />
       )
     }
+    const tone: 'warning' | 'info' = days <= 5 ? 'warning' : 'info'
+    return (
+      <Alert
+        type={tone}
+        showIcon
+        banner
+        message={
+          <Space>
+            <span>
+              Trial: <strong>{days} {days === 1 ? 'dia' : 'dias'}</strong> restante{days === 1 ? '' : 's'}.
+            </span>
+            <Link to="/planos"><Button size="small" type={days <= 5 ? 'primary' : 'default'}>{days <= 5 ? 'Assinar agora' : 'Ver planos'}</Button></Link>
+            <Link to="/billing"><Button size="small" type="link">Detalhes</Button></Link>
+          </Space>
+        }
+      />
+    )
   }
 
   return null

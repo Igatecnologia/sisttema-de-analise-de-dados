@@ -420,4 +420,87 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status, cur
 GRANT SELECT, INSERT, UPDATE, DELETE ON subscriptions TO iga_app;
 `,
   },
+  {
+    id: '011_saas_product_tables',
+    sql: `
+CREATE TABLE IF NOT EXISTS api_keys (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  prefix TEXT NOT NULL,
+  secret_hash TEXT NOT NULL UNIQUE,
+  scopes_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  status TEXT NOT NULL DEFAULT 'active',
+  last_used_at TIMESTAMPTZ NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ NULL
+);
+CREATE INDEX IF NOT EXISTS idx_api_keys_tenant ON api_keys(tenant_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS saved_views (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  page_key TEXT NOT NULL,
+  name TEXT NOT NULL,
+  params TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_saved_views_tenant_page ON saved_views(tenant_id, page_key, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS public_shares (
+  token TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT NULL,
+  payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  expires_at TIMESTAMPTZ NULL,
+  revoked_at TIMESTAMPTZ NULL,
+  created_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_public_shares_tenant ON public_shares(tenant_id, created_at DESC);
+
+ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY;
+ALTER TABLE saved_views ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public_shares ENABLE ROW LEVEL SECURITY;
+ALTER TABLE api_keys FORCE ROW LEVEL SECURITY;
+ALTER TABLE saved_views FORCE ROW LEVEL SECURITY;
+ALTER TABLE public_shares FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation_api_keys ON api_keys;
+CREATE POLICY tenant_isolation_api_keys ON api_keys
+  USING (tenant_id = current_setting('app.current_tenant_id', true))
+  WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true));
+
+DROP POLICY IF EXISTS tenant_isolation_saved_views ON saved_views;
+CREATE POLICY tenant_isolation_saved_views ON saved_views
+  USING (tenant_id = current_setting('app.current_tenant_id', true))
+  WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true));
+
+DROP POLICY IF EXISTS tenant_isolation_public_shares_write ON public_shares;
+CREATE POLICY tenant_isolation_public_shares_write ON public_shares
+  FOR ALL
+  USING (tenant_id = current_setting('app.current_tenant_id', true))
+  WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true));
+
+DROP POLICY IF EXISTS public_share_read_by_token ON public_shares;
+CREATE POLICY public_share_read_by_token ON public_shares
+  FOR SELECT
+  USING (revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()));
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON api_keys TO iga_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON saved_views TO iga_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public_shares TO iga_app;
+`,
+  },
+  {
+    id: '012_tenant_segment',
+    sql: `
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS segment TEXT NOT NULL DEFAULT 'industry';
+CREATE INDEX IF NOT EXISTS idx_tenants_segment ON tenants(segment);
+`,
+  },
 ]

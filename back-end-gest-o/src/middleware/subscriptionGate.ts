@@ -27,7 +27,7 @@ function isAllowed(path: string): boolean {
 }
 
 export async function subscriptionGate(req: Request, res: Response, next: NextFunction) {
-  /** Disable em dev/test/CI: NODE_ENV !== 'production' OU BILLING_GATE_DISABLED=1. */
+  /** Disable apenas fora de producao ou em e2e/local explicito. Nunca setar BILLING_GATE_DISABLED no deploy real. */
   if (process.env.BILLING_GATE_DISABLED === '1') return next()
   if (process.env.NODE_ENV !== 'production') return next()
   if (isAllowed(req.path)) return next()

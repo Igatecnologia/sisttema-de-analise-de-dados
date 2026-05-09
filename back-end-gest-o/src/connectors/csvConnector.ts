@@ -1,3 +1,4 @@
+import type { BusinessSegment } from '../segments.js'
 import { GenericConnector } from './genericConnector.js'
 import {
   type ConnectorArea,
@@ -14,6 +15,8 @@ export class CsvConnector extends GenericConnector {
   id = 'csv'
   name = 'CSV / Excel'
   cspConnectSrc: string[] = []
+  /** CSV/Excel atende qualquer segmento. */
+  segments: BusinessSegment[] = ['industry', 'commerce', 'services', 'distribution']
 
   /** Hints amplos: o usuario nomeia o dataEndpoint como /csv/{area}. */
   areaHints: Record<ConnectorArea, string[]> = {
@@ -45,6 +48,8 @@ export class BlingConnector extends GenericConnector {
   id = 'bling'
   name = 'Bling ERP'
   cspConnectSrc = ['https://*.bling.com.br', 'https://api.bling.com.br']
+  /** Bling cobre comércio, distribuição e indústrias menores. */
+  segments: BusinessSegment[] = ['commerce', 'distribution', 'industry']
   labels = {
     product: 'Produto',
     productPlural: 'Produtos',
@@ -72,6 +77,8 @@ export class TinyConnector extends GenericConnector {
   id = 'tiny'
   name = 'Tiny ERP'
   cspConnectSrc = ['https://api.tiny.com.br', 'https://*.tiny.com.br']
+  /** Tiny é forte em comércio e distribuição. */
+  segments: BusinessSegment[] = ['commerce', 'distribution']
   areaHints: Record<ConnectorArea, string[]> = {
     estoque: ['estoque.pesquisa', 'produto.estoque', 'estoque'],
     produzido: ['producao', 'ordens'],
@@ -87,6 +94,8 @@ export class OmieConnector extends GenericConnector {
   id = 'omie'
   name = 'Omie ERP'
   cspConnectSrc = ['https://app.omie.com.br', 'https://*.omie.com.br']
+  /** Omie atende serviços, indústria leve e comércio. */
+  segments: BusinessSegment[] = ['services', 'industry', 'commerce']
   areaHints: Record<ConnectorArea, string[]> = {
     estoque: ['ConsultarPosEstoque', 'estoque'],
     produzido: ['producao'],

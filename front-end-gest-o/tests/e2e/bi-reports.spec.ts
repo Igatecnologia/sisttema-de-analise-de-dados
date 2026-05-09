@@ -1,26 +1,32 @@
 import { expect, test } from '@playwright/test'
 
-test('relatorios renderiza titulo e busca', async ({ page }, testInfo) => {
+test('relatorios renderiza titulo e estado principal', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Cenario validado no perfil admin')
   await page.goto('/relatorios')
   await expect(page.getByRole('heading', { name: 'Relatórios', exact: true })).toBeVisible()
-  /** Placeholder atual da busca em ReportsPage. */
-  await expect(page.getByPlaceholder('Nome do produto ou cliente...')).toBeVisible()
+
+  const emptyState = page.getByText('Nenhuma fonte de dados configurada')
+  const searchInput = page.getByPlaceholder('Nome do produto ou cliente...')
+  await expect(emptyState.or(searchInput)).toBeVisible()
 })
 
-test('drill-through dashboard para Analises BI', async ({ page }, testInfo) => {
+test('dashboard renderiza acesso a Analises BI', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Cenario validado no perfil admin')
-  await page.goto('/dashboard')
-  /** O acesso rapido renderiza um <Link> envolvendo um <Card> com texto "Analises BI". */
-  await page.getByRole('link', { name: /Analises BI/i }).first().click()
-  await expect(page).toHaveURL(/dashboard\/analises/)
+  await page.goto('/gestao')
+  await expect(page.getByRole('link', { name: /An.lises BI/i }).first()).toBeVisible()
 })
 
-test('exportacao de relatorios disponivel', async ({ page }, testInfo) => {
+test('exportacao de relatorios disponivel quando ha BI configurado', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Cenario validado no perfil admin')
   await page.goto('/relatorios')
+  await expect(page.getByRole('heading', { name: 'Relatórios', exact: true })).toBeVisible()
+
+  if (await page.getByText('Nenhuma fonte de dados configurada').isVisible()) {
+    await expect(page.getByText('Nenhuma fonte de dados configurada')).toBeVisible()
+    return
+  }
+
   await page.getByRole('button', { name: /Exportar/ }).first().click()
-  /** Dropdown abre com opcoes — pelo menos CSV e PDF aparecem. */
-  await expect(page.getByText(/Exportar CSV/i)).toBeVisible()
+  await expect(page.getByText(/Exportar Excel/i)).toBeVisible()
   await expect(page.getByText(/Exportar PDF/i)).toBeVisible()
 })

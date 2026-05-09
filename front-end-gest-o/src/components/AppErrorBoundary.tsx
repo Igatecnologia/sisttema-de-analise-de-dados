@@ -30,8 +30,10 @@ export class AppErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('[AppErrorBoundary] erro capturado:', error)
-    console.error('[AppErrorBoundary] componentStack:', errorInfo.componentStack)
+    if (import.meta.env.DEV) {
+      console.error('[AppErrorBoundary] erro capturado:', error)
+      console.error('[AppErrorBoundary] componentStack:', errorInfo.componentStack)
+    }
     captureError(error, {
       component: 'AppErrorBoundary',
       extra: {

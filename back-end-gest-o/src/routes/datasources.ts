@@ -3,13 +3,17 @@ import { z } from 'zod'
 import { readAllAsync, writeAllAsync, genId, runWithDatasourcesLock, type DataSource } from '../storage.js'
 import { testConnection } from '../services/connectionTester.js'
 import { requireAuth } from '../middleware/auth.js'
+import { requireAuthOrApiKeyScope } from '../middleware/apiKeyAuth.js'
 import { resolveTenantId } from '../utils/tenant.js'
 import { validateExternalApiUrl } from '../utils/urlSafety.js'
 import { redisRateLimit } from '../middleware/redisRateLimit.js'
 import { evaluatePlanLimit } from '../services/planLimits.js'
 
 export const dataSourceRouter = Router()
-dataSourceRouter.use(requireAuth)
+dataSourceRouter.use((req, res, next) => {
+  if (req.method === 'GET') return requireAuthOrApiKeyScope('datasources:read')(req, res, next)
+  return requireAuth(req, res, next)
+})
 
 const dataSourceTestLimiter = redisRateLimit({
   namespace: 'datasources:test',

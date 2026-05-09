@@ -196,8 +196,13 @@ financeRouter.get('/estoque-materia-prima', async (req, res) => {
   res.json(mapped)
 })
 
-// GET /finance/estoque-espuma
-financeRouter.get('/estoque-espuma', async (req, res) => {
+/**
+ * Handler de produtos intermediários: itens classificados pelo connector como
+ * 'espuma' (intermediario primário) ou 'aglomerado' (subproduto). O label
+ * `tipo` na resposta usa a classificação do connector — frontend pode formatar
+ * com `tenant.connector.labels.product` se quiser display amigável.
+ */
+async function listEstoqueIntermediario(req: import('express').Request, res: import('express').Response) {
   const tenantId = resolveTenantId(req)
   const connector = await getTenantConnector(tenantId)
   const rows = await loadEstoqueRows(tenantId)
@@ -207,6 +212,7 @@ financeRouter.get('/estoque-espuma', async (req, res) => {
       if (cls !== 'espuma' && cls !== 'aglomerado') return null
       const produto = asText(pickRaw(row, MATERIAL_KEYS))
       if (!produto) return null
+      /** Mantemos `tipo` em PT-BR para compatibilidade com clientes legados; se o connector é genérico/comércio, sempre será 'Espuma' aqui (vazio no filtro). */
       const tipo: 'Espuma' | 'Aglomerado' = cls === 'aglomerado' ? 'Aglomerado' : 'Espuma'
       const qtdeAtual = asNumber(pickRaw(row, QTD_KEYS), 0)
       const qtdeMinima = asNumber(pickRaw(row, QTD_MIN_KEYS), 0)
@@ -216,6 +222,7 @@ financeRouter.get('/estoque-espuma', async (req, res) => {
         id: asText(pickRaw(row, ID_KEYS), `es_${randomBytes(4).toString('hex')}`),
         produto,
         tipo,
+        classification: cls,
         densidade: asText(pickRaw(row, ['densidade', 'dens', 'densid']), '-'),
         unidade: asText(pickRaw(row, UNIDADE_KEYS), 'UN'),
         qtdeAtual,
@@ -229,7 +236,12 @@ financeRouter.get('/estoque-espuma', async (req, res) => {
     })
     .filter(Boolean)
   res.json(mapped)
-})
+}
+
+/** Endpoint preferencial — neutro de segmento. */
+financeRouter.get('/estoque-intermediario', listEstoqueIntermediario)
+/** @deprecated Use /estoque-intermediario. Mantido para compatibilidade com clientes legados. */
+financeRouter.get('/estoque-espuma', listEstoqueIntermediario)
 
 // GET /finance/estoque-produto-final
 financeRouter.get('/estoque-produto-final', async (req, res) => {

@@ -99,7 +99,8 @@ CREATE TABLE IF NOT EXISTS tenants (
   logo_url TEXT NULL,
   primary_color TEXT NULL,
   enabled_modules_json TEXT NOT NULL DEFAULT '[]',
-  connector_id TEXT NOT NULL DEFAULT 'sgbr-espuma',
+  connector_id TEXT NOT NULL DEFAULT 'iga-custom-api',
+  segment TEXT NOT NULL DEFAULT 'industry',
   plan TEXT NOT NULL DEFAULT 'trial',
   trial_ends_at TEXT NULL,
   status TEXT NOT NULL DEFAULT 'active',
@@ -199,6 +200,62 @@ CREATE INDEX IF NOT EXISTS idx_copilot_user_created ON copilot_messages(user_id,
 CREATE INDEX IF NOT EXISTS idx_scheduled_reports_active ON scheduled_reports(active, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_user_created ON audit_log(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_auth_action_tokens_lookup ON auth_action_tokens(type, token_hash, expires_at);
+
+CREATE TABLE IF NOT EXISTS csv_datasets (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL DEFAULT 'default',
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  filename TEXT NOT NULL,
+  columns_json TEXT NOT NULL,
+  rows_json TEXT NOT NULL,
+  row_count INTEGER NOT NULL,
+  size_bytes INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_csv_datasets_tenant ON csv_datasets(tenant_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS api_keys (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  prefix TEXT NOT NULL,
+  secret_hash TEXT NOT NULL,
+  scopes_json TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  last_used_at TEXT NULL,
+  created_at TEXT NOT NULL,
+  revoked_at TEXT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_api_keys_tenant ON api_keys(tenant_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_api_keys_secret_hash ON api_keys(secret_hash);
+
+CREATE TABLE IF NOT EXISTS saved_views (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  page_key TEXT NOT NULL,
+  name TEXT NOT NULL,
+  params TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_saved_views_tenant_page ON saved_views(tenant_id, page_key, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS public_shares (
+  token TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT NULL,
+  payload_json TEXT NOT NULL,
+  expires_at TEXT NULL,
+  revoked_at TEXT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_public_shares_tenant ON public_shares(tenant_id, created_at DESC);
 `)
 
 // Migração v2: tenant_id na sessão (idempotente)
@@ -290,14 +347,58 @@ db.exec(`
 try { db.exec("ALTER TABLE tenants ADD COLUMN connector_id TEXT NOT NULL DEFAULT 'sgbr-espuma'") } catch { /* ja existe */ }
 try { db.exec("ALTER TABLE tenants ADD COLUMN plan TEXT NOT NULL DEFAULT 'trial'") } catch { /* ja existe */ }
 try { db.exec("ALTER TABLE tenants ADD COLUMN trial_ends_at TEXT NULL") } catch { /* ja existe */ }
+// Migracao v10: segment de negocio por tenant (industry/commerce/services/distribution)
+try { db.exec("ALTER TABLE tenants ADD COLUMN segment TEXT NOT NULL DEFAULT 'industry'") } catch { /* ja existe */ }
 try { db.exec("CREATE TABLE IF NOT EXISTS tenant_onboarding (tenant_id TEXT PRIMARY KEY, status TEXT NOT NULL DEFAULT 'pending', company_profile_json TEXT NOT NULL DEFAULT '{}', data_setup_json TEXT NOT NULL DEFAULT '{}', team_invites_json TEXT NOT NULL DEFAULT '[]', import_status TEXT NOT NULL DEFAULT 'idle', import_progress INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)") } catch { /* ja existe */ }
 db.exec('CREATE INDEX IF NOT EXISTS idx_users_tenant_email ON users(tenant_id, email)')
 db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tenant_email_unique ON users(tenant_id, lower(email))')
+db.exec(`
+  CREATE TABLE IF NOT EXISTS api_keys (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    prefix TEXT NOT NULL,
+    secret_hash TEXT NOT NULL,
+    scopes_json TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    last_used_at TEXT NULL,
+    created_at TEXT NOT NULL,
+    revoked_at TEXT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_api_keys_tenant ON api_keys(tenant_id, created_at DESC);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_api_keys_secret_hash ON api_keys(secret_hash);
+
+  CREATE TABLE IF NOT EXISTS saved_views (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    page_key TEXT NOT NULL,
+    name TEXT NOT NULL,
+    params TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_saved_views_tenant_page ON saved_views(tenant_id, page_key, created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS public_shares (
+    token TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NULL,
+    payload_json TEXT NOT NULL,
+    expires_at TEXT NULL,
+    revoked_at TEXT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_public_shares_tenant ON public_shares(tenant_id, created_at DESC);
+`)
 
 db.prepare(`
   INSERT OR IGNORE INTO tenants (
-    id, slug, name, subtitle, logo_url, primary_color, enabled_modules_json, connector_id, plan, trial_ends_at, status, created_at, updated_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    id, slug, name, subtitle, logo_url, primary_color, enabled_modules_json, connector_id, segment, plan, trial_ends_at, status, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `).run(
   'default',
   'default',
@@ -321,7 +422,8 @@ db.prepare(`
     'datasources',
     'operations',
   ]),
-  'sgbr-espuma',
+  'iga-custom-api',
+  'industry',
   'trial',
   null,
   'active',

@@ -2,7 +2,8 @@ import { Router, type Response } from 'express'
 import { z } from 'zod'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js'
 import { findUserByIdForTenantAsync, readAllUsersAsync } from '../userStorage.js'
-import { deleteTenant, findTenantBySlug, genTenantId, upsertTenant } from '../tenantStorage.js'
+import { deleteTenant, findTenantByIdOrSlug, findTenantBySlug, genTenantId, upsertTenant, type TenantRecord } from '../tenantStorage.js'
+import { BUSINESS_SEGMENTS } from '../segments.js'
 import { getDb } from '../db/sqlite.js'
 import { getPostgresPool, hasPostgresConfig } from '../db/postgres.js'
 import { logAudit } from '../services/auditLog.js'
@@ -33,7 +34,8 @@ const tenantBodySchema = z.object({
   subtitle: z.string().min(1).max(160).default('Gestao e Analise de Dados'),
   logoUrl: z.string().url().max(600).nullable().optional(),
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{3,8}$/).nullable().optional(),
-  connectorId: z.string().min(2).max(64).default('sgbr-espuma'),
+  connectorId: z.string().min(2).max(64).default('iga-custom-api'),
+  segment: z.enum(BUSINESS_SEGMENTS as [string, ...string[]]).default('industry'),
   plan: z.enum(['trial', 'starter', 'pro', 'enterprise']).default('trial'),
   trialEndsAt: z.string().datetime().nullable().optional(),
   enabledModules: z.array(z.string().min(1).max(80)).default(DEFAULT_MODULES),
@@ -150,15 +152,29 @@ superAdminRouter.use(requireSuperAdmin)
 
 /** GET /api/v1/super-admin/tenants — lista tenants com metricas. */
 superAdminRouter.get('/tenants', async (_req, res) => {
-  let tenantsRaw: Array<{ id: string; slug: string; name: string; plan: string; status: string; trial_ends_at: string | null; created_at: string }>
+  type RawRow = { id: string; slug: string; name: string; subtitle: string | null; logo_url: string | null; primary_color: string | null; connector_id: string | null; segment: string | null; enabled_modules: unknown; plan: string; status: string; trial_ends_at: string | null; created_at: string; updated_at: string | null }
+  let tenantsRaw: RawRow[]
   if (usePostgresStorage()) {
     /** Ja roda fora do RLS context — ainda assim, se tenant_context nao esta setado, RLS nao filtra. */
-    const result = await getPostgresPool().query<{ id: string; slug: string; name: string; plan: string; status: string; trial_ends_at: string | null; created_at: string }>(
-      `SELECT id, slug, name, plan, status, trial_ends_at::text AS trial_ends_at, created_at::text AS created_at FROM tenants ORDER BY created_at DESC`,
+    const result = await getPostgresPool().query<RawRow>(
+      `SELECT id, slug, name, subtitle, logo_url, primary_color, connector_id, segment, enabled_modules,
+              plan, status, trial_ends_at::text AS trial_ends_at,
+              created_at::text AS created_at, updated_at::text AS updated_at
+       FROM tenants ORDER BY created_at DESC`,
     )
     tenantsRaw = result.rows
   } else {
-    tenantsRaw = db.prepare('SELECT id, slug, name, plan, status, trial_ends_at, created_at FROM tenants ORDER BY created_at DESC').all() as typeof tenantsRaw
+    tenantsRaw = db.prepare(
+      `SELECT id, slug, name, subtitle, logo_url, primary_color, connector_id, segment,
+              enabled_modules_json AS enabled_modules,
+              plan, status, trial_ends_at, created_at, updated_at
+       FROM tenants ORDER BY created_at DESC`,
+    ).all() as RawRow[]
+  }
+  function parseModulesField(value: unknown): string[] {
+    if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string')
+    if (typeof value !== 'string') return []
+    try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [] } catch { return [] }
   }
 
   const [allUsers, allDataSources, subscriptions] = await Promise.all([
@@ -179,10 +195,17 @@ superAdminRouter.get('/tenants', async (_req, res) => {
     id: t.id,
     slug: t.slug,
     name: t.name,
+    subtitle: t.subtitle ?? 'Gestao e Analise de Dados',
+    logoUrl: t.logo_url,
+    primaryColor: t.primary_color,
+    connectorId: t.connector_id ?? 'iga-custom-api',
+    segment: t.segment ?? 'industry',
+    enabledModules: parseModulesField(t.enabled_modules),
     plan: t.plan,
     status: t.status,
     trialEndsAt: t.trial_ends_at,
     createdAt: t.created_at,
+    updatedAt: t.updated_at,
     userCount: userCount.get(t.id) ?? 0,
     datasourceCount: datasourceCount.get(t.id) ?? 0,
     subscriptionStatus: subscriptions.get(t.id)?.status ?? (t.plan === 'trial' ? 'trialing' : 'none'),
@@ -221,6 +244,7 @@ superAdminRouter.post('/tenants', async (req, res: Response) => {
     primaryColor: parsed.data.primaryColor ?? null,
     enabledModules: [...new Set(parsed.data.enabledModules)].sort(),
     connectorId: parsed.data.connectorId,
+    segment: parsed.data.segment as TenantRecord['segment'],
     plan: parsed.data.plan,
     trialEndsAt: parsed.data.trialEndsAt ?? null,
     status: parsed.data.status,
@@ -231,7 +255,7 @@ superAdminRouter.post('/tenants', async (req, res: Response) => {
 
 superAdminRouter.put('/tenants/:id', async (req, res: Response) => {
   const authReq = req as unknown as AuthenticatedRequest
-  const current = await findTenantBySlug(req.params.id)
+  const current = await findTenantByIdOrSlug(req.params.id)
   if (!current) return res.status(404).json({ message: 'Tenant nao encontrado' })
   const parsed = tenantBodySchema.partial().safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
@@ -249,6 +273,7 @@ superAdminRouter.put('/tenants/:id', async (req, res: Response) => {
     primaryColor: parsed.data.primaryColor === undefined ? current.primaryColor : parsed.data.primaryColor,
     enabledModules: parsed.data.enabledModules ? [...new Set(parsed.data.enabledModules)].sort() : current.enabledModules,
     connectorId: parsed.data.connectorId ?? current.connectorId,
+    segment: (parsed.data.segment as TenantRecord['segment'] | undefined) ?? current.segment,
     plan: parsed.data.plan ?? current.plan,
     trialEndsAt: parsed.data.trialEndsAt === undefined ? current.trialEndsAt : parsed.data.trialEndsAt,
     status: parsed.data.status ?? current.status,
@@ -259,9 +284,9 @@ superAdminRouter.put('/tenants/:id', async (req, res: Response) => {
 
 superAdminRouter.delete('/tenants/:id', async (req, res: Response) => {
   const authReq = req as unknown as AuthenticatedRequest
-  if (req.params.id === 'default') return res.status(400).json({ message: 'Tenant default nao pode ser excluido' })
-  const tenant = await findTenantBySlug(req.params.id)
+  const tenant = await findTenantByIdOrSlug(req.params.id)
   if (!tenant) return res.status(404).json({ message: 'Tenant nao encontrado' })
+  if (tenant.id === 'default') return res.status(400).json({ message: 'Tenant default nao pode ser excluido' })
   const ok = await deleteTenant(tenant.id)
   if (!ok) return res.status(404).json({ message: 'Tenant nao encontrado' })
   logAudit({ userId: authReq.userId, tenantId: authReq.tenantId, action: 'super_admin_tenant_deleted', resource: 'super_admin', metadata: { tenantId: tenant.id, slug: tenant.slug } })
@@ -271,45 +296,137 @@ superAdminRouter.delete('/tenants/:id', async (req, res: Response) => {
 /** POST /api/v1/super-admin/tenants/:id/suspend — suspende tenant. */
 superAdminRouter.post('/tenants/:id/suspend', async (req, res: Response) => {
   const authReq = req as unknown as AuthenticatedRequest
-  const id = req.params.id
-  const tenant = await findTenantBySlug(id)
+  const tenant = await findTenantByIdOrSlug(req.params.id)
   if (!tenant) return res.status(404).json({ message: 'Tenant nao encontrado' })
   const now = new Date().toISOString()
   if (usePostgresStorage()) {
-    await getPostgresPool().query(`UPDATE tenants SET status = 'suspended', updated_at = $2 WHERE id = $1`, [id, now])
+    await getPostgresPool().query(`UPDATE tenants SET status = 'suspended', updated_at = $2 WHERE id = $1`, [tenant.id, now])
   } else {
-    db.prepare(`UPDATE tenants SET status = 'suspended', updated_at = ? WHERE id = ?`).run(now, id)
+    db.prepare(`UPDATE tenants SET status = 'suspended', updated_at = ? WHERE id = ?`).run(now, tenant.id)
   }
-  logAudit({ userId: authReq.userId, action: 'tenant_suspended', resource: 'super_admin', metadata: { tenantId: id } })
+  logAudit({ userId: authReq.userId, action: 'tenant_suspended', resource: 'super_admin', metadata: { tenantId: tenant.id } })
   res.json({ ok: true })
 })
 
 /** POST /api/v1/super-admin/tenants/:id/activate — reativa tenant. */
 superAdminRouter.post('/tenants/:id/activate', async (req, res: Response) => {
   const authReq = req as unknown as AuthenticatedRequest
-  const id = req.params.id
-  const tenant = await findTenantBySlug(id)
+  const tenant = await findTenantByIdOrSlug(req.params.id)
   if (!tenant) return res.status(404).json({ message: 'Tenant nao encontrado' })
   const now = new Date().toISOString()
   if (usePostgresStorage()) {
-    await getPostgresPool().query(`UPDATE tenants SET status = 'active', updated_at = $2 WHERE id = $1`, [id, now])
+    await getPostgresPool().query(`UPDATE tenants SET status = 'active', updated_at = $2 WHERE id = $1`, [tenant.id, now])
   } else {
-    db.prepare(`UPDATE tenants SET status = 'active', updated_at = ? WHERE id = ?`).run(now, id)
+    db.prepare(`UPDATE tenants SET status = 'active', updated_at = ? WHERE id = ?`).run(now, tenant.id)
   }
-  logAudit({ userId: authReq.userId, action: 'tenant_activated', resource: 'super_admin', metadata: { tenantId: id } })
+  logAudit({ userId: authReq.userId, action: 'tenant_activated', resource: 'super_admin', metadata: { tenantId: tenant.id } })
   res.json({ ok: true })
 })
 
+/** POST /api/v1/super-admin/tenants/:id/extend-trial — estende trial em N dias. */
+const extendTrialSchema = z.object({ days: z.number().int().min(1).max(365) })
+superAdminRouter.post('/tenants/:id/extend-trial', async (req, res: Response) => {
+  const authReq = req as unknown as AuthenticatedRequest
+  const tenant = await findTenantByIdOrSlug(req.params.id)
+  if (!tenant) return res.status(404).json({ message: 'Tenant nao encontrado' })
+  const parsed = extendTrialSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
+  const base = tenant.trialEndsAt ? new Date(tenant.trialEndsAt) : new Date()
+  if (Number.isNaN(base.getTime())) base.setTime(Date.now())
+  if (base.getTime() < Date.now()) base.setTime(Date.now())
+  base.setUTCDate(base.getUTCDate() + parsed.data.days)
+  const newDate = base.toISOString()
+  const now = new Date().toISOString()
+  if (usePostgresStorage()) {
+    await getPostgresPool().query(`UPDATE tenants SET trial_ends_at = $2, updated_at = $3 WHERE id = $1`, [tenant.id, newDate, now])
+  } else {
+    db.prepare(`UPDATE tenants SET trial_ends_at = ?, updated_at = ? WHERE id = ?`).run(newDate, now, tenant.id)
+  }
+  logAudit({ userId: authReq.userId, action: 'super_admin_trial_extended', resource: 'super_admin', metadata: { tenantId: tenant.id, days: parsed.data.days, newTrialEndsAt: newDate } })
+  res.json({ ok: true, trialEndsAt: newDate })
+})
+
+/** GET /api/v1/super-admin/tenants/:id/detail — drill-down de um tenant. */
+superAdminRouter.get('/tenants/:id/detail', async (req, res: Response) => {
+  const tenant = await findTenantByIdOrSlug(req.params.id)
+  if (!tenant) return res.status(404).json({ message: 'Tenant nao encontrado' })
+
+  const [allUsers, allDataSources] = await Promise.all([
+    readAllUsersAsync(),
+    readAllDataSourcesAsync(),
+  ])
+  const users = allUsers
+    .filter((u) => u.tenantId === tenant.id)
+    .map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, status: u.status }))
+  const datasources = allDataSources
+    .filter((d) => d.tenantId === tenant.id)
+    .map((d) => ({ id: d.id, name: d.name }))
+
+  let recentAudit: Array<{ id: string; action: string; resource: string; createdAt: string; userId: string | null; metadata: unknown }> = []
+  if (usePostgresStorage()) {
+    const result = await getPostgresPool().query<{ id: string; action: string; resource: string; created_at: string; user_id: string | null; metadata_json: string | null }>(
+      `SELECT id, action, resource, created_at::text AS created_at, user_id, metadata_json
+       FROM audit_log WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 25`,
+      [tenant.id],
+    )
+    recentAudit = result.rows.map((r) => ({ id: r.id, action: r.action, resource: r.resource, createdAt: r.created_at, userId: r.user_id, metadata: r.metadata_json ? safeJson(r.metadata_json) : null }))
+  } else {
+    const rows = db.prepare(`SELECT id, action, resource, created_at, user_id, metadata_json FROM audit_log WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 25`).all(tenant.id) as Array<{ id: string; action: string; resource: string; created_at: string; user_id: string | null; metadata_json: string | null }>
+    recentAudit = rows.map((r) => ({ id: r.id, action: r.action, resource: r.resource, createdAt: r.created_at, userId: r.user_id, metadata: r.metadata_json ? safeJson(r.metadata_json) : null }))
+  }
+
+  res.json({ tenant: serializeTenant(tenant), users, datasources, recentAudit })
+})
+
+/** GET /api/v1/super-admin/audit-recent — eventos super_admin_* recentes. */
+superAdminRouter.get('/audit-recent', async (_req, res: Response) => {
+  let rows: Array<{ id: string; action: string; resource: string; createdAt: string; userId: string | null; tenantId: string | null; metadata: unknown }> = []
+  if (usePostgresStorage()) {
+    const result = await getPostgresPool().query<{ id: string; action: string; resource: string; created_at: string; user_id: string | null; tenant_id: string | null; metadata_json: string | null }>(
+      `SELECT id, action, resource, created_at::text AS created_at, user_id, tenant_id, metadata_json
+       FROM audit_log WHERE action LIKE 'super_admin_%' OR action IN ('tenant_suspended','tenant_activated')
+       ORDER BY created_at DESC LIMIT 50`,
+    )
+    rows = result.rows.map((r) => ({ id: r.id, action: r.action, resource: r.resource, createdAt: r.created_at, userId: r.user_id, tenantId: r.tenant_id, metadata: r.metadata_json ? safeJson(r.metadata_json) : null }))
+  } else {
+    const result = db.prepare(`SELECT id, action, resource, created_at, user_id, tenant_id, metadata_json FROM audit_log WHERE action LIKE 'super_admin_%' OR action IN ('tenant_suspended','tenant_activated') ORDER BY created_at DESC LIMIT 50`).all() as Array<{ id: string; action: string; resource: string; created_at: string; user_id: string | null; tenant_id: string | null; metadata_json: string | null }>
+    rows = result.map((r) => ({ id: r.id, action: r.action, resource: r.resource, createdAt: r.created_at, userId: r.user_id, tenantId: r.tenant_id, metadata: r.metadata_json ? safeJson(r.metadata_json) : null }))
+  }
+  res.json({ events: rows })
+})
+
+function safeJson(input: string): unknown {
+  try { return JSON.parse(input) } catch { return null }
+}
+
+function serializeTenant(t: TenantRecord) {
+  return {
+    id: t.id,
+    slug: t.slug,
+    name: t.name,
+    subtitle: t.subtitle,
+    logoUrl: t.logoUrl,
+    primaryColor: t.primaryColor,
+    enabledModules: t.enabledModules,
+    connectorId: t.connectorId,
+    segment: t.segment,
+    plan: t.plan,
+    trialEndsAt: t.trialEndsAt,
+    status: t.status,
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
+  }
+}
+
 superAdminRouter.post('/tenants/:id/impersonate', async (req, res: Response) => {
   const authReq = req as unknown as AuthenticatedRequest
-  const targetTenantId = req.params.id
-  const tenant = await findTenantBySlug(targetTenantId)
+  const tenant = await findTenantByIdOrSlug(req.params.id)
   if (!tenant || tenant.status !== 'active') return res.status(404).json({ message: 'Tenant ativo nao encontrado' })
 
   const users = await readAllUsersAsync()
   const targetUser = users.find(
-    (user) => user.tenantId === targetTenantId && user.role === 'admin' && user.status === 'active',
-  ) ?? users.find((user) => user.tenantId === targetTenantId && user.status === 'active')
+    (user) => user.tenantId === tenant.id && user.role === 'admin' && user.status === 'active',
+  ) ?? users.find((user) => user.tenantId === tenant.id && user.status === 'active')
 
   if (!targetUser) return res.status(404).json({ message: 'Tenant sem usuario ativo para impersonation' })
 
@@ -318,24 +435,24 @@ superAdminRouter.post('/tenants/:id/impersonate', async (req, res: Response) => 
 
   const token = signSessionJwt({
     sub: targetUser.id,
-    tid: targetTenantId,
+    tid: tenant.id,
     role: targetUser.role,
     plan: tenant.plan,
   })
   const userAgent = typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : ''
-  await registerToken(token, targetUser.id, targetTenantId, buildSessionBinding(req.ip ?? '', userAgent))
+  await registerToken(token, targetUser.id, tenant.id, buildSessionBinding(req.ip ?? '', userAgent))
   logAudit({
     userId: authReq.userId,
     tenantId: authReq.tenantId,
     action: 'super_admin_impersonation_started',
     resource: 'super_admin',
-    metadata: { targetTenantId, targetUserId: targetUser.id },
+    metadata: { targetTenantId: tenant.id, targetUserId: targetUser.id },
   })
   res.setHeader('Set-Cookie', [
     buildCookie('iga_impersonator', currentToken, 28_800),
     buildCookie('iga_session', token, 28_800),
   ])
-  res.json(authPayload(targetUser, targetTenantId))
+  res.json(authPayload(targetUser, tenant.id))
 })
 
 /** GET /api/v1/super-admin/metrics — MRR, churn estimado, tenants ativos. */

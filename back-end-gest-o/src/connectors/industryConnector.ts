@@ -1,3 +1,5 @@
+import type { BusinessSegment } from '../segments.js'
+
 export type ProductClassification =
   | 'materia-prima'
   | 'espuma'
@@ -47,6 +49,8 @@ export interface IndustryConnector {
   name: string
   cspConnectSrc: string[]
   labels: ConnectorLabels
+  /** Segmentos de negócio compatíveis com este connector (ex.: ['industry', 'commerce']). */
+  segments: BusinessSegment[]
   /** Substrings que matcham endpoints reais por area. Primeiro match vence. */
   areaHints: Record<ConnectorArea, string[]>
   /** Endpoints aquecidos pelo job de warm cache. Vazio = job desligado para o connector. */

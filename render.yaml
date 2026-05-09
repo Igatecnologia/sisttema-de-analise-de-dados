@@ -40,8 +40,22 @@ services:
         sync: false
 
       # ── Beta gratuito: gate de billing desativado ─────────────────────────
-      - key: BILLING_GATE_DISABLED
-        value: "1"
+      # Billing real (Stripe). Sem BILLING_GATE_DISABLED em producao:
+      # trial expirado/assinatura inativa bloqueia via 402.
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_PRO
+        sync: false
+      - key: STRIPE_PRICE_ENTERPRISE
+        sync: false
+      - key: BILLING_SUCCESS_URL
+        sync: false
+      - key: BILLING_CANCEL_URL
+        sync: false
+      - key: BILLING_PORTAL_RETURN_URL
+        sync: false
 
       # ── Auth + secrets (gerar localmente, nao commitar) ──────────────────
       - key: ADMIN_DEFAULT_EMAIL

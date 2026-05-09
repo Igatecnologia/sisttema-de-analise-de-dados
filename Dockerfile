@@ -32,6 +32,17 @@ ARG VITE_API_BASE_URL=
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 
+FROM node:22-bookworm-slim AS landing-deps
+WORKDIR /app/landing-page
+COPY landing-page/package*.json ./
+RUN npm install
+
+FROM landing-deps AS landing-dev
+ENV NODE_ENV=development
+COPY landing-page ./
+EXPOSE 3000
+CMD ["npm", "run", "dev"]
+
 FROM node:22-bookworm-slim AS production
 WORKDIR /app
 ENV NODE_ENV=production \
