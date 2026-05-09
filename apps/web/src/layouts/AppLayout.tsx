@@ -608,7 +608,7 @@ export function AppLayout() {
   }, [navigate])
 
   return (
-    <Layout className="app-shell" style={{ minHeight: '100vh' }}>
+    <Layout className="app-shell" hasSider style={{ minHeight: '100vh' }}>
       <a
         href="#main-content"
         style={{
