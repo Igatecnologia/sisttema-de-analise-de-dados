@@ -286,12 +286,35 @@ cd back-end-gest-o && npm run dev
 cd front-end-gest-o && npm run dev
 ```
 
-## Planos e roadmap (em `docs/`)
+## Planos e roadmap
 
-- `PLANO-SAAS.md` — Plano canonico SaaS (9 sprints, 15 semanas)
-- `PLANO-IGA-IA.md` — Migracao do Copilot para Python (FastAPI + Claude + RAG, AI-1 a AI-6)
-- `BLOQUEADORES-EXTERNOS.md` — O que falta para GA que NAO e codigo (DPIA, pentest, infra paga, hiring)
+O plano original (`docs/PLANO-SAAS.md`, 3606 linhas) foi 93% executado e arquivado.
+Restou roadmap pos-GA compacto:
+
+### Trilha pos-GA (codigo, quando houver PMF + time)
+
+- **INT-1 Common Industrial Model**: Zod schemas comuns + transformation library cross-connector
+- **INT-2 Multi-protocol/auth**: OAuth2 PKCE, Basic, header, cookie + retry/backoff
+- **INT-3 Sync Engine v2**: incremental sync, watermarks, dead-letter queue
+- **INT-4 Mapping Studio**: UI visual para mapping field-by-field
+- **INT-5 Write-back / Webhook reverso**: enviar dados de volta ao ERP (Enterprise tier)
+- **INT-6 Universal Data Ingestion**: file uploads, CSV drag-drop com auto-detection
+- **INT-7 Smart Onboarding com IA**: detectar schema do ERP automaticamente
+
+### Trilha pos-GA (operacional/pago)
+
+Ver `docs/BLOQUEADORES-EXTERNOS.md`. Resumo:
+- DPIA + DPA + Termos com advogado (R$ 5-15k)
+- Pentest externo (R$ 10-30k)
+- Cloudflare WAF Pro (R$ 100-300/mes)
+- DAST managed, SSO Enterprise, hiring (OPS-1)
+
+### Planos vivos
+
+- `PLANO-IGA-IA.md` — Migracao do Copilot para Python (FastAPI + Claude + RAG, AI-1 a AI-6) — pos-GA
+- `BLOQUEADORES-EXTERNOS.md` — O que falta para GA que NAO e codigo
 - `DEPLOY-TODAY.md` — Runbook 1-2h Beta Fechada (Render+Vercel+Supabase+Upstash)
+- `PERFORMANCE-BUDGET.md` — SLOs por endpoint + alvos Web Vitals + bundle limits
 - `INCIDENT-RESPONSE.md`, `SECURITY-BASELINE.md`, `TROUBLESHOOTING.md` — runbooks operacionais
 - `beta/` — emails, onboarding, runbook, termo Beta
 - `compliance/` — DPIA, RoPA, DPA-template (LGPD)

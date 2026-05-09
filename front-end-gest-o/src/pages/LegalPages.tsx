@@ -169,6 +169,54 @@ export function SubProcessorsPage() {
   )
 }
 
+export function AccessibilityPage() {
+  return (
+    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <PageHeaderCard title="Acessibilidade" subtitle={`Ultima atualizacao: ${today}`} />
+      <Card>
+        <Typography>
+          <Typography.Title level={4}>Compromisso</Typography.Title>
+          <Typography.Paragraph>
+            A IGA Gestao busca atender a <strong>WCAG 2.2 nivel AA</strong> e o <strong>eMAG 3.1</strong>,
+            em conformidade com a <strong>Lei Brasileira de Inclusao (Lei 13.146/2015)</strong>.
+            Estamos em processo de auditoria externa e correcao continua.
+          </Typography.Paragraph>
+          <Typography.Title level={4}>O que ja esta implementado</Typography.Title>
+          <ul>
+            <li>Skip-link &quot;Pular para o conteudo&quot; em todas as paginas autenticadas</li>
+            <li>Focus rings visiveis em tema claro e escuro (cor primaria com offset 2px)</li>
+            <li>Landmarks ARIA (banner, navigation, main) na estrutura do app</li>
+            <li>Aria-labels em todos os botoes icone-only do header e sidebar</li>
+            <li>Keyboard navigation completa via Tab/Shift-Tab/Esc</li>
+            <li>Suporte a <code>prefers-reduced-motion</code> — animacoes desabilitam quando solicitado</li>
+            <li><code>html lang=&quot;pt-BR&quot;</code> declarado em todas as paginas</li>
+            <li>Contraste 4.5:1 em texto principal nos dois temas</li>
+            <li>Testes axe-core automatizados em Dashboard, Login e Register (zero violacoes critical)</li>
+          </ul>
+          <Typography.Title level={4}>O que ainda esta em evolucao</Typography.Title>
+          <ul>
+            <li>Audit completo WCAG 2.2 AA por consultor externo (previsto Q3 2026)</li>
+            <li>Lighthouse a11y &gt;= 95 em todas as paginas (atualmente cobre paginas core)</li>
+            <li>Compatibilidade com leitores de tela: NVDA, JAWS, VoiceOver, TalkBack — em validacao</li>
+            <li>Drag-and-drop de widgets do Dashboard com alternativa keyboard (setas + space)</li>
+          </ul>
+          <Typography.Title level={4}>Reportar barreira de acessibilidade</Typography.Title>
+          <Typography.Paragraph>
+            Encontrou uma barreira? Por favor descreva o problema, a pagina e a tecnologia
+            assistiva que voce usa para <strong>acessibilidade@igagestao.com.br</strong>.
+            SLA de resposta: <strong>10 dias uteis</strong>. Bugs criticos sao priorizados em ate 5 dias.
+          </Typography.Paragraph>
+          <Typography.Title level={4}>Tecnologia compativel</Typography.Title>
+          <Typography.Paragraph>
+            Testado em Chrome 120+, Firefox 121+, Safari 17+, Edge 120+, com sistemas
+            operacionais Windows 10+, macOS 13+, iOS 16+ e Android 12+.
+          </Typography.Paragraph>
+        </Typography>
+      </Card>
+    </div>
+  )
+}
+
 export function CookiesPolicyPage() {
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>

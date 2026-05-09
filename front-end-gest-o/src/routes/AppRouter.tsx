@@ -100,6 +100,9 @@ const TermsOfServicePage = lazy(() =>
 const CookiesPolicyPage = lazy(() =>
   import('../pages/LegalPages').then((m) => ({ default: m.CookiesPolicyPage })),
 )
+const AccessibilityPage = lazy(() =>
+  import('../pages/LegalPages').then((m) => ({ default: m.AccessibilityPage })),
+)
 const SubProcessorsPage = lazy(() =>
   import('../pages/LegalPages').then((m) => ({ default: m.SubProcessorsPage })),
 )
@@ -247,6 +250,7 @@ export function AppRouter() {
             <Route path="/legal/privacidade" element={<PageErrorBoundary><PrivacyPolicyPage /></PageErrorBoundary>} />
             <Route path="/legal/termos" element={<PageErrorBoundary><TermsOfServicePage /></PageErrorBoundary>} />
             <Route path="/legal/cookies" element={<PageErrorBoundary><CookiesPolicyPage /></PageErrorBoundary>} />
+            <Route path="/legal/acessibilidade" element={<PageErrorBoundary><AccessibilityPage /></PageErrorBoundary>} />
             <Route path="/legal/sub-processors" element={<PageErrorBoundary><SubProcessorsPage /></PageErrorBoundary>} />
             <Route path="/p/:token" element={<PageErrorBoundary><PublicShareLinkPage /></PageErrorBoundary>} />
             <Route path="/onboarding" element={<RequireAuth><OnboardingPage /></RequireAuth>} />

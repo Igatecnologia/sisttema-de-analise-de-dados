@@ -1,7 +1,7 @@
 # Bloqueadores Externos — IGA Gestao SaaS
 
 > Atualizado: 2026-05-09
-> Status do codigo: 18 de 22 blocos do PLANO-SAAS com >=75% done. O que falta NAO e codigo.
+> Status do codigo: 93% do plano original executado e arquivado. O que falta NAO e codigo.
 
 Este documento lista o que ainda separa o sistema de **GA publico (Beta -> producao com clientes pagantes)**, e que **nao pode ser resolvido escrevendo codigo**. Sao acoes operacionais, legais, financeiras ou de hiring.
 
