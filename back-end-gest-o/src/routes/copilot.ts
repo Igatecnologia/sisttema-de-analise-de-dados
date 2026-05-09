@@ -279,12 +279,13 @@ function requireAdminRole(req: Request, res: Response, next: NextFunction) {
   next()
 }
 
-const ProviderEnum = z.enum(['auto', 'groq', 'local'])
+const ProviderEnum = z.enum(['auto', 'openai', 'anthropic', 'gemini', 'groq', 'openrouter', 'custom', 'local'])
 
 const ConfigUpdateBody = z.object({
   provider: ProviderEnum.optional(),
-  groqApiKey: z.string().trim().max(200).nullable().optional(),
-  groqModel: z.string().trim().max(120).nullable().optional(),
+  apiKey: z.string().trim().max(500).nullable().optional(),
+  model: z.string().trim().max(200).nullable().optional(),
+  baseUrl: z.string().trim().url().max(500).nullable().optional(),
 })
 
 copilotRouter.get('/config', requireAdminRole, async (_req, res) => {
@@ -300,8 +301,9 @@ copilotRouter.put('/config', requireAdminRole, async (req, res) => {
   const updated = await updateCopilotConfig(
     {
       provider: parsed.data.provider as CopilotProviderChoice | undefined,
-      groqApiKey: parsed.data.groqApiKey,
-      groqModel: parsed.data.groqModel,
+      apiKey: parsed.data.apiKey,
+      model: parsed.data.model,
+      baseUrl: parsed.data.baseUrl,
     },
     authReq.userId,
   )

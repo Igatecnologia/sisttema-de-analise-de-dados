@@ -47,8 +47,10 @@ export type ChatRequest = {
   signal?: AbortSignal
 }
 
+export type AiProviderName = 'openai-compatible' | 'anthropic' | 'gemini' | 'local'
+
 export interface AiProvider {
-  readonly name: 'groq' | 'local'
+  readonly name: AiProviderName
   readonly displayName: string
   /**
    * Gera stream de eventos. O provider é responsável por:

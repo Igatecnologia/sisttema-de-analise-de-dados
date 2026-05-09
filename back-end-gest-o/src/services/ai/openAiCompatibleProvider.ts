@@ -2,24 +2,26 @@ import { randomUUID } from 'node:crypto'
 import type { AiProvider, ChatMessage, ChatRequest, StreamEvent, ToolDefinition } from './types.js'
 
 /**
- * Groq — API OpenAI-compatible, tier gratuito generoso (30 rpm, 14.400 rpd)
- * em modelos Llama. Endpoint: https://api.groq.com/openai/v1/chat/completions
+ * Provider generico para qualquer API OpenAI-compativel:
+ * - OpenAI (https://api.openai.com/v1)
+ * - Groq (https://api.groq.com/openai/v1)
+ * - OpenRouter (https://openrouter.ai/api/v1)
+ * - DeepSeek (https://api.deepseek.com/v1)
+ * - Together (https://api.together.xyz/v1)
+ * - Ollama / LM Studio / vLLM auto-hospedados
+ *
+ * Todos seguem o contrato POST /chat/completions com tool_calls do OpenAI.
  */
-
-const DEFAULT_MODEL = 'llama-3.3-70b-versatile'
-const BASE_URL = 'https://api.groq.com/openai/v1'
 
 /**
  * Alguns Llamas (3.1 8B em especial) ignoram o canal nativo de tool_calls e
  * emitem `<function=NOME args_key=val ...></function>` como TEXTO no content.
- * Interceptamos esse padrão, convertemos em tool_call e removemos do texto
- * visível ao cliente.
+ * Interceptamos esse padrao, convertemos em tool_call e removemos do texto.
  */
 const FN_TAG = /<function=([a-zA-Z_][\w]*)\s*([^>]*)>\s*<\/function>/g
 
 function parseInlineArgs(rawArgs: string): Record<string, unknown> {
   const out: Record<string, unknown> = {}
-  // padrão: key=value | key="value" | key='value'
   const re = /([a-zA-Z_]\w*)=(?:"([^"]*)"|'([^']*)'|([^\s]+))/g
   let m: RegExpExecArray | null
   while ((m = re.exec(rawArgs)) !== null) {
@@ -57,12 +59,6 @@ type OpenAiChunk = {
   error?: { message?: string; type?: string }
 }
 
-/**
- * Llama 3.x via Groq ocasionalmente emite tool calls com o JSON dos argumentos
- * concatenado no nome da função: `get_overview{"x":1}` em vez de `get_overview`
- * + argumentos separados. Quando detectado, cortamos no primeiro `{`, movemos
- * o sufixo para args e fazemos parse JSON.
- */
 function normalizeToolCall(call: { id: string; name: string; argsJson: string }): {
   id: string
   name: string
@@ -86,17 +82,17 @@ function normalizeToolCall(call: { id: string; name: string; argsJson: string })
   }
 }
 
-function describeGroqError(status: number): string {
+function describeStatusError(status: number, providerLabel: string): string {
   switch (status) {
-    case 400: return 'Groq 400 — requisição inválida.'
-    case 401: return 'Groq 401 — chave inválida. Confira em console.groq.com/keys.'
-    case 403: return 'Groq 403 — sem permissão para este modelo.'
-    case 404: return 'Groq 404 — modelo não encontrado. Tente "llama-3.3-70b-versatile".'
-    case 429: return 'Groq 429 — cota excedida (30/min ou 14.400/dia). Aguarde 1 min.'
+    case 400: return `${providerLabel} 400 — requisicao invalida.`
+    case 401: return `${providerLabel} 401 — chave invalida. Confira sua API key.`
+    case 403: return `${providerLabel} 403 — sem permissao para este modelo.`
+    case 404: return `${providerLabel} 404 — modelo nao encontrado.`
+    case 429: return `${providerLabel} 429 — cota excedida. Aguarde 1 min.`
     case 500:
     case 502:
-    case 503: return `Groq ${status} — instabilidade do servidor. Tente novamente.`
-    default: return `Groq HTTP ${status}`
+    case 503: return `${providerLabel} ${status} — instabilidade do servidor. Tente novamente.`
+    default: return `${providerLabel} HTTP ${status}`
   }
 }
 
@@ -112,8 +108,6 @@ function toOpenAiMessages(systemPrompt: string, messages: ChatMessage[]): OpenAi
         name: m.toolName,
       })
     } else if (m.role === 'assistant' && m.toolCalls?.length) {
-      // Assistant que invocou tools: content pode ser string vazia, mas tool_calls
-      // deve estar presente pra API saber que o próximo "tool" é resposta a ESTAS calls.
       out.push({
         role: 'assistant',
         content: m.content || null,
@@ -142,24 +136,33 @@ function toOpenAiTools(tools?: ToolDefinition[]) {
   }))
 }
 
-export class GroqProvider implements AiProvider {
-  readonly name = 'groq' as const
-  readonly displayName = 'Groq (gratuito, rápido)'
-  private readonly apiKey: string
-  private readonly model: string
+export type OpenAiCompatibleConfig = {
+  apiKey: string
+  baseUrl: string
+  model: string
+  /** Label amigavel: "OpenAI", "Groq", "OpenRouter", etc. */
+  displayLabel: string
+  /** Header customizado (OpenRouter exige X-Title). Opcional. */
+  extraHeaders?: Record<string, string>
+}
 
-  constructor(apiKey: string, model: string = DEFAULT_MODEL) {
-    this.apiKey = apiKey
-    this.model = model
+export class OpenAiCompatibleProvider implements AiProvider {
+  readonly name = 'openai-compatible' as const
+  readonly displayName: string
+  private readonly cfg: OpenAiCompatibleConfig
+
+  constructor(cfg: OpenAiCompatibleConfig) {
+    this.cfg = cfg
+    this.displayName = cfg.displayLabel
   }
 
   async isAvailable(): Promise<boolean> {
-    return Boolean(this.apiKey)
+    return Boolean(this.cfg.apiKey && this.cfg.baseUrl && this.cfg.model)
   }
 
   async *stream(req: ChatRequest): AsyncGenerator<StreamEvent, void, void> {
     const body = {
-      model: this.model,
+      model: this.cfg.model,
       messages: toOpenAiMessages(req.systemPrompt, req.messages),
       tools: toOpenAiTools(req.tools),
       stream: true,
@@ -169,17 +172,18 @@ export class GroqProvider implements AiProvider {
 
     let response: Response
     try {
-      response = await fetch(`${BASE_URL}/chat/completions`, {
+      response = await fetch(`${this.cfg.baseUrl.replace(/\/$/, '')}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.cfg.apiKey}`,
+          ...(this.cfg.extraHeaders ?? {}),
         },
         body: JSON.stringify(body),
         signal: req.signal,
       })
     } catch (err) {
-      yield { type: 'error', message: `Falha de rede Groq: ${(err as Error).message}` }
+      yield { type: 'error', message: `Falha de rede ${this.cfg.displayLabel}: ${(err as Error).message}` }
       return
     }
 
@@ -190,29 +194,18 @@ export class GroqProvider implements AiProvider {
           const txt = await response.text()
           const match = /"message":\s*"([^"]+)"/.exec(txt)
           detail = match?.[1] ?? txt.slice(0, 200)
-          console.error('[groq]', response.status, detail)
+          console.error(`[${this.cfg.displayLabel}]`, response.status, detail)
         } catch {
           /* ignora */
         }
       }
-      const base = describeGroqError(response.status)
+      const base = describeStatusError(response.status, this.cfg.displayLabel)
       yield { type: 'error', message: detail ? `${base} Detalhe: ${detail}` : base }
       return
     }
 
-    /**
-     * Tool calls em OpenAI streaming chegam fragmentados: o `index` identifica
-     * cada call, e os campos (name, arguments) vão sendo concatenados ao longo
-     * dos chunks. Buferizamos até o finish_reason='tool_calls' para emitir
-     * tool_call completo.
-     */
     const toolBuffers = new Map<number, { id: string; name: string; argsJson: string }>()
 
-    /**
-     * Buffer do texto emitido: só liberamos ao cliente trechos seguros —
-     * retemos o final enquanto pode fazer parte de uma tag `<function=...>`
-     * ainda não fechada.
-     */
     let textBuf = ''
     const emitText = (flush: boolean): StreamEvent[] => {
       const events: StreamEvent[] = []
@@ -236,7 +229,6 @@ export class GroqProvider implements AiProvider {
       }
       let tail = textBuf.slice(lastEnd)
       if (!flush) {
-        // Segura últimos caracteres que podem ser início de tag
         const lt = tail.lastIndexOf('<')
         if (lt !== -1 && !tail.includes('</function>', lt)) {
           const held = tail.slice(lt)
@@ -274,13 +266,7 @@ export class GroqProvider implements AiProvider {
           continue
         }
         if (chunk.error) {
-          const errMsg = chunk.error.message ?? 'Erro desconhecido Groq'
-          /**
-           * Groq valida tool_calls server-side. Quando o modelo emite nome
-           * malformado ("get_overview{}"), o erro chega como string contendo
-           * "tool 'NAME' which was not in request.tools". Recuperamos o
-           * nome-base e sintetizamos um tool_call válido em vez de falhar.
-           */
+          const errMsg = chunk.error.message ?? `Erro desconhecido ${this.cfg.displayLabel}`
           const salvage = /tool '([^']+)'/.exec(errMsg)
           if (salvage) {
             const rawName = salvage[1]
@@ -293,7 +279,7 @@ export class GroqProvider implements AiProvider {
             } catch {
               args = {}
             }
-            console.warn('[groq] recuperando tool_call malformado:', rawName, '→', cleanName)
+            console.warn(`[${this.cfg.displayLabel}] recuperando tool_call malformado:`, rawName, '→', cleanName)
             yield { type: 'tool_call', call: { id: randomUUID(), name: cleanName, args } }
             yield { type: 'done' }
             return
@@ -326,7 +312,6 @@ export class GroqProvider implements AiProvider {
         }
       }
     }
-    // Flush final: libera resíduo de texto e qualquer tool_call pendente no buffer
     for (const evt of emitText(true)) yield evt
     yield { type: 'done' }
   }
