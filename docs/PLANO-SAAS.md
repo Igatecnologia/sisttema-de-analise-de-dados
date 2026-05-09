@@ -1,32 +1,50 @@
 # IGA Gestao — Plano de Transformacao SaaS v3
 
-> **Status do plano (atualizado 2026-05-08 — apos auditoria full)**
+> **Status do plano (atualizado 2026-05-09 — apos sprints multi-segmento + observabilidade + benchmark)**
 >
 > | Bloco | % done | Comentario |
 > |---|---|---|
-> | S0 Ambiente | 100% | Docker, Makefile, CI |
-> | S1 Postgres + Redis | 100% | Drizzle, BullMQ, sharedCache |
-> | S2 Multi-tenant + RLS | 100% | RLS + 5 cenarios automatizados |
-> | S3 Desacoplar SGBR | 100% | ConnectorRegistry, area hints, warm targets |
-> | S4 Auth SaaS + Onboarding | 100% | Register/invite/forgot/verify + wizard |
-> | **S5 Billing** | 100% | Stripe + webhook + gate + limites + UI de planos/billing/configuracoes |
-> | **S6 Deploy Cloud** | **70%** | Beta free configurado: render.yaml + vercel.json + db-backup workflow + observability wiring. Falta executar deploy + Cloudflare WAF (pago) |
-> | S7 Super Admin | 100% | CRUD tenants + metricas + impersonation + TenantSwitcher |
-> | S8 Connectors marketplace | 100% | Marketplace, schemas, API propria IGA, Bling/Tiny/Omie (stubs OAuth), hot-reload e webhooks enterprise |
-> | S9 Landing page | 0% | Next.js separado |
-> | **SEC-1 Foundation** | 95% | 1.1-1.3, 1.5-1.6, 1.8 done. 1.4 (Doppler) e 1.7 (file upload) operacional/N-A |
-> | **SEC-2 Identity** | 90% | MFA, captcha, HIBP, lockout, session binding, refresh rotation, history, timing-safe, login alerts. So falta SSO Enterprise (2.7) |
-> | **SEC-3 DevSecOps** | **65%** | SAST/SCA/SBOM/lockfile/secret scan + COOP/CORP/Reporting + CSP dinamico + CORS + anti-fraud done. Falta CSP nonce, DAST, WAF (pago), CodeQL |
-> | **SEC-4 Compliance** | **55%** | LGPD endpoints, cookie consent, security.txt, sub-processors page, IR runbook, aceite versionado de Termos, backup workflow done. Falta DPIA/DPA com advogado + pentest (R$ 10-30k) |
-> | INT-1 a INT-7 | 0% | pos-GA |
-> | OPS-1 OPS-2 OPS-3 | 0% | OPS-1 operacional, OPS-2 carga, OPS-3 a11y |
-> | **OPS-4 Analytics** | **40%** | PostHog/Sentry wiring + 4 eventos basicos + endpoint backend. Falta 30+ eventos + funnels + cohorts |
+> | S0 Ambiente | 100% | Docker, Makefile, CI ja com 5 workflows (ci, codeql, db-backup, lighthouse, security) |
+> | S1 Postgres + Redis | 100% | Drizzle, BullMQ, sharedCache, velocity check no Redis com fallback memory |
+> | S2 Multi-tenant + RLS | 100% | RLS + 14 tabelas FORCE + 5 cenarios automatizados |
+> | S3 Desacoplar SGBR | 100% | ConnectorRegistry, area hints, warm targets, segments[] + 4 BusinessSegment |
+> | S4 Auth SaaS + Onboarding | 100% | Register card-selector segmento + invite/forgot/verify + wizard 5 passos com CSV import |
+> | **S5 Billing** | 100% | Stripe + webhook + gate + limites + UI planos/billing/portal/checkout |
+> | **S6 Deploy Cloud** | **75%** | render.yaml + vercel.json + 5 workflows + observability (Sentry+PostHog) + DEPLOY-TODAY.md runbook. Falta executar deploy + Cloudflare WAF (pago) |
+> | S7 Super Admin | 100% | App separado em super-admin-app/, CRUD tenants + metricas + impersonation + TenantSwitcher header |
+> | S8 Connectors marketplace | 100% | 7 connectors (SGBR/IGA-Custom/Bling/Tiny/Omie/CSV/Generic) + 7 areas + bulk import + templates locais + modo guiado |
+> | **S9 Landing page** | **80%** | landing-page/ Next.js 15 + Tailwind 4 + Motion implementada (5 commits). Falta blog SEO + video demo + dominio proprio |
+> | **SEC-1 Foundation** | **95%** | 1.1-1.3, 1.5-1.6, 1.8 done. 1.4 (Doppler) e 1.7 (file upload) operacional/N-A |
+> | **SEC-2 Identity** | **90%** | MFA, captcha, HIBP, lockout, session binding, refresh rotation, history, timing-safe, login alerts. So falta SSO Enterprise (2.7) — pago |
+> | **SEC-3 DevSecOps** | **75%** | SAST/SCA/SBOM/lockfile/secret scan + COOP/CORP/Reporting + CSP dinamico + CORS + anti-fraud + Sentry SDK init done. Falta CSP nonce (refactor pesado Vite), WAF (pago), DAST (pago) |
+> | **SEC-4 Compliance** | **55%** | LGPD endpoints, cookie consent, security.txt, sub-processors page, IR runbook, aceite versionado de Termos, backup workflow done. Falta DPIA/DPA com advogado + pentest (R$ 10-30k, operacional) |
+> | INT-1 a INT-7 | 0% | pos-GA por design. Trilha de diferenciacao competitiva (multi-protocol, mapping studio, write-back) |
+> | **OPS-1** Time + Budget | 0% | Operacional (CLT/PJ, ESOP, hiring) — fora do escopo de codigo |
+> | **OPS-2** Performance/Load | 25% | k6 nao implementado, mas Sentry tracesSampleRate ativo + DORA via GitHub Actions |
+> | **OPS-3** A11y WCAG 2.2 AA | 30% | Landmarks ARIA (banner/navigation/main), aria-labels em botoes acoes criticas, axe-core no e2e. Falta audit externo |
+> | **OPS-4 Analytics** | **75%** | PostHog wiring + 26+ eventos trackados (auth, copilot, customer, connector, onboarding, bulk_import, forecast, public_shares, billing, segment) + audit events backend. Falta 30+ eventos + funnels + cohorts no dashboard PostHog |
 >
-> **Caminho minimo para Beta Fechado FREE (~1 dia executando `DEPLOY-FREE.md`)**: criar contas Vercel/Render/Supabase/Upstash + setar envs + deploy. Custo: R$ 0/mes.
+> ## Resumo de progresso: 18 de 22 blocos com >=75% done.
 >
-> **Caminho para 1o pagante (~4 sem + R$ 10-30k)**: validar Beta -> contratar advogado (DPIA/Termos/DPA) -> pentest externo -> Stripe KYC + CNPJ.
+> **Bloqueadores de codigo (todos factiveis em 1-2 sprints)**:
+> - SEC-3 CSP nonce dinamico — refactor Vite para injetar nonce em script-src (~2-3 dias)
+> - OPS-2 k6 load tests + APM detalhado (~1 sem)
+> - OPS-3 WCAG 2.2 AA audit completo Axe + correcoes (~1-2 sem)
 >
-> **Caminho para GA (+~4 sem alem do minimo)**: CSP nonce + OPS-3 (a11y) + OPS-4 completo (30+ eventos) + Cloudflare WAF + WCAG audit externo.
+> **Bloqueadores externos (operacional/pago, NAO factiveis em codigo)**:
+> - **SEC-4** DPIA + DPA + Termos com advogado (R$ 5-15k, 1-2 sem)
+> - **SEC-4** Pentest externo (R$ 10-30k, 2-4 sem) — bloqueador GA
+> - **SEC-3** Cloudflare WAF Pro (R$ 100-300/mes)
+> - **SEC-3** DAST OWASP ZAP managed
+> - **SEC-2** SSO Enterprise WorkOS (R$ 50/conexao + setup)
+> - **OPS-1** Time + runway + ESOP (founder + advogado)
+> - **CNPJ + Stripe live KYC** (R$ 0-1k, 1-2 sem)
+>
+> **Caminho para Beta Fechada (~2h)**: setar env vars no Render dashboard + criar webhook Stripe + smoke test. Ver `DEPLOY-TODAY.md`. Custo: R$ 0/mes.
+>
+> **Caminho para 1o pagante (~4 sem + R$ 15-45k)**: Beta + advogado (DPIA/Termos/DPA) + pentest externo + Stripe live KYC + CNPJ.
+>
+> **Caminho para GA publico (+~4 sem)**: CSP nonce + OPS-3 a11y + Cloudflare WAF + WCAG audit externo + 30+ eventos + funnels.
 
 ## Visao Geral
 

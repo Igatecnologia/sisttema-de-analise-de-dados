@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { getValidated, postValidated } from '../api/validatedHttp'
 import { http } from './http'
+import { trackEvent } from './analytics'
 
 const publicShareSchema = z.object({
   token: z.string(),
@@ -29,9 +30,16 @@ export async function createPublicShare(input: {
   payload?: Record<string, unknown>
   expiresAt?: string | null
 }) {
-  return postValidated(http, '/api/v1/public-shares', input, publicShareSchema)
+  const result = await postValidated(http, '/api/v1/public-shares', input, publicShareSchema)
+  trackEvent('public_share_created', { hasExpiration: Boolean(input.expiresAt) })
+  return result
 }
 
 export async function revokePublicShare(token: string) {
   await http.post(`/api/v1/public-shares/${token}/revoke`)
+  trackEvent('public_share_revoked')
+}
+
+export async function trackPublicShareVisited(token: string) {
+  trackEvent('public_share_visited', { token: token.slice(0, 8) })
 }

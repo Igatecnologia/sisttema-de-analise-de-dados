@@ -168,6 +168,14 @@ export function OnboardingPage() {
         teamInvites: parseTeamEmails(formValues.emails),
       })
       await startOnboardingImport()
+      const { trackEvent } = await import('../services/analytics')
+      trackEvent('onboarding_completed', {
+        segment: formValues.segment,
+        connectorId: formValues.connectorId,
+        teamInvites: parseTeamEmails(formValues.emails).length,
+        templatesCount: (formValues.templates ?? []).length,
+        hadCsvImport: Boolean(uploadedCsv),
+      })
       navigate('/importando-dados')
     } catch {
       message.error('Não foi possível salvar o onboarding.')

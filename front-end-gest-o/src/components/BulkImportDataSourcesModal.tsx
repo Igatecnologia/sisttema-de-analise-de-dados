@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { App, Alert, Button, Card, Input, Modal, Space, Table, Tabs, Tag, Typography } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined, RocketOutlined } from '@ant-design/icons'
 import { http } from '../services/http'
+import { trackEvent } from '../services/analytics'
 
 type BulkResult = {
   created: Array<{ index: number; id: string; name: string }>
@@ -132,6 +133,12 @@ export function BulkImportDataSourcesModal({ open, onClose, onCompleted }: Props
     try {
       const { data } = await http.post<BulkResult>('/api/v1/datasources/bulk', { items })
       setResult(data)
+      trackEvent('bulk_import_completed', {
+        total: data.total,
+        created: data.created.length,
+        failed: data.failed.length,
+        source: activeTab,
+      })
       if (data.failed.length === 0) {
         msg.success(`${data.created.length} fonte${data.created.length === 1 ? '' : 's'} criada${data.created.length === 1 ? '' : 's'}.`)
       } else if (data.created.length > 0) {

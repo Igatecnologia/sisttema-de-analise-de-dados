@@ -1,8 +1,10 @@
 import { Card, Progress, Space, Tag, Tooltip, Typography } from 'antd'
 import { LineChartOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { getRevenueForecast, type RevenueForecastResponse } from '../services/forecastService'
 import { formatBRL } from '../utils/formatters'
+import { trackEvent } from '../services/analytics'
 
 const CONFIDENCE_LABEL = {
   high: { label: 'Alta confiança', color: 'green' },
@@ -23,6 +25,13 @@ export function RevenueForecastCard({ monthlyGoal }: { monthlyGoal?: number | nu
     staleTime: 10 * 60_000,
     refetchOnWindowFocus: false,
   })
+
+  /** Registra view só quando há dados úteis — não polui telemetria com renderizações vazias. */
+  useEffect(() => {
+    if (data?.ok) {
+      trackEvent('forecast_viewed', { confidence: data.confidence, daysWithData: data.daysWithData })
+    }
+  }, [data])
 
   if (isLoading || !data) return null
   if (!data.ok) return null

@@ -1,4 +1,5 @@
 import { http } from './http'
+import { trackEvent } from './analytics'
 
 export type CustomerAddress = {
   cep?: string
@@ -64,16 +65,19 @@ export async function getCustomer(id: string): Promise<Customer> {
 
 export async function createCustomer(input: CustomerInput): Promise<Customer> {
   const { data } = await http.post<Customer>(BASE, input)
+  trackEvent('customer_created', { hasDocument: Boolean(input.document), hasEmail: Boolean(input.email) })
   return data
 }
 
 export async function updateCustomer(id: string, input: Partial<CustomerInput>): Promise<Customer> {
   const { data } = await http.put<Customer>(`${BASE}/${id}`, input)
+  trackEvent('customer_updated', { fields: Object.keys(input).length })
   return data
 }
 
 export async function deleteCustomer(id: string): Promise<void> {
   await http.delete(`${BASE}/${id}`)
+  trackEvent('customer_deleted')
 }
 
 export type AbcSegment = 'A' | 'B' | 'C'

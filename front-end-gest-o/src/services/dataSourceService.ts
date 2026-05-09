@@ -2,6 +2,7 @@ import axios from 'axios'
 import { z } from 'zod'
 import { API_BASE_URL } from '../api/apiEnv'
 import { getCurrentTenantId } from '../tenant/tenantStorage'
+import { trackEvent } from './analytics'
 import {
   dataSourceSchema,
   dataSourceListSchema,
@@ -270,6 +271,11 @@ export async function listDataSourcesFromApi(): Promise<DataSource[]> {
 
 export async function createDataSource(payload: DataSourceCreatePayload): Promise<DataSource> {
   const ds = await postValidated(http, BASE, payload, dataSourceSchema)
+  trackEvent('connector_added', {
+    type: payload.type ?? 'unknown',
+    authMethod: payload.authMethod ?? 'none',
+    isAuthSource: Boolean(payload.isAuthSource),
+  })
   try {
     await listDataSourcesFromApi()
   } catch {
@@ -301,6 +307,10 @@ export async function deleteDataSource(id: string): Promise<void> {
 export async function testDataSourceConnection(id: string): Promise<DataSourceTestResult> {
   try {
     const result = await postValidated(http, `${BASE}/${id}/test`, {}, dataSourceTestResultSchema)
+    trackEvent(result.success ? 'connector_test_succeeded' : 'connector_test_failed', {
+      datasourceId: id,
+      reason: result.success ? undefined : result.message?.slice(0, 80),
+    })
     /** Lista completa no servidor — evita corrida com vários POST /test em paralelo (merge local perdia status da outra fonte). */
     try {
       await listDataSourcesFromApi()

@@ -138,7 +138,10 @@ export function RegisterPage() {
                     type="button"
                     role="radio"
                     aria-checked={active}
-                    onClick={() => setSelectedSegment(seg.id)}
+                    onClick={() => {
+                      setSelectedSegment(seg.id)
+                      void import('../services/analytics').then((m) => m.trackEvent('segment_selected', { segment: seg.id }))
+                    }}
                     style={{
                       cursor: 'pointer',
                       padding: 12,
