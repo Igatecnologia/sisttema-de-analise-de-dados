@@ -1736,6 +1736,222 @@ html[data-theme='dark'] .ant-picker-dropdown .ant-picker-date-panel {
   margin-bottom: 16px;
 }
 
+/* ─────────────────────────────────────────────────────────────────
+   LoginPage — layout split-screen premium
+   Coluna esquerda: formulário (560px max em desktop, 100% em mobile)
+   Coluna direita: hero/branding (escondida em mobile)
+   Filosofia: profissional, minimalista, focado, com trust signals.
+   ─────────────────────────────────────────────────────────────── */
+
+.login-shell-premium {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  background: var(--qc-canvas, #fafbfc);
+  overflow: hidden;
+}
+
+@media (max-width: 1023px) {
+  .login-shell-premium {
+    grid-template-columns: 1fr;
+  }
+  .login-hero-pane {
+    display: none !important;
+  }
+}
+
+/* ─── Coluna do formulário ─── */
+.login-form-pane {
+  display: flex;
+  flex-direction: column;
+  justify-content: stretch;
+  padding: 32px clamp(20px, 5vw, 64px);
+  background: var(--qc-canvas, #fafbfc);
+  position: relative;
+}
+
+.login-form-inner {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.login-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: clamp(32px, 6vh, 56px);
+}
+
+.login-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.login-form-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.login-headline {
+  margin-bottom: 28px;
+}
+
+.login-footer {
+  padding-top: 24px;
+  border-top: 1px solid var(--qc-border, rgba(0, 0, 0, 0.06));
+  margin-top: 32px;
+}
+
+/* ─── Coluna do hero ─── */
+.login-hero-pane {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(40px, 6vw, 72px);
+  overflow: hidden;
+  color: #fff;
+}
+
+/* Mesh gradient sobreposto — cria o efeito "premium" sem imagem */
+.login-hero-mesh {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.18) 0%, transparent 35%),
+    radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.12) 0%, transparent 40%),
+    radial-gradient(circle at 50% 100%, rgba(0, 0, 0, 0.25) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Padrão sutil de pontos — adiciona textura sem peso visual */
+.login-hero-pane::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.login-hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  gap: 32px;
+}
+
+.login-hero-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.login-hero-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  padding: 4px;
+  object-fit: contain;
+}
+
+.login-hero-message {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 540px;
+}
+
+.login-hero-features {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 8px;
+}
+
+.login-hero-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.login-hero-feature-bullet {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.login-hero-bottom {
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.login-hero-stats {
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 3vw, 32px);
+}
+
+.login-hero-stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.login-hero-stat-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.login-hero-divider {
+  width: 1px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* Mobile: ajusta o form pra ocupar toda a tela */
+@media (max-width: 1023px) {
+  .login-form-pane {
+    padding: 24px 20px;
+  }
+  .login-form-inner {
+    max-width: 100%;
+  }
+}
+
 
 .page-header-card .ant-typography-h4,
 .page-header-card .ant-typography h4 {

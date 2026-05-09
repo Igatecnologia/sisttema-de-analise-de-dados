@@ -307,7 +307,109 @@ vendor-zod, vendor-react...  < 70 KB
 
 ---
 
-## 11. Veredito final
+## 11. Benchmark de mercado — concorrentes BR e globais (atualizado 2026-05-09)
+
+Pesquisa em fontes públicas (multise, fintech.com.br, mindconsulting, portalerp, exame, sankhya, eleken, saasframe).
+
+### Mapa do mercado BR — onde IGA se encaixa
+
+| Player | Foco | Ticket SMB | Pontos fortes | Onde perde |
+|--------|------|-----------|---------------|------------|
+| **Conta Azul** | Financeiro/contábil micro/pequeno | R$ 89-389/mês | Simplicidade, contador integrado | Sem indústria, sem BI sofisticado, sem IA com tools |
+| **Bling** | E-commerce/marketplaces | R$ 39-300/mês | Integração nativa Mercado Livre/Shopee/Amazon, NF-e SEFAZ | Sem produção, sem OEE, IA limitada, sem segmentação |
+| **Omie** | PME geral comercial+industrial leve | R$ 199-549/mês | Marketplace nativo, NFC-e, conciliação bancária | Sem dashboards profundos, sem RAG/IA agentic |
+| **Tiny** | E-commerce SMB | R$ 89-379/mês | Foco e-commerce, ERP enxuto | Genérico, sem segmentação industrial |
+| **TagPlus** | Comércio/varejo | R$ 99-449/mês | Vendas + estoque básico | Sem IA, sem multi-tenant verdadeiro |
+| **Granatum** | Financeiro PME | R$ 89-249/mês | Fluxo de caixa, conciliação | Não é ERP nem BI |
+| **Sankhya** | Indústria média/grande | R$ 4-18 mil/mês + R$ 80-350k implantação | MRP I/II, OEE, multi-plant, recém-lançou Deploy Agent (IA) | Caro, complexo, on-premise/customizado |
+| **TOTVS Protheus/Datasul/RM** | Médias e grandes | R$ 5-25 mil/mês + 6 dígitos implantação | Cobertura completa, fiscal BR forte | Legado, lento para inovação, UX ruim |
+| **Senior** | Médias e grandes | R$ 5-20 mil/mês | RH forte, fiscal BR | Mesma categoria que TOTVS |
+
+### Concorrentes globais relevantes
+
+| Player | Diferencial | Por que importa pro IGA |
+|--------|-------------|-------------------------|
+| **NetSuite (Oracle)** | ERP+CRM+E-commerce unificado | Referência de "sistema único" — nosso copilot+segmentação aproxima |
+| **SAP Business One** | Dominação europeia em médios | Caro, complexo — IGA pode ser "SAP simples" para BR |
+| **Odoo** | Open source modular | 30+ módulos plug-and-play — inspiração para marketplace de connectors |
+| **HubCount BI** | BR — IA conversacional para criar dashboards | Concorrente DIRETO no Copilot. Diferenciação: IGA tem ERP-grade + BI; HubCount é só BI |
+| **Power BI Copilot** | GPT-4 + Fabric, SSO Microsoft | Acima de IGA hoje em IA. Pós-migração Python, igual |
+| **Tableau Pulse** | Auto-ML + storytelling | Acima em ML — IGA precisa AI-4 do plano para igualar |
+
+### IGA vs cada concorrente — análise honesta
+
+#### vs **Conta Azul / Bling / Tagplus** (SMB básico)
+- **IGA já está acima**: multi-segmento (4 perfis vs 1), Copilot IA com 18 tools tool-calling (eles têm chatbot genérico), RLS Postgres + audit hash chain (eles não), public shares com TTL, forecast estatístico.
+- **Onde perdemos**: integração nativa marketplace (ML/Shopee/Amazon) — eles fizeram. Bling tem NFC-e SEFAZ homologado em todos estados — IGA depende de proxy. Conta Azul tem rede de contadores parceiros — IGA não.
+- **Veredito**: vendemos contra Bling/Conta Azul **com IA + segurança + segmentação**. Perdemos em quem já é fanático de marketplace (vai pro Bling).
+
+#### vs **Omie** (SMB médio)
+- **IGA já está acima**: Copilot IA real, public shares, segmentação multi-segmento, write-back planejado (INT-5), arquitetura SaaS-native.
+- **Onde perdemos**: Omie tem 15+ anos de mercado e 250 mil clientes; conciliação bancária automática integrada com 30+ bancos; integração WhatsApp; integração contábil. IGA depende do ERP do cliente.
+- **Veredito**: contra Omie é **batalha real**. Diferencial: IA + segurança Enterprise + multi-segmento. Perde se cliente quer "ERP completo" (vai pro Omie).
+
+#### vs **Sankhya / TOTVS / Senior** (médio/grande industrial)
+- **IGA já está acima**: preço (3-10x mais barato), UX moderna, deploy em 1 dia, IA conversacional nativa, multi-tenant cloud-first.
+- **Onde perdemos**: MRP I/II completo (Sankhya tem), folha de pagamento (não temos), fiscal BR (NF-e/CT-e/MDF-e nativos — IGA proxy), customização ilimitada.
+- **Veredito**: IGA é o **anti-Sankhya** para SMB que recusa pagar R$ 80-350k para implantação. Mas para indústrias grandes (R$ 50M+), Sankhya ainda ganha.
+
+#### vs **HubCount BI** (concorrente direto em IA+BI)
+- **IGA já está acima**: ERP integrado (proxy + connectors), multi-segmento, Public Shares, refresh tokens enterprise.
+- **Onde perdemos**: HubCount foca 100% em "criar dashboards via conversa com IA" — IGA é mais BI estático com IA conversacional pra perguntas.
+- **Veredito**: posicionamento diferente. HubCount é "Power BI brasileiro", IGA é "ERP+BI+IA brasileiro".
+
+### O que IGA precisa adicionar para fechar gaps competitivos
+
+**🔴 Prioridade 1 — features que clientes pedem e concorrentes têm**
+
+1. **Conciliação bancária automática** — 5+ bancos (BB, Itaú, Bradesco, Santander, Caixa) via Open Finance ou OFX. Bling/Omie/Conta Azul têm. Estimativa: 3-4 semanas dev + R$ 0 (Open Finance é grátis pra fintech homologada).
+2. **Integração marketplace nativa** (Mercado Livre, Shopee, Amazon, Magalu) — Bling vende isso. Estimativa: 4-6 semanas dev por marketplace. Comece com 1 (Mercado Livre).
+3. **WhatsApp Business API integration** — disparo de boleto, NF, ticket de suporte. Omie/Bling têm. Estimativa: 2-3 semanas com Twilio ou ZAPI.
+4. **Emissão direta de NF-e via SEFAZ** — Bling/Omie têm. Hoje IGA depende do ERP. Estimativa: 2-3 meses com PlugNotas ou Webmaniabr (R$ 99/mês white-label).
+5. **App móvel (PWA mínimo)** — todos os concorrentes têm. Estimativa: 2-3 semanas pra PWA bem feito; 8-12 semanas pra React Native completo.
+
+**🟡 Prioridade 2 — diferenciação premium**
+
+6. **Deploy Agent estilo Sankhya** — Claude analisa CNPJ + faz parametrização inicial automática. Já no plano IGA-IA AI-4 (mês 4).
+7. **Gerador de relatórios via conversa** ("crie um relatório mensal de margem por SKU, agendado para todo dia 1") — falta agente de mutação no Copilot. Já planejado em PLANO-IGA-IA.md.
+8. **Anomaly detection automática** — Z-score em métricas financeiras com alerta proativo. AI-2 do plano.
+9. **Comparativo benchmark anônimo** — "sua margem está 12% abaixo da média do seu setor". F13 do plano (Pro+).
+10. **Marketplace de templates da comunidade** — usuários compartilham layouts de dashboards/relatórios. Inspiração Notion/Airtable.
+
+**🟢 Prioridade 3 — moats long-tail**
+
+11. **Plugins customizados** — JavaScript/Python sandbox para clientes Enterprise customizarem cálculos.
+12. **Multi-currency / multi-language** — para PMEs que exportam.
+13. **Mobile offline-first** — vendedor de campo registra venda no app, sincroniza ao voltar.
+
+### Pricing comparativo (2026)
+
+| Plano IGA atual | Concorrente equivalente | Posicionamento |
+|-----------------|--------------------------|-----------------|
+| Free R$ 0 | Bling Free, Conta Azul trial | Funil — OK |
+| Starter R$ 197 | Bling Starter R$ 39, Omie Easy R$ 199 | **Caro vs Bling**, igual Omie. Sugestão: revisar para R$ 149 |
+| Pro R$ 497 | Omie Pro R$ 549, Conta Azul Pro R$ 389 | Competitivo. Adicionar features (conciliação, WhatsApp) |
+| Enterprise R$ 997 | Sankhya R$ 4 mil+, TOTVS R$ 5 mil+ | **Subprecificado vs grandes**. Pode subir para R$ 1.997 com features F do plano |
+
+### Veredito do benchmark
+
+**IGA está bem posicionado para SMB Pro/Enterprise (R$ 500-2 mil/mês)** — combinação rara de:
+- Segurança enterprise (RLS + MFA + audit hash chain) que Bling/Tagplus não têm
+- IA conversacional com tool-calling que Conta Azul/Omie não têm
+- Multi-segmento adaptativo (4 perfis) que NENHUM concorrente BR tem
+- Preço 3-10x abaixo de Sankhya/TOTVS
+
+**Lacunas que vão doer em conversões**:
+- Falta conciliação bancária automática (deal-breaker para muitos)
+- Falta WhatsApp Business
+- Falta NF-e nativa (depende de ERP)
+- Falta integração marketplace
+
+**Recomendação estratégica**: foque os próximos 2-3 meses fechando essas 4 lacunas. Investimento ~R$ 0 (Open Finance grátis) + 8-12 semanas dev. Retorno: paridade competitiva com Omie + diferencial preservado em IA/segurança.
+
+---
+
+## 12. Veredito final
 
 Sistema **93% completo** vs plano original. **Pronto para Beta Fechada hoje** (1-2h de deploy + env vars). Para vender Pro/Enterprise pago, faltam itens **operacionais** (CNPJ, advogado, pentest) — não código.
 
