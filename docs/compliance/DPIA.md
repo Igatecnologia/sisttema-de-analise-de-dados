@@ -131,7 +131,7 @@ Controles ativos:
 
 ## 10. Notificação de incidentes (LGPD Art. 48)
 
-Runbook em `INCIDENT-RESPONSE.md`. Resumo:
+Resumo dos niveis:
 
 - **SEV-0** (vazamento de PII): notificar ANPD em 48h, comunicar titulares afetados
 - **SEV-1** (comprometimento de credencial): revogar sessões, forçar reset, comunicar titular

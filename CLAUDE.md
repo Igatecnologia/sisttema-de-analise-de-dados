@@ -301,21 +301,32 @@ Restou roadmap pos-GA compacto:
 - **INT-6 Universal Data Ingestion**: file uploads, CSV drag-drop com auto-detection
 - **INT-7 Smart Onboarding com IA**: detectar schema do ERP automaticamente
 
-### Trilha pos-GA (operacional/pago)
+### Trilha pos-GA (operacional/pago — NAO e codigo)
 
-Ver `docs/BLOQUEADORES-EXTERNOS.md`. Resumo:
-- DPIA + DPA + Termos com advogado (R$ 5-15k)
-- Pentest externo (R$ 10-30k)
-- Cloudflare WAF Pro (R$ 100-300/mes)
-- DAST managed, SSO Enterprise, hiring (OPS-1)
+- DPIA + DPA + Termos com advogado (R$ 5-15k, 1-2 sem)
+- Pentest externo (R$ 10-30k, 2-4 sem) — bloqueador GA
+- Cloudflare WAF Pro (R$ 100-300/mes), DAST managed, SSO Enterprise WorkOS (R$ 50/conexao)
+- CNPJ + Stripe live KYC (R$ 0-1k, 1-2 sem)
+- Hiring + runway + ESOP (OPS-1)
+
+### SLOs principais (alvos GA)
+
+- `POST /auth/login` p95 < 500ms; `GET /data/*` (proxy) p95 < 2s; `POST /copilot/chat` TTFT < 1.5s
+- Dashboard: LCP < 2.0s, INP < 200ms, CLS < 0.1
+- Bundle: vendor-antd < 1.2MB, entry < 100KB
+- Carga: 500 tenants concurrent + 200 req/s sem degradar (validar com `back-end-gest-o/tests/load/baseline.js`)
+
+### Severidade de incidentes
+
+- **SEV-0** (vazamento PII / downtime total): resposta 15min, ANPD em 48h (LGPD Art.48), publico 7d
+- **SEV-1** (RCE/SSRF/credential stuffing): 30min, cliente afetado 24h
+- **SEV-2** (brecha contida / audit chain quebrada): 2h, equipe interna
+- **SEV-3** (bug pontual): 24h, ticket
 
 ### Planos vivos
 
 - `PLANO-IGA-IA.md` — Migracao do Copilot para Python (FastAPI + Claude + RAG, AI-1 a AI-6) — pos-GA
-- `BLOQUEADORES-EXTERNOS.md` — O que falta para GA que NAO e codigo
 - `DEPLOY-TODAY.md` — Runbook 1-2h Beta Fechada (Render+Vercel+Supabase+Upstash)
-- `PERFORMANCE-BUDGET.md` — SLOs por endpoint + alvos Web Vitals + bundle limits
-- `INCIDENT-RESPONSE.md` — runbook de resposta a incidentes (SEV-0 a SEV-3, playbooks)
 - `beta/` — emails, onboarding, runbook, termo Beta
 - `compliance/` — DPIA, RoPA, DPA-template (LGPD)
 
