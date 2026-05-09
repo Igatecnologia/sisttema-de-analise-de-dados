@@ -250,6 +250,110 @@ Plus, em paralelo:
 
 ---
 
+## Conectar API Tiete Espumas (SGBR/BI) — 3 caminhos
+
+Você quer testar o sistema com dados reais da Tiete Espumas. Boa notícia: o sistema já tem suporte completo. Escolha o caminho:
+
+### Caminho A — Auto-seed via env vars no Render (recomendado para Beta)
+
+Adicione 2 env vars no Render (além do checklist principal acima):
+
+```bash
+SGBR_API_URL=http://108.181.223.103:3007
+SGBR_CREDENTIALS=iga:123456
+SGBR_SEED_TENANT_ID=default     # opcional, default já é o usado
+```
+
+Após o deploy, no PRIMEIRO boot do backend, ele detecta que não há datasources cadastrados e roda `seedDefaultDataSources()` (em `back-end-gest-o/src/seedDataSources.ts`). Isso cria automaticamente **6 datasources** para o tenant `default`:
+
+| Nome | Endpoint | É auth source? |
+|------|----------|----------------|
+| Vendas - Tiete Espumas | `/sgbrbi/vendas/analitico` | ✅ sim |
+| Notas Fiscais - Tiete Espumas | `/sgbrbi/vendanfe/analitico` | não |
+| Contas Pagas - Tiete Espumas | `/sgbrbi/contas/pagas` | não |
+| Produção - Tiete Espumas | `/sgbrbi/produzido` | não |
+| Estoque - Tiete Espumas | `/sgbrbi/estoque` | não |
+| Compras - Tiete Espumas | `/sgbrbi/compras` | não |
+
+Cada um vem pré-configurado com:
+- `type: 'sgbr_bi'`
+- `authMethod: 'jwt'`
+- `loginEndpoint: '/sgbrbi/usuario/login'`
+- `loginFieldUser: 'login'`
+- `loginFieldPassword: 'senha'`
+- `passwordMode: 'sha256'` (a senha vai pro SGBR já em hex SHA-256)
+- `apiUrl: $SGBR_API_URL`
+- `authCredentials: $SGBR_CREDENTIALS` (criptografado at-rest com AES-256-GCM via `IGA_SECRETS_KEY`)
+
+Login no admin → Dashboard já recebe dados.
+
+### Caminho B — UI manual em `/datasources`
+
+Se preferir cadastrar pela tela (1 datasource por endpoint, ou 1 só com endpoints rotativos):
+
+1. Login como admin
+2. **Configurações → Fontes de Dados → Nova fonte**
+3. Selecione preset **"SGBR BI"** (já preenche `loginEndpoint`, `loginFieldUser`, `loginFieldPassword`)
+4. Preencha:
+   - **Nome**: `Compras Tiete Espumas` (ou o que quiser)
+   - **Tipo**: SGBR BI (já vem selecionado pelo preset)
+   - **API URL**: `http://108.181.223.103:3007`
+   - **Endpoint de login**: `/sgbrbi/usuario/login`
+   - **Endpoint de dados**: `/sgbrbi/compras` (varia por tipo: `/sgbrbi/vendas/analitico`, `/sgbrbi/produzido`, `/sgbrbi/estoque`, `/sgbrbi/contas/pagas`, `/sgbrbi/vendanfe/analitico`)
+   - **Login**: `iga`
+   - **Senha**: `123456`
+   - **Hash da senha**: **SHA-256** (importante — o SGBR exige SHA-256 hex no campo `senha`)
+   - **Marcar "É fonte de auth"**: ✅ apenas no primeiro datasource (vendas). Os outros reusam o token.
+5. Salvar → Testar conexão.
+6. Repita para cada um dos 6 endpoints.
+
+> Esse caminho é demorado (6 cadastros). Use o Caminho A em produção e este só se quiser entender/customizar campo a campo.
+
+### Caminho C — Validar API standalone antes do deploy
+
+Antes de mexer em qualquer infra, rode local:
+
+```bash
+cd back-end-gest-o
+bash scripts/test-sgbr-tiete.sh
+```
+
+O script:
+1. Faz hash SHA-256 da senha `123456`
+2. POST em `/sgbrbi/usuario/login` com `{ login: "iga", senha: "<hash-256>" }`
+3. Extrai o token JWT da resposta
+4. Faz GET em cada um dos 6 endpoints com `Authorization: Bearer <token>`
+5. Reporta status, tamanho da resposta e contagem aproximada de linhas
+
+Se tudo retornar 200, o IGA Gestão **vai conectar sem precisar de mudança de código**. Se algum endpoint der 401/500, é problema na API SGBR (não no IGA).
+
+> Variáveis customizáveis: `SGBR_API_URL`, `SGBR_LOGIN`, `SGBR_PASSWORD`. O script roda só com `bash` + `curl` + `openssl`. Recomendo `jq` instalado para pretty-print do JSON.
+
+### O que verificar após o seed (Caminho A) rodar
+
+Pelo painel `/datasources` ou via SQL:
+
+```sql
+SELECT id, name, type, status, last_checked_at, last_error, data_endpoint
+FROM datasources
+WHERE tenant_id = 'default'
+ORDER BY name;
+```
+
+Esperado: 6 linhas com `status = 'active'` e `last_error IS NULL` após primeira chamada do warm cache (~12 min após boot) ou após você abrir alguma página que consuma os dados (Dashboard, Estoque, etc.).
+
+### Troubleshooting Tiete Espumas
+
+| Sintoma | Causa provável | Fix |
+|---------|----------------|-----|
+| Login retorna 401 | Senha não está em SHA-256 ou login errado | Confirme `passwordMode='sha256'` no datasource (UI ou SQL) |
+| Login retorna timeout | API SGBR fora do ar ou firewall do Render | Rodar Caminho C local primeiro pra confirmar |
+| Endpoint retorna 200 mas array vazio | Token expirou ou faltou parâmetro `dt_de`/`dt_ate` | NF e algumas rotas exigem range de data — ver script `test-sgbr-tiete.sh` |
+| Dashboard fica sem dados após 5 min | Cache vazio + warm cache ainda não rodou | Esperar 12 min OU forçar via clique em qualquer page que consuma a fonte |
+| `503` ao chamar `/api/proxy/data` | Backend Render dorme após 15min — primeira request leva 30-60s | UptimeRobot free fazendo ping a cada 14 min em `/health/live` resolve |
+
+---
+
 ## Troubleshooting
 
 ### Backend não inicia, log diz "Configuração de produção incompleta"
