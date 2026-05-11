@@ -692,7 +692,7 @@ export function UsersPage() {
                 <Alert
                   type="success"
                   showIcon
-                  message={`${bulkResult.ok.length} convite${bulkResult.ok.length > 1 ? 's' : ''} enviado${bulkResult.ok.length > 1 ? 's' : ''}`}
+                  title={`${bulkResult.ok.length} convite${bulkResult.ok.length > 1 ? 's' : ''} enviado${bulkResult.ok.length > 1 ? 's' : ''}`}
                   description={bulkResult.ok.join(', ')}
                 />
               ) : null}
@@ -700,7 +700,7 @@ export function UsersPage() {
                 <Alert
                   type="warning"
                   showIcon
-                  message={`${bulkResult.failed.length} falha${bulkResult.failed.length > 1 ? 's' : ''}`}
+                  title={`${bulkResult.failed.length} falha${bulkResult.failed.length > 1 ? 's' : ''}`}
                   description={
                     <ul style={{ margin: 0, paddingLeft: 20 }}>
                       {bulkResult.failed.map((f) => (

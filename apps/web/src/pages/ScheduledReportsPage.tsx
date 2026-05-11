@@ -262,7 +262,7 @@ export function ScheduledReportsPage() {
         type="info"
         showIcon
         icon={<Calendar size={16} />}
-        message="Os relatórios são enviados pelo servidor automaticamente nos horários configurados. Verifique sua caixa de entrada e a pasta de spam."
+        title="Os relatórios são enviados pelo servidor automaticamente nos horários configurados. Verifique sua caixa de entrada e a pasta de spam."
       />
 
       <Card styles={{ body: { padding: 0 } }}>

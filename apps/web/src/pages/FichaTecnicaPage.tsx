@@ -233,7 +233,7 @@ export function FichaTecnicaPage() {
       <Alert
         type="error"
         showIcon
-        message="Não foi possível carregar as fichas técnicas"
+        title="Não foi possível carregar as fichas técnicas"
         description={getErrorMessage(error, 'Tente novamente em instantes.')}
         action={<Button size="small" onClick={() => void refetch()}>Tentar novamente</Button>}
       />
@@ -325,7 +325,7 @@ export function FichaTecnicaPage() {
         title={drawerRow ? `${drawerRow.id} — ${drawerRow.produto}` : 'Detalhes'}
         open={!!drawerRow}
         onClose={() => setDrawerRow(null)}
-        width={620}
+        size={620}
       >
         {drawerRow && (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>

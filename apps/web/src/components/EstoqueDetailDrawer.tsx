@@ -63,7 +63,7 @@ export function EstoqueDetailDrawer({
     <Drawer
       title={title}
       placement="right"
-      width={560}
+      size={560}
       open={open}
       onClose={onClose}
       destroyOnClose

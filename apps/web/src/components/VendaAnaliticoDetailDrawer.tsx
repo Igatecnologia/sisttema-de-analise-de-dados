@@ -111,7 +111,7 @@ export function VendaAnaliticoDetailDrawer({ open, pedido, onClose }: Props) {
     <Drawer
       title={null}
       placement="right"
-      width={560}
+      size={560}
       onClose={onClose}
       open={open}
       destroyOnClose

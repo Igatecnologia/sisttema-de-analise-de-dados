@@ -100,7 +100,7 @@ function useRangePresets() {
 function ProduzidoDetailDrawer({ open, onClose, row }: { open: boolean; onClose: () => void; row: ProduzidoRow | null }) {
   if (!row) return null
   return (
-    <Drawer title={<Space><ExperimentOutlined /> <span>{row.produto}</span></Space>} placement="right" width={540} open={open} onClose={onClose} destroyOnClose>
+    <Drawer title={<Space><ExperimentOutlined /> <span>{row.produto}</span></Space>} placement="right" size={540} open={open} onClose={onClose} destroyOnClose>
       <Space direction="vertical" size={20} style={{ width: '100%' }}>
         <Card size="small" style={{ background: 'var(--qc-canvas)', borderRadius: 12 }}>
           <Row gutter={[16, 12]}>
@@ -147,7 +147,7 @@ function ProduzidoDetailDrawer({ open, onClose, row }: { open: boolean; onClose:
             </Descriptions>
           </>
         ) : (
-          <Alert type="info" showIcon message="Sem componentes registrados para este produto." />
+          <Alert type="info" showIcon title="Sem componentes registrados para este produto." />
         )}
       </Space>
     </Drawer>
@@ -239,8 +239,8 @@ function ProducaoSgbrTab() {
         </Space>
       </Card>
 
-      {truncated && <Alert type="warning" showIcon message="Resultados parciais" description="Reduza o período para garantir cobertura total." />}
-      {prodQ.isError && <Alert type="error" showIcon message="Erro ao carregar produção" description={getErrorMessage(prodQ.error, 'Verifique a fonte.')} />}
+      {truncated && <Alert type="warning" showIcon title="Resultados parciais" description="Reduza o período para garantir cobertura total." />}
+      {prodQ.isError && <Alert type="error" showIcon title="Erro ao carregar produção" description={getErrorMessage(prodQ.error, 'Verifique a fonte.')} />}
 
       <Card className="app-card no-hover quantum-table" variant="borderless" title={<Space><ExperimentOutlined /> <span>Produção ({filtered.length})</span></Space>}>
         {prodQ.isLoading ? <Skeleton active paragraph={{ rows: 10 }} /> : (
@@ -391,13 +391,13 @@ function ConsumoMPTab() {
         </Space>
       </Card>
 
-      {prodQ.isError && <Alert type="error" showIcon message="Erro ao carregar" description={getErrorMessage(prodQ.error, 'Verifique a fonte.')} />}
+      {prodQ.isError && <Alert type="error" showIcon title="Erro ao carregar" description={getErrorMessage(prodQ.error, 'Verifique a fonte.')} />}
 
       <Card className="app-card no-hover quantum-table" variant="borderless" title={<Space><BarChartOutlined /> <span>Consumo de Blocos ({filtered.length})</span></Space>}
         extra={filtered.length > 0 ? <Typography.Text type="secondary" style={{ fontSize: 12 }}>Total: <Typography.Text strong style={{ color: 'var(--qc-primary)' }}>{metrics.totalM3.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} M³</Typography.Text></Typography.Text> : null}
       >
         {prodQ.isLoading ? <Skeleton active paragraph={{ rows: 8 }} /> : filtered.length === 0 ? (
-          <Alert type="info" showIcon message="Nenhum consumo de bloco encontrado no período" description="Tente ampliar o intervalo de datas." />
+          <Alert type="info" showIcon title="Nenhum consumo de bloco encontrado no período" description="Tente ampliar o intervalo de datas." />
         ) : (
           <Table
             rowKey="codprodcomp"
@@ -512,7 +512,7 @@ function OeeTab() {
         <Alert
           type="info"
           showIcon
-          message="Sem dados de produção"
+          title="Sem dados de produção"
           description={
             oeeQuery.data && 'message' in oeeQuery.data
               ? oeeQuery.data.message
@@ -523,7 +523,7 @@ function OeeTab() {
         <>
           <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
             <Col xs={24} sm={8}>
-              <Card size="small" style={{ borderLeft: '3px solid #1677ff' }}>
+              <Card size="small" style={{ borderLeft: '3px solid #1d4ed8' }}>
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   Total produzido — {oeeQuery.data.periodLabel}
                 </Typography.Text>
@@ -591,7 +591,7 @@ function OeeTab() {
                 <Alert
                   type="info"
                   showIcon
-                  message="Sem meta agregada cadastrada"
+                  title="Sem meta agregada cadastrada"
                   description="Cadastre uma meta com SKU vazio para ver Performance agregada do plant."
                   action={
                     <Button size="small" onClick={() => setTargetModalOpen(true)}>

@@ -230,7 +230,7 @@ export function AlertasPage() {
       <Alert
         type="error"
         showIcon
-        message="Não foi possível carregar os alertas"
+        title="Não foi possível carregar os alertas"
         description={getErrorMessage(alertasError, 'Tente novamente em instantes.')}
         action={
           <Button
@@ -362,7 +362,7 @@ export function AlertasPage() {
           <Alert
             type="warning"
             showIcon
-            message="Simulador temporariamente indisponível"
+            title="Simulador temporariamente indisponível"
             description={getErrorMessage(simuladorError, 'Os alertas continuam disponíveis normalmente.')}
             action={
               <Button
@@ -447,7 +447,7 @@ export function AlertasPage() {
                   value={receitaBruta}
                   precision={2}
                   prefix="R$"
-                  valueStyle={{ color: '#1677ff' }}
+                  valueStyle={{ color: '#1d4ed8' }}
                 />
               </Col>
               {selectedCusto && (

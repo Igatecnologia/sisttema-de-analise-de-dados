@@ -24,7 +24,7 @@ export function SuporteTecnicoPage() {
       <Alert
         type="info"
         showIcon
-        message="Permissões granulares"
+        title="Permissões granulares"
         description="Fontes de dados e o painel Operação são liberados apenas para quem tiver as permissões correspondentes em Funcionários. Demais dúvidas: Fale conosco (WhatsApp)."
       />
 

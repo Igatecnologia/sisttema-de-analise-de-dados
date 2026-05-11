@@ -205,7 +205,7 @@ function PedidosContent() {
 
   if (!biConfigured) {
     return (
-      <Alert type="warning" showIcon message="Nenhuma fonte de dados configurada" description="Acesse Fontes de Dados para configurar a conexão com a API." />
+      <Alert type="warning" showIcon title="Nenhuma fonte de dados configurada" description="Acesse Fontes de Dados para configurar a conexão com a API." />
     )
   }
 
@@ -219,7 +219,7 @@ function PedidosContent() {
 
   if (query.isError) {
     return (
-      <Alert type="error" showIcon message="Falha ao carregar vendas"
+      <Alert type="error" showIcon title="Falha ao carregar vendas"
         description={<>{getErrorMessage(query.error, 'Erro.')}<DevErrorDetail error={query.error} /></>}
         action={<Button size="small" onClick={() => query.refetch()}>Tentar novamente</Button>}
       />

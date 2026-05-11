@@ -552,7 +552,7 @@ export function DashboardOperacionalPage() {
       <Alert
         type="error"
         showIcon
-        message="Não foi possível carregar o dashboard operacional"
+        title="Não foi possível carregar o dashboard operacional"
         description={getErrorMessage(firstError, 'Tente novamente em instantes.')}
         action={
           <Button size="small" onClick={refetchAll}>
@@ -612,7 +612,7 @@ export function DashboardOperacionalPage() {
         <Alert
           type="warning"
           showIcon
-          message="Alguns blocos não carregaram"
+          title="Alguns blocos não carregaram"
           description={`Não foi possível obter: ${partialErrors.join(', ')}. O restante do painel está disponível.`}
           action={
             <Button size="small" onClick={refetchAll}>
@@ -635,7 +635,7 @@ export function DashboardOperacionalPage() {
           <Alert
             type="info"
             showIcon
-            message="Blocos ocultados automaticamente"
+            title="Blocos ocultados automaticamente"
             description={`Sem dados reais/integracão ativa para: ${hiddenModules.join(', ')}.`}
           />
         )

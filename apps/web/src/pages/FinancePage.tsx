@@ -234,7 +234,7 @@ function VisaoGeralTab() {
           type="warning"
           showIcon
           banner
-          message={
+          title={
             <Typography.Text strong>
               Dados do analítico podem estar incompletos — {data.analiticoFetchMeta.rowCount} linhas em{' '}
               {data.analiticoFetchMeta.pagesFetched} página(s)

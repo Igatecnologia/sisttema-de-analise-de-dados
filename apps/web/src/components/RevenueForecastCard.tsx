@@ -45,14 +45,14 @@ export function RevenueForecastCard({ monthlyGoal }: { monthlyGoal?: number | nu
     <Card
       className="app-card no-hover"
       style={{
-        borderLeft: '4px solid #1677ff',
+        borderLeft: '4px solid #1d4ed8',
         background: 'rgba(22, 119, 255, 0.04)',
       }}
       styles={{ body: { padding: 16 } }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <Space size={10} align="center">
-          <LineChartOutlined style={{ fontSize: 22, color: '#1677ff' }} />
+          <LineChartOutlined style={{ fontSize: 22, color: '#1d4ed8' }} />
           <div>
             <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
               Projeção fim do mês ({data.daysRemaining} dias restantes)

@@ -31,7 +31,7 @@ export function OpsStatusPage() {
         <Alert
           type="error"
           showIcon
-          message="Não foi possível carregar o status"
+          title="Não foi possível carregar o status"
           description={
             <>
               {getErrorMessage(query.error, 'Verifique se a API está no ar e se você está autenticado como admin.')}

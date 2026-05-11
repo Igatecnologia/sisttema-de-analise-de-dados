@@ -209,7 +209,7 @@ export function NotasFiscaisPage() {
       </Card>
 
       {nfQ.isError && (
-        <Alert type="error" showIcon message="Erro ao carregar notas fiscais" description={getErrorMessage(nfQ.error, 'Verifique a fonte de dados.')} />
+        <Alert type="error" showIcon title="Erro ao carregar notas fiscais" description={getErrorMessage(nfQ.error, 'Verifique a fonte de dados.')} />
       )}
 
       <Card

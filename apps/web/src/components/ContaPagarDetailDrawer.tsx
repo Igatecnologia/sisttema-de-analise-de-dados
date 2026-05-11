@@ -135,7 +135,7 @@ export function ContaPagarDetailDrawer({ open, conta, onClose }: Props) {
     <Drawer
       title={null}
       placement="right"
-      width={520}
+      size={520}
       onClose={onClose}
       open={open}
       destroyOnClose

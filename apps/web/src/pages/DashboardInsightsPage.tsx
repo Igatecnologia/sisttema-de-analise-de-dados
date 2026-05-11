@@ -118,7 +118,7 @@ export function DashboardInsightsPage() {
         <Alert
           type="error"
           showIcon
-          message="Não foi possível carregar os dados"
+          title="Não foi possível carregar os dados"
           description={getErrorMessage(dashboardQuery.error, 'Erro ao buscar dados para análise.')}
         />
       )}

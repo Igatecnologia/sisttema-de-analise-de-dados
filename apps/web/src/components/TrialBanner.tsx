@@ -34,7 +34,7 @@ export function TrialBanner() {
         type="warning"
         showIcon
         banner
-        message={
+        title={
           <Space>
             <span>Pagamento falhou — voce esta em periodo de carencia. Atualize o cartao para nao perder acesso.</span>
             <Link to="/billing"><Button size="small">Atualizar pagamento</Button></Link>
@@ -50,7 +50,7 @@ export function TrialBanner() {
         type="warning"
         showIcon
         banner
-        message={
+        title={
           <Space>
             <span>{status.access.reason === 'trial_expired' ? 'Trial expirado.' : 'Assinatura inativa.'} Acesso somente leitura até ativar plano.</span>
             <Link to="/planos"><Button size="small" type="primary">Ver planos</Button></Link>
@@ -69,7 +69,7 @@ export function TrialBanner() {
           type="error"
           showIcon
           banner
-          message={
+          title={
             <Space>
               <span>Seu trial <strong>expirou</strong>. Acesso somente leitura — assine para continuar.</span>
               <Link to="/planos"><Button size="small" type="primary">Ver planos</Button></Link>
@@ -84,7 +84,7 @@ export function TrialBanner() {
         type={tone}
         showIcon
         banner
-        message={
+        title={
           <Space>
             <span>
               Trial: <strong>{days} {days === 1 ? 'dia' : 'dias'}</strong> restante{days === 1 ? '' : 's'}.

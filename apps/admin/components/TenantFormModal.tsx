@@ -205,7 +205,7 @@ export function TenantFormModal({ open, tenant, onClose, onSaved }: Props) {
       confirmLoading={saving}
       onCancel={onClose}
       onOk={handleOk}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form<FormValues> form={form} layout="vertical">
         {/* Seção 1 — CNPJ lookup */}
@@ -256,7 +256,7 @@ export function TenantFormModal({ open, tenant, onClose, onSaved }: Props) {
             showIcon
             icon={<Sparkles size={16} />}
             style={{ marginTop: -8, marginBottom: 16 }}
-            message={
+            title={
               <div style={{ fontSize: 13 }}>
                 <strong>{lookup.data.razaoSocial}</strong>
                 {lookup.data.cnaePrincipal && <span style={{ opacity: 0.75 }}> · {lookup.data.cnaePrincipal}</span>}
@@ -280,13 +280,13 @@ export function TenantFormModal({ open, tenant, onClose, onSaved }: Props) {
           />
         )}
         {lookup.status === 'invalid' && (
-          <Alert type="error" showIcon style={{ marginTop: -8, marginBottom: 16 }} message="CNPJ inválido — verifique os dígitos." />
+          <Alert type="error" showIcon style={{ marginTop: -8, marginBottom: 16 }} title="CNPJ inválido — verifique os dígitos." />
         )}
         {lookup.status === 'not-found' && (
-          <Alert type="warning" showIcon style={{ marginTop: -8, marginBottom: 16 }} message="CNPJ não encontrado na Receita." description="Você ainda pode criar o tenant — o CNPJ ficará apenas registrado." />
+          <Alert type="warning" showIcon style={{ marginTop: -8, marginBottom: 16 }} title="CNPJ não encontrado na Receita." description="Você ainda pode criar o tenant — o CNPJ ficará apenas registrado." />
         )}
         {lookup.status === 'error' && (
-          <Alert type="error" showIcon style={{ marginTop: -8, marginBottom: 16 }} message="Falha ao consultar CNPJ" description={lookup.message} />
+          <Alert type="error" showIcon style={{ marginTop: -8, marginBottom: 16 }} title="Falha ao consultar CNPJ" description={lookup.message} />
         )}
 
         <Row gutter={16}>

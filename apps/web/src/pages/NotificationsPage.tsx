@@ -45,7 +45,7 @@ export function NotificationsPage() {
         <Alert
           type="error"
           showIcon
-          message="Nao foi possivel carregar notificacoes"
+          title="Nao foi possivel carregar notificacoes"
           description={getErrorMessage(alertsQuery.error, 'Tente novamente em instantes.')}
         />
       ) : null}

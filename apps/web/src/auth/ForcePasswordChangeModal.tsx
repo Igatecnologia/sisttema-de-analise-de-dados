@@ -78,7 +78,7 @@ export function ForcePasswordChangeModal() {
       <Alert
         type="warning"
         showIcon
-        message="Você precisa definir uma nova senha antes de continuar"
+        title="Você precisa definir uma nova senha antes de continuar"
         description="A senha atual foi gerada automaticamente ou resetada por um administrador. Escolha uma senha pessoal e forte."
         style={{ marginBottom: 16 }}
       />

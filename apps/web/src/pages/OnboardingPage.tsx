@@ -128,7 +128,7 @@ export function OnboardingPage() {
   const selectedConnector = connectors?.find((connector) => connector.id === values.connectorId)
   const isCsvFlow = selectedConnector?.id === 'csv'
   const brandName = values.brandName?.trim() || 'IGA Gestão'
-  const primaryColor = values.primaryColor?.trim() || '#1677ff'
+  const primaryColor = values.primaryColor?.trim() || '#1d4ed8'
   const visibleTemplates = templatesForSegment(currentSegment)
 
   async function next() {
@@ -217,7 +217,7 @@ export function OnboardingPage() {
                   segment: 'industry',
                   companySize: 'small',
                   brandName: 'IGA',
-                  primaryColor: '#1677ff',
+                  primaryColor: '#1d4ed8',
                   syncMode: 'guided',
                   templates: TEMPLATES_BY_SEGMENT.industry,
                 }}
@@ -260,7 +260,7 @@ export function OnboardingPage() {
                     </Col>
                     <Col xs={24} md={12}>
                       <Form.Item name="primaryColor" label="Cor primária">
-                        <Input maxLength={16} placeholder="#1677ff" />
+                        <Input maxLength={16} placeholder="#1d4ed8" />
                       </Form.Item>
                     </Col>
                     <Col span={24}>

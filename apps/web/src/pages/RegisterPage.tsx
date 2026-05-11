@@ -237,7 +237,7 @@ export function RegisterPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cnpj])
   const strength = useMemo(() => passwordStrength(password), [password])
-  const primaryColor = tenant.primaryColor || '#1677ff'
+  const primaryColor = tenant.primaryColor || '#1d4ed8'
 
   const isStepValid = useMemo(() => {
     if (step === 0) return Boolean(selectedSegment)
@@ -414,7 +414,7 @@ export function RegisterPage() {
             />
 
             {submitError && (
-              <Alert type="error" showIcon message={submitError} style={{ marginBottom: 16 }} />
+              <Alert type="error" showIcon title={submitError} style={{ marginBottom: 16 }} />
             )}
 
             {/* Step 1 — Segmento */}
@@ -508,7 +508,7 @@ export function RegisterPage() {
                       showIcon
                       icon={<CheckCircle2 size={16} />}
                       style={{ marginTop: -8, marginBottom: 16 }}
-                      message={
+                      title={
                         <span style={{ fontSize: 13 }}>
                           <strong>{cnpjLookup.data.razaoSocial}</strong>
                           {cnpjLookup.data.nomeFantasia && cnpjLookup.data.nomeFantasia !== cnpjLookup.data.razaoSocial
@@ -553,7 +553,7 @@ export function RegisterPage() {
                       type={cnpjLookup.state === 'invalid' ? 'warning' : 'error'}
                       showIcon
                       style={{ marginTop: -8, marginBottom: 16 }}
-                      message={cnpjLookup.message}
+                      title={cnpjLookup.message}
                     />
                   )}
 

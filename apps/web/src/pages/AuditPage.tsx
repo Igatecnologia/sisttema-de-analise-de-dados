@@ -440,19 +440,19 @@ function AuditChainCard() {
         <Typography.Text type="secondary">
           Cada evento de auditoria carrega um hash encadeado ao anterior. Se algum registro for alterado fora do app, a verificação falha.
         </Typography.Text>
-        {error ? <Alert type="error" showIcon message={error} /> : null}
+        {error ? <Alert type="error" showIcon title={error} /> : null}
         {result?.ok ? (
           <Alert
             type="success"
             showIcon
-            message={`${result.totalRows.toLocaleString('pt-BR')} eventos verificados — chain íntegra.`}
+            title={`${result.totalRows.toLocaleString('pt-BR')} eventos verificados — chain íntegra.`}
           />
         ) : null}
         {result && !result.ok ? (
           <Alert
             type="error"
             showIcon
-            message="Cadeia de auditoria comprometida"
+            title="Cadeia de auditoria comprometida"
             description={
               result.brokenAt ? (
                 <Space direction="vertical" size={4}>

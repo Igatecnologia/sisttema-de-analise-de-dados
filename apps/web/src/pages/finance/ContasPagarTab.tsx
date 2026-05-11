@@ -128,7 +128,7 @@ export function ContasPagarTab() {
             <Alert
               type="warning"
               showIcon
-              message={`Período reduzido para ${MAX_CONTAS_PAGAR_MONTHS} meses`}
+              title={`Período reduzido para ${MAX_CONTAS_PAGAR_MONTHS} meses`}
               description={
                 <>
                   Você solicitou de <strong>{dayjs(clampInfo.requested.dtDe).format('DD/MM/YYYY')}</strong> até{' '}

@@ -41,7 +41,7 @@ export function SupportWhatsAppSection({ intro }: SupportWhatsAppSectionProps) {
         <Alert
           type="warning"
           showIcon
-          message="Link não configurado"
+          title="Link não configurado"
           description={
             <>
               Defina a variável{' '}

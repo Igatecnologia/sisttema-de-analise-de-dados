@@ -128,7 +128,7 @@ export function CsvDatasetsSection() {
             'Carregando…'
           )
         }
-        width={Math.min(1100, typeof window !== 'undefined' ? window.innerWidth - 80 : 1100)}
+        size={Math.min(1100, typeof window !== 'undefined' ? window.innerWidth - 80 : 1100)}
         onClose={() => setPreviewing(null)}
       >
         {previewLoading || !previewing ? (

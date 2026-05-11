@@ -44,7 +44,7 @@ export function TenantDetailDrawer({ tenantId, onClose }: Props) {
     <Drawer
       open={!!tenantId}
       onClose={onClose}
-      width={640}
+      size={640}
       title={detail ? detail.tenant.name : 'Detalhes do tenant'}
       destroyOnClose
     >

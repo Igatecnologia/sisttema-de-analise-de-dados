@@ -20,7 +20,7 @@ export function PublicShareLinkPage() {
     <Layout style={{ minHeight: '100vh', padding: 24 }}>
       <Space direction="vertical" size={16} style={{ width: '100%', maxWidth: 1120, margin: '0 auto' }}>
         {shareQuery.isLoading ? <Card className="app-card" variant="borderless"><Skeleton active /></Card> : null}
-        {shareQuery.isError ? <Alert type="error" showIcon message="Link indisponivel" description="Este link nao existe, expirou ou foi revogado." /> : null}
+        {shareQuery.isError ? <Alert type="error" showIcon title="Link indisponivel" description="Este link nao existe, expirou ou foi revogado." /> : null}
         <Card className="app-card" variant="borderless">
           <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
             <Space>

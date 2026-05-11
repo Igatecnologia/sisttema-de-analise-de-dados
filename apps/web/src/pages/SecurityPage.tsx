@@ -98,7 +98,7 @@ export function SecurityPage() {
             <Alert
               type="info"
               showIcon
-              message="2FA nao esta ativada"
+              title="2FA nao esta ativada"
               description="Recomendamos fortemente ativar o segundo fator. Mesmo com a senha vazada, ninguem entra na sua conta sem o codigo do seu celular."
             />
             <Button type="primary" onClick={() => setSetupOpen(true)}>Configurar 2FA</Button>
@@ -181,7 +181,7 @@ export function SecurityPage() {
       >
         {regenCodes ? (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
-            <Alert type="warning" showIcon message="Os codigos antigos foram invalidados. Guarde os novos agora." />
+            <Alert type="warning" showIcon title="Os codigos antigos foram invalidados. Guarde os novos agora." />
             <Input.TextArea
               value={regenCodes.join('\n')}
               readOnly

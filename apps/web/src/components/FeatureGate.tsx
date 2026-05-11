@@ -40,7 +40,7 @@ export function FeatureGate({ requiredPlan, currentPlan, children, title, descri
         }}
       >
         <Space direction="vertical" size={12} align="center" style={{ background: 'white', padding: 24, borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', maxWidth: 420 }}>
-          <LockOutlined style={{ fontSize: 32, color: '#1677ff' }} />
+          <LockOutlined style={{ fontSize: 32, color: '#1d4ed8' }} />
           <Typography.Title level={4} style={{ margin: 0, textAlign: 'center' }}>
             {title ?? `Disponivel no plano ${requiredPlan === 'pro' ? 'Pro' : 'Enterprise'}`}
           </Typography.Title>

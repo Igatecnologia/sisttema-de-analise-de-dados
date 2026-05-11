@@ -28,7 +28,7 @@ export function OfflineBanner() {
       type="error"
       showIcon
       banner
-      message="Sem conexão com a internet — algumas ações não vão funcionar até o sinal voltar."
+      title="Sem conexão com a internet — algumas ações não vão funcionar até o sinal voltar."
     />
   )
 }

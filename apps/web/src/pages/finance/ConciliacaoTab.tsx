@@ -206,7 +206,7 @@ export function ConciliacaoTab() {
       <Alert
         type="error"
         showIcon
-        message="Não foi possível carregar a conciliação"
+        title="Não foi possível carregar a conciliação"
         description={error instanceof Error ? error.message : 'Tente novamente em instantes.'}
         action={<Button size="small" onClick={() => refetch()}>Tentar de novo</Button>}
       />

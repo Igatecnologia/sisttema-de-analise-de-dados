@@ -201,7 +201,7 @@ function CompraDetailDrawer({ open, onClose, row }: { open: boolean; onClose: ()
     <Drawer
       title={<Space><ShoppingCartOutlined /> <span>{txt(row, F.forn) || 'Compra'}</span></Space>}
       placement="right"
-      width={560}
+      size={560}
       open={open}
       onClose={onClose}
       destroyOnClose
@@ -496,7 +496,7 @@ export function ComprasPage() {
 
       {/* ── Alerta truncamento ── */}
       {truncated && (
-        <Alert type="warning" showIcon message="Resultados parciais" description="O volume de dados excede o limite de paginação. Reduza o período para garantir cobertura total." />
+        <Alert type="warning" showIcon title="Resultados parciais" description="O volume de dados excede o limite de paginação. Reduza o período para garantir cobertura total." />
       )}
 
       {/* ── Tabela ── */}
@@ -517,9 +517,9 @@ export function ComprasPage() {
         {comprasQ.isLoading ? (
           <Skeleton active paragraph={{ rows: 12 }} />
         ) : comprasQ.isError ? (
-          <Alert type="error" showIcon message="Erro ao carregar compras" description={<span>Verifique se há uma fonte com <code>/sgbrbi/compras</code> em <Link to="/fontes-de-dados">Fontes de dados</Link>.</span>} />
+          <Alert type="error" showIcon title="Erro ao carregar compras" description={<span>Verifique se há uma fonte com <code>/sgbrbi/compras</code> em <Link to="/fontes-de-dados">Fontes de dados</Link>.</span>} />
         ) : rows.length === 0 ? (
-          <Alert type="info" showIcon message="Nenhuma compra encontrada no período" description="Tente ampliar o intervalo de datas ou verifique as fontes de dados." />
+          <Alert type="info" showIcon title="Nenhuma compra encontrada no período" description="Tente ampliar o intervalo de datas ou verifique as fontes de dados." />
         ) : (
           <Table
             rowKey={(r, i) => rk(r, i ?? 0)}

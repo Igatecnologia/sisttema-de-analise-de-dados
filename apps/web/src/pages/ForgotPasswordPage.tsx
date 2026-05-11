@@ -24,7 +24,7 @@ export function ForgotPasswordPage() {
     }
   }
 
-  const primaryColor = tenant.primaryColor || '#1677ff'
+  const primaryColor = tenant.primaryColor || '#1d4ed8'
 
   return (
     <div className="login-shell-premium">
@@ -105,7 +105,7 @@ export function ForgotPasswordPage() {
                 <Alert
                   type="success"
                   showIcon
-                  message="Verifique seu email"
+                  title="Verifique seu email"
                   description={
                     <>
                       Se o email <strong>{submittedEmail}</strong> existir em nossa base, enviamos as

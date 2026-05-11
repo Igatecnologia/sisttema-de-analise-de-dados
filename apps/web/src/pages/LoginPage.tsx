@@ -123,7 +123,7 @@ export function LoginPage() {
     }
   }
 
-  const primaryColor = tenant.primaryColor || '#1677ff'
+  const primaryColor = tenant.primaryColor || '#1d4ed8'
   const inputIconStyle = { color: 'var(--qc-text-muted, #94a3b8)', flexShrink: 0 } as const
 
   return (
@@ -172,7 +172,7 @@ export function LoginPage() {
               <Alert
                 type="info"
                 showIcon
-                message="Sistema ainda não configurado"
+                title="Sistema ainda não configurado"
                 description="O administrador precisa configurar a conexão com seu ERP antes do primeiro uso."
                 style={{ marginBottom: 16 }}
               />
@@ -191,11 +191,11 @@ export function LoginPage() {
               requiredMark={false}
             >
               {lockoutMsg ? (
-                <Alert type="warning" showIcon message={lockoutMsg} style={{ marginBottom: 16 }} />
+                <Alert type="warning" showIcon title={lockoutMsg} style={{ marginBottom: 16 }} />
               ) : null}
 
               {errorMsg ? (
-                <Alert type="error" showIcon message={errorMsg} style={{ marginBottom: 16 }} />
+                <Alert type="error" showIcon title={errorMsg} style={{ marginBottom: 16 }} />
               ) : null}
 
               <Form.Item

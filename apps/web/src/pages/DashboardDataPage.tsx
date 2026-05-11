@@ -194,7 +194,7 @@ export function DashboardDataPage() {
         <Alert
           type="error"
           showIcon
-          message="Nao foi possivel carregar os dados"
+          title="Nao foi possivel carregar os dados"
           description="Verifique sua conexao e tente novamente."
           action={<button onClick={() => dashboardQuery.refetch()}>Tentar novamente</button>}
         />

@@ -102,7 +102,7 @@ export function TermsAcceptanceModal() {
       <Alert
         type="info"
         showIcon
-        message="Sua acao eh necessaria para continuar"
+        title="Sua acao eh necessaria para continuar"
         description={
           status
             ? `Versao atual: Termos ${status.currentVersion.terms} / Privacidade ${status.currentVersion.privacy}.`

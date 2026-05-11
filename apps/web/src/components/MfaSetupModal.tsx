@@ -66,7 +66,7 @@ export function MfaSetupModal({ open, onClose, onEnabled }: Props) {
       title="Configurar autenticacao em dois fatores"
       footer={null}
       width={520}
-      destroyOnClose
+      destroyOnHidden
     >
       <Steps
         size="small"
@@ -79,7 +79,7 @@ export function MfaSetupModal({ open, onClose, onEnabled }: Props) {
         style={{ marginBottom: 24 }}
       />
 
-      {errorMsg ? <Alert type="error" showIcon message={errorMsg} style={{ marginBottom: 16 }} /> : null}
+      {errorMsg ? <Alert type="error" showIcon title={errorMsg} style={{ marginBottom: 16 }} /> : null}
 
       {step === 'confirm' ? (
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
@@ -120,7 +120,7 @@ export function MfaSetupModal({ open, onClose, onEnabled }: Props) {
           <Alert
             type="warning"
             showIcon
-            message="Guarde os codigos de backup agora"
+            title="Guarde os codigos de backup agora"
             description="Estes codigos so sao mostrados uma vez. Cada codigo eh de uso unico e serve para entrar caso voce perca acesso ao app autenticador."
           />
           <Input.TextArea

@@ -335,7 +335,7 @@ export function ClientesPage() {
                         <MetricCard
                           title="Curva B (próximos 30%)"
                           value={abcCounts.B}
-                          accentColor="#1677ff"
+                          accentColor="#1d4ed8"
                           icon={<BarChart3 size={16} />}
                         />
                       </Col>
@@ -433,7 +433,7 @@ export function ClientesPage() {
         open={drawerCustomer != null}
         onClose={() => setDrawerCustomer(null)}
         title={drawerCustomer?.name}
-        width={520}
+        size={520}
       >
         {drawerCustomer ? <CustomerDetail customer={drawerCustomer} /> : null}
       </Drawer>

@@ -139,7 +139,7 @@ export function CsvUploadModal({ open, onClose, onUploaded }: Props) {
       width={760}
       onCancel={close}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
     >
       {!parsed ? (
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -160,7 +160,7 @@ export function CsvUploadModal({ open, onClose, onUploaded }: Props) {
             </p>
           </Upload.Dragger>
 
-          {error ? <Alert type="error" showIcon message={error} /> : null}
+          {error ? <Alert type="error" showIcon title={error} /> : null}
 
           <div
             style={{
@@ -252,7 +252,7 @@ export function CsvUploadModal({ open, onClose, onUploaded }: Props) {
             />
           </Space>
 
-          {error ? <Alert type="error" showIcon message={error} /> : null}
+          {error ? <Alert type="error" showIcon title={error} /> : null}
 
           <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
             <Button onClick={close}>Cancelar</Button>

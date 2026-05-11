@@ -18,7 +18,7 @@ export function IntegrationHealthPage() {
         extra={<Button icon={<ReloadOutlined />} onClick={() => sourcesQuery.refetch()}>Atualizar</Button>}
       />
       {sourcesQuery.isError ? (
-        <Alert type="error" showIcon message="Falha ao carregar fontes" description={getErrorMessage(sourcesQuery.error, 'Tente novamente em instantes.')} />
+        <Alert type="error" showIcon title="Falha ao carregar fontes" description={getErrorMessage(sourcesQuery.error, 'Tente novamente em instantes.')} />
       ) : null}
       <Card className="app-card" variant="borderless">
         <Table

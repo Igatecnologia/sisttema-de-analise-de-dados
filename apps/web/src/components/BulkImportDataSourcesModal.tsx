@@ -220,7 +220,7 @@ export function BulkImportDataSourcesModal({ open, onClose, onCompleted }: Props
                         hoverable
                         onClick={() => setSelectedTemplate(tpl.id)}
                         style={{
-                          borderColor: selectedTemplate === tpl.id ? '#1677ff' : undefined,
+                          borderColor: selectedTemplate === tpl.id ? '#1d4ed8' : undefined,
                           borderWidth: selectedTemplate === tpl.id ? 2 : 1,
                           cursor: 'pointer',
                         }}
@@ -305,13 +305,13 @@ function ResultView({ result, onReset, onClose }: { result: BulkResult; onReset:
         <Alert
           type="success"
           showIcon
-          message={`${result.created.length} fonte${result.created.length === 1 ? '' : 's'} criada${result.created.length === 1 ? '' : 's'} com sucesso`}
+          title={`${result.created.length} fonte${result.created.length === 1 ? '' : 's'} criada${result.created.length === 1 ? '' : 's'} com sucesso`}
         />
       ) : (
         <Alert
           type="warning"
           showIcon
-          message={`${result.created.length} de ${result.total} fontes criadas`}
+          title={`${result.created.length} de ${result.total} fontes criadas`}
           description={`${result.failed.length} falharam — veja detalhes abaixo.`}
         />
       )}

@@ -122,7 +122,7 @@ export function BillingPlansPage() {
         <Alert
           type="warning"
           showIcon
-          message="Pagamento online ainda nao configurado"
+          title="Pagamento online ainda nao configurado"
           description="Entre em contato com o suporte para ativar sua assinatura."
         />
       ) : null}
@@ -153,7 +153,7 @@ export function BillingPlansPage() {
                     {isCurrent ? <Tag color="green">Atual</Tag> : null}
                   </Space>
                 }
-                style={plan.highlight ? { borderColor: '#1677ff', boxShadow: '0 4px 12px rgba(22,119,255,0.12)' } : undefined}
+                style={plan.highlight ? { borderColor: '#1d4ed8', boxShadow: '0 4px 12px rgba(22,119,255,0.12)' } : undefined}
               >
                 <Typography.Title level={2} style={{ marginTop: 0 }}>
                   {price === 0 ? 'Gratis' : `${priceFormat(price)}${suffix}`}

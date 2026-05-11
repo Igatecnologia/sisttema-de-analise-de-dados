@@ -72,7 +72,7 @@ export function ContasReceberTab() {
       <Alert
         type="error"
         showIcon
-        message="Não foi possível carregar contas a receber"
+        title="Não foi possível carregar contas a receber"
         description={error instanceof Error ? error.message : 'Tente novamente em instantes.'}
         action={<Button size="small" onClick={() => refetch()}>Tentar de novo</Button>}
       />

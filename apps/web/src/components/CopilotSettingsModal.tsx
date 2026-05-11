@@ -207,7 +207,7 @@ export function CopilotSettingsModal({ open, onClose, onSaved }: Props) {
           </Button>
         </Space>
       }
-      destroyOnClose
+      destroyOnHidden
     >
       <Typography.Paragraph type="secondary" style={{ fontSize: 13 }}>
         Use sua propria chave de qualquer provedor IA: <strong>OpenAI</strong>, <strong>Anthropic Claude</strong>,
@@ -238,7 +238,7 @@ export function CopilotSettingsModal({ open, onClose, onSaved }: Props) {
               type="info"
               showIcon
               style={{ marginBottom: 12 }}
-              message={
+              title={
                 <Space size={4}>
                   <span>{providerInfo.description}</span>
                 </Space>
@@ -300,7 +300,7 @@ export function CopilotSettingsModal({ open, onClose, onSaved }: Props) {
             type="info"
             showIcon
             style={{ marginBottom: 12 }}
-            message="Modo automatico"
+            title="Modo automatico"
             description="O sistema tenta na ordem: Anthropic → OpenAI → Gemini → Groq → OpenRouter. Configure pelo menos uma chave para usar IA real, ou caira no fallback local."
           />
         )}
@@ -310,7 +310,7 @@ export function CopilotSettingsModal({ open, onClose, onSaved }: Props) {
             type="warning"
             showIcon
             style={{ marginBottom: 12 }}
-            message="Modo local (sem LLM)"
+            title="Modo local (sem LLM)"
             description="Usa apenas regex + tools. Funciona offline mas nao entende perguntas em linguagem natural. Indicado quando nao ha conectividade."
           />
         )}
@@ -321,7 +321,7 @@ export function CopilotSettingsModal({ open, onClose, onSaved }: Props) {
           type={testResult.ok ? 'success' : 'error'}
           style={{ marginTop: 12 }}
           showIcon
-          message={
+          title={
             testResult.ok
               ? `Conectado: ${testResult.displayName ?? testResult.provider}`
               : `Falha: ${testResult.error}`

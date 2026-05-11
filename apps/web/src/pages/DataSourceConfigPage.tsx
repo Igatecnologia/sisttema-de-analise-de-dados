@@ -880,7 +880,7 @@ export function DataSourceConfigPage() {
           setDiagnostic(null)
           setWizardStep(0)
         }}
-        width={680}
+        size={680}
         styles={{ footer: { borderTop: '1px solid var(--qc-border, rgba(255,255,255,0.08))' } }}
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
@@ -1134,16 +1134,16 @@ export function DataSourceConfigPage() {
                   type={testResult.success ? 'success' : 'error'}
                   showIcon
                   icon={testResult.success ? <CheckCircleFilled /> : <CloseCircleFilled />}
-                  message={testResult.success ? 'Conectado' : 'Falha no teste'}
+                  title={testResult.success ? 'Conectado' : 'Falha no teste'}
                   description={testResult.message}
                 />
 
                 {!testResult.success && (testResult.message.includes('401') || testResult.message.includes('403')) && (
-                  <Alert type="warning" showIcon message="Verifique credenciais acima" style={{ marginTop: 8 }} />
+                  <Alert type="warning" showIcon title="Verifique credenciais acima" style={{ marginTop: 8 }} />
                 )}
 
                 {testResult.success && (!testResult.sampleFields || testResult.sampleFields.length === 0) && (
-                  <Alert type="warning" showIcon message="Sem linhas no período — confira o endpoint e as datas" style={{ marginTop: 8 }} />
+                  <Alert type="warning" showIcon title="Sem linhas no período — confira o endpoint e as datas" style={{ marginTop: 8 }} />
                 )}
 
                 {(diagnostic?.apiSummary || (diagnostic && diagnostic.fieldAnalysis.length > 0)) && (

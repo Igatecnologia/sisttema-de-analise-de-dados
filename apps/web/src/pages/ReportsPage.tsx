@@ -385,7 +385,7 @@ export function ReportsPage() {
     return (
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         <PageHeaderCard {...REPORTS_HEADER_PROPS} title="Relatórios" subtitle="Configure uma fonte de dados." />
-        <Alert type="warning" showIcon message="Nenhuma fonte de dados configurada" />
+        <Alert type="warning" showIcon title="Nenhuma fonte de dados configurada" />
       </Space>
     )
   }
@@ -403,7 +403,7 @@ export function ReportsPage() {
     return (
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         <PageHeaderCard {...REPORTS_HEADER_PROPS} title="Relatórios" subtitle="Erro" />
-        <Alert type="error" showIcon message="Falha ao carregar"
+        <Alert type="error" showIcon title="Falha ao carregar"
           description={<>{getErrorMessage(query.error, 'Erro.')}<DevErrorDetail error={query.error} /></>}
         />
       </Space>

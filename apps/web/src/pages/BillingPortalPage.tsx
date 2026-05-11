@@ -103,7 +103,7 @@ export function BillingPortalPage() {
   if (!status) {
     return (
       <div style={{ padding: 16 }}>
-        <Alert type="error" showIcon message="Não foi possível carregar status de billing." />
+        <Alert type="error" showIcon title="Não foi possível carregar status de billing." />
       </div>
     )
   }
@@ -276,7 +276,7 @@ function HeroCard({ status, opening, onOpenPortal }: { status: BillingStatus; op
           <Alert
             type="error"
             showIcon
-            message="Acesso bloqueado"
+            title="Acesso bloqueado"
             description={
               status.access.reason === 'trial_expired'
                 ? 'Seu trial expirou. Assine um plano para continuar usando.'
@@ -451,7 +451,7 @@ function UsageRing({
 }) {
   const unlimited = limit == null || limit <= 0
   const percent = unlimited ? 0 : Math.min(100, Math.round((used / limit) * 100))
-  const color = unlimited ? '#52c41a' : percent >= 100 ? '#ff4d4f' : percent >= 80 ? '#faad14' : '#1677ff'
+  const color = unlimited ? '#52c41a' : percent >= 100 ? '#ff4d4f' : percent >= 80 ? '#faad14' : '#1d4ed8'
 
   return (
     <div

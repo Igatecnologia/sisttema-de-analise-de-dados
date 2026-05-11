@@ -246,7 +246,7 @@ export function DashboardPage() {
         <Alert
           type="error"
           showIcon
-          message="Não foi possível carregar"
+          title="Não foi possível carregar"
           description={
             <>
               {getErrorMessage(dashboardQuery.error, 'Falha ao carregar dados do dashboard.')}
@@ -343,7 +343,7 @@ export function DashboardPage() {
           type="info"
           showIcon
           closable
-          message="Permissões neste módulo (SGBR BI)"
+          title="Permissões neste módulo (SGBR BI)"
           description="Com o login da API SGBR, este aplicativo aplica um perfil administrativo fixo no menu e nas ações."
           onClose={() => {
             localStorage.setItem(SGBR_PERMS_INFO_KEY, '1')

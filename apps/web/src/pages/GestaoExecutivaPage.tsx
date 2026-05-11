@@ -182,7 +182,7 @@ export function GestaoExecutivaPage() {
         <Alert
           type="warning"
           showIcon
-          message="Fonte de dados ainda não configurada"
+          title="Fonte de dados ainda não configurada"
           description={
             hasPermission(session, 'datasources:view') ? (
               <>

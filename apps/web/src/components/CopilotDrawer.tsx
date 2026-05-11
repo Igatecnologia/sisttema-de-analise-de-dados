@@ -218,7 +218,7 @@ export function CopilotDrawer({ open, onClose }: Props) {
           </Tooltip>
         </Space>
       }
-      width={460}
+      size={460}
     >
       <div className="copilot-shell">
         {messages.length === 0 ? (

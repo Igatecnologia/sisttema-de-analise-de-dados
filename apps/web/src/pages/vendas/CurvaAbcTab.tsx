@@ -256,7 +256,7 @@ export function CurvaAbcTab() {
       <Alert
         type="warning"
         showIcon
-        message="Nenhuma fonte de dados configurada"
+        title="Nenhuma fonte de dados configurada"
         description="Acesse Fontes de Dados para configurar a conexão com a API."
       />
     )
@@ -271,7 +271,7 @@ export function CurvaAbcTab() {
       <Alert
         type="error"
         showIcon
-        message="Falha ao carregar dados de vendas"
+        title="Falha ao carregar dados de vendas"
         description={<>{getErrorMessage(query.error, 'Erro.')}<DevErrorDetail error={query.error} /></>}
         action={<Button size="small" onClick={() => query.refetch()}>Tentar novamente</Button>}
       />

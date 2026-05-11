@@ -108,7 +108,7 @@ export function LgpdPage() {
           <Alert
             type="info"
             showIcon
-            message="O que muda?"
+            title="O que muda?"
             description="Seu nome e email viram [ANONIMIZADO]. Atividades historicas sao mantidas para fins estatisticos. Login fica indisponivel."
           />
           <Button danger onClick={() => setConfirmAnonymize(true)} loading={loading === 'anonymize'}>
@@ -122,7 +122,7 @@ export function LgpdPage() {
           <Alert
             type="warning"
             showIcon
-            message="Acao irreversivel"
+            title="Acao irreversivel"
             description="Soft delete imediato + hard delete em 7 dias. Backups sao purgados em 30 dias. Dados financeiros mantidos 5 anos por obrigacao legal."
           />
           <Button danger onClick={() => setConfirmErase(true)} loading={loading === 'erase'}>

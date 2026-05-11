@@ -50,7 +50,7 @@ export function SegmentDashboardHints() {
     <Card
       className="app-card no-hover"
       style={{
-        borderLeft: `4px solid ${tenant.primaryColor ?? '#1677ff'}`,
+        borderLeft: `4px solid ${tenant.primaryColor ?? '#1d4ed8'}`,
         background: 'rgba(22, 119, 255, 0.03)',
       }}
       styles={{ body: { padding: 16 } }}
@@ -101,14 +101,14 @@ export function SegmentDashboardHints() {
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'translateX(2px)'
-              e.currentTarget.style.borderColor = tenant.primaryColor ?? '#1677ff'
+              e.currentTarget.style.borderColor = tenant.primaryColor ?? '#1d4ed8'
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = ''
               e.currentTarget.style.borderColor = ''
             }}
           >
-            <span style={{ color: tenant.primaryColor ?? '#1677ff' }}>
+            <span style={{ color: tenant.primaryColor ?? '#1d4ed8' }}>
               {action.icon ? ICON_MAP[action.icon] : <RocketOutlined />}
             </span>
             <span>{action.label}</span>

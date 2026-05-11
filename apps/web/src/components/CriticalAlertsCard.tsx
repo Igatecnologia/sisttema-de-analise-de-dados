@@ -18,7 +18,7 @@ const TIPO_LABELS: Record<AlertaOperacional['tipo'], string> = {
 const SEVERIDADE_COLOR: Record<AlertaOperacional['severidade'], string> = {
   alta: '#cf1322',
   media: '#d48806',
-  baixa: '#1677ff',
+  baixa: '#1d4ed8',
 }
 
 const SEVERIDADE_BG: Record<AlertaOperacional['severidade'], string> = {

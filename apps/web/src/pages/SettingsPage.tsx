@@ -170,7 +170,7 @@ export function SettingsPage() {
           <Alert
             type="error"
             showIcon
-            message="Não foi possível carregar as configurações"
+            title="Não foi possível carregar as configurações"
             description={
               <>
                 {getErrorMessage(settingsQuery.error, 'Falha ao carregar o perfil da empresa.')}
@@ -191,7 +191,7 @@ export function SettingsPage() {
                   type="info"
                   showIcon
                   style={{ marginBottom: 16 }}
-                  message="Somente administradores podem alterar o perfil da empresa."
+                  title="Somente administradores podem alterar o perfil da empresa."
                 />
               ) : null}
               <Form<SettingsForm> form={form} layout="vertical" disabled={!canEditCompany}>
@@ -226,11 +226,11 @@ export function SettingsPage() {
                       rules={[
                         {
                           pattern: /^#[0-9a-fA-F]{3,8}$/,
-                          message: 'Use uma cor hex, ex: #1677ff.',
+                          message: 'Use uma cor hex, ex: #1d4ed8.',
                         },
                       ]}
                     >
-                      <Input placeholder="#1677ff" />
+                      <Input placeholder="#1d4ed8" />
                     </Form.Item>
                   </Col>
                 </Row>

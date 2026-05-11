@@ -58,7 +58,7 @@ export function SuperavitDeficitTab() {
       <Alert
         type="error"
         showIcon
-        message="Falha ao carregar superávit/déficit"
+        title="Falha ao carregar superávit/déficit"
         description="Não foi possível carregar os dados financeiros para este período."
       />
     )
@@ -127,7 +127,7 @@ export function SuperavitDeficitTab() {
       <Alert
         type={status === 'superavit' ? 'success' : 'warning'}
         showIcon
-        message={
+        title={
           status === 'superavit'
             ? 'Resultado positivo no período selecionado'
             : 'Atenção: resultado negativo no período selecionado'
