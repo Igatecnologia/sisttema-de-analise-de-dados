@@ -240,6 +240,7 @@ export function AppRouter() {
             </div>
           }
         >
+          <main id="page-main">
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
@@ -522,6 +523,7 @@ export function AppRouter() {
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
+        </main>
       </Suspense>
       </PageTransition>
     </AnimatePresence>

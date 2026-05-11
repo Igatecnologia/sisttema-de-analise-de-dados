@@ -619,7 +619,7 @@ export function AppLayout() {
           open={mobileNavOpen}
           onClose={() => setMobileNavOpen(false)}
           placement="left"
-          width={300}
+          size={300}
           styles={{ body: { padding: 0 } }}
           title="Menu"
         >
@@ -818,7 +818,6 @@ export function AppLayout() {
         </Modal>
         <Content
           id="main-content"
-          role="main"
           style={{
             background: token.colorBgLayout,
             padding: 0,

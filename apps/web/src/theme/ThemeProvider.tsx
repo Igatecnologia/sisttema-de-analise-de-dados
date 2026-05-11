@@ -158,9 +158,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
         colorText: palette.textPrimary,
         colorTextSecondary: palette.textMuted,
+        // A11y SEC-AA: tertiary precisa >= 4.5:1 sobre bgPrimary em ambos os temas.
+        // Dark #94a3b8 sobre #0a0e14 ≈ 8:1; light #586878 sobre #f7f9fc ≈ 4.9:1.
+        colorTextTertiary: isLight ? '#586878' : '#94a3b8',
+        colorTextQuaternary: isLight ? '#7e8b99' : '#7a8a9c',
         ...(isLight
           ? {
-              colorTextTertiary: '#8b9bab',
               colorFillAlter: '#f6f9fc',
               colorFillSecondary: '#eef3f8',
               colorFillTertiary: '#e4ecf4',

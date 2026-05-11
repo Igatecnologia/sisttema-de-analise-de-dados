@@ -104,7 +104,7 @@ export function PageHeaderCard({
                 background: iconColor
                   ? `${iconColor}15`
                   : 'var(--qc-accent-muted, rgba(22, 119, 255, 0.08))',
-                color: iconColor || 'var(--qc-primary, #1677ff)',
+                color: iconColor || 'var(--qc-primary, #1d4ed8)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -116,9 +116,10 @@ export function PageHeaderCard({
           )}
           <div style={{ minWidth: 0, flex: 1 }}>
             <Typography.Title
-              level={3}
+              level={1}
               style={{
                 margin: 0,
+                fontSize: 22,
                 fontWeight: 700,
                 letterSpacing: '-0.02em',
                 lineHeight: 1.2,

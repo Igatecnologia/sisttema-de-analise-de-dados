@@ -9,8 +9,8 @@
   --border: #1f2937;
   --border-strong: #2d3a4d;
   --text: #e4e7eb;
-  --text-muted: #94a3b8;
-  --text-faint: #64748b;
+  --text-muted: #b3becc;
+  --text-faint: #94a3b8;
   --accent: #f59e0b;
   --accent-hover: #fbbf24;
   --accent-muted: rgba(245, 158, 11, 0.12);
@@ -35,10 +35,11 @@
   --border: #e2e8f0;
   --border-strong: #cbd5e1;
   --text: #0f172a;
-  --text-muted: #475569;
-  --text-faint: #94a3b8;
-  --accent: #d97706;
-  --accent-hover: #b45309;
+  --text-muted: #334155;
+  --text-faint: #64748b;
+  /* Light: bump accent pra >=4.5:1 quando usado em texto/links sobre fundo claro. */
+  --accent: #b45309;
+  --accent-hover: #92400e;
   --accent-muted: rgba(217, 119, 6, 0.08);
   --accent-strong: rgba(217, 119, 6, 0.18);
   --success: #059669;
