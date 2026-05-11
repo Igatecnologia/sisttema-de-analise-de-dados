@@ -23,6 +23,13 @@ data/
 .session-jwt-secret
 FIRST_LOGIN.txt
 
+# Playwright + audit artefacts (gerados sob demanda)
+apps/web/audit-results/
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/tests/audit/.auth/
+apps/web/tests/e2e/.auth/
+
 # Sistema
 *.log
 *.rar

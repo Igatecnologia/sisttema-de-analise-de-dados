@@ -17,6 +17,8 @@
     "pretest:e2e": "node -e \"require('fs').rmSync('tests/e2e/.backend-data', { recursive: true, force: true })\" && npm run build:e2e",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
+    "test:audit": "playwright test --config=playwright.audit.config.ts",
+    "audit:report": "node tests/audit/render-report.cjs",
     "size:check": "node scripts/check-bundle-size.mjs",
     "test:all": "npm run test:unit && npm run test:e2e",
     "audit": "npm audit --audit-level=high"
@@ -52,6 +54,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
     "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.58.2",
     "@tanstack/react-query-devtools": "^5.100.9",
