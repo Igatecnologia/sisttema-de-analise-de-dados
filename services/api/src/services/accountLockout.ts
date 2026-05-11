@@ -194,19 +194,29 @@ export async function recordLoginFailure(tenantId: string, email: string): Promi
   }
 }
 
-/** Limpa o contador de falhas apos login bem-sucedido. NAO zera o lockoutCount24h. */
+/**
+ * Limpa o contador de falhas apos login bem-sucedido.
+ *
+ * Tambem zera o contador 24h de lockouts: a politica original mantinha esse contador
+ * "estavel" pra punir abuso repetido, mas isso permitia que um usuario legitimo
+ * ficasse permanentemente preso depois de 3 lockouts no dia, mesmo apos provar
+ * identidade. Login OK eh prova de identidade — devolve o usuario ao estado limpo.
+ */
 export async function clearLoginFailures(tenantId: string, email: string): Promise<void> {
   const fk = failKey(tenantId, email)
   const lk = lockKey(tenantId, email)
+  const lck = lockoutCountKey(tenantId, email)
   if (hasRedisConfig()) {
     try {
       await redisDel(fk)
       await redisDel(lk)
+      await redisDel(lck)
       return
     } catch { /* fallback */ }
   }
   memDel(fk)
   memDel(lk)
+  memDel(lck)
 }
 
 /** Constantes exportadas para testes/mensagens. */

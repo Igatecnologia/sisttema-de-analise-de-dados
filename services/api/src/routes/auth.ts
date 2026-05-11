@@ -208,6 +208,22 @@ const changePasswordLimiter = redisRateLimit({
 })
 
 /**
+ * Rate limit por email no /forgot-password — anti inbox-bomb e enumeracao lenta.
+ * Tenant + IP ja sao limitados pelo tenantAuthLimiter; aqui granulamos por email
+ * para que um atacante nao consiga disparar 30 emails por hora pra mesma vitima.
+ */
+const forgotPasswordEmailLimiter = redisRateLimit({
+  namespace: 'auth:forgot:email',
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req): string => {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
+    return email || (req.ip ?? 'anon')
+  },
+  message: { message: 'Muitas solicitacoes para este email. Aguarde 1 hora.' },
+})
+
+/**
  * POST /api/v1/auth/login
  */
 authRouter.post('/login', tenantAuthLimiter, loginLimiter, requireTurnstile, async (req, res) => {
@@ -697,7 +713,7 @@ authRouter.post('/accept-invite', tenantAuthLimiter, async (req, res) => {
 const FORGOT_PASSWORD_BASELINE_MS = 600
 const GENERIC_FORGOT_MESSAGE = 'Se o email existir, enviamos um link para redefinir a senha.'
 
-authRouter.post('/forgot-password', tenantAuthLimiter, requireTurnstile, async (req, res) => {
+authRouter.post('/forgot-password', tenantAuthLimiter, forgotPasswordEmailLimiter, requireTurnstile, async (req, res) => {
   const startedAt = Date.now()
   const parsed = forgotPasswordSchema.safeParse(req.body)
   if (!parsed.success) {

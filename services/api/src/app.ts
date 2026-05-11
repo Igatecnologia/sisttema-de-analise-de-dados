@@ -159,8 +159,11 @@ export function createApp(options: CreateAppOptions = {}) {
   const isStrictlyDev = process.env.NODE_ENV === 'development'
   const tenantSubdomainRegex = process.env.CORS_TENANT_DOMAIN_REGEX
     ? new RegExp(process.env.CORS_TENANT_DOMAIN_REGEX)
-    /** Aceita: tenant.igagestao.com.br | preview do Vercel | servico no Render. */
-    : /^https:\/\/([a-z0-9-]+\.igagestao\.com\.br|[a-z0-9-]+\.vercel\.app|[a-z0-9-]+\.onrender\.com)$/
+    /** Default conservador: apenas subdominio do apex canonico igagestao.com.br.
+     * Em prod, definir CORS_TENANT_DOMAIN_REGEX explicito para incluir o frontend
+     * Vercel deste deploy (ex.: "^https://([a-z0-9-]+\\.igagestao\\.com\\.br|app-igagestao-xyz\\.vercel\\.app)$").
+     * Evita aceitar QUALQUER *.vercel.app / *.onrender.com (risco de takeover). */
+    : /^https:\/\/[a-z0-9-]+\.igagestao\.com\.br$/
   const staticAllowed = new Set(
     isStrictlyDev
       ? [FRONTEND_URL, 'http://localhost:5173', 'http://localhost:4173', 'http://localhost:3002', 'http://localhost:3003']

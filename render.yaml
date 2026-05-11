@@ -84,9 +84,12 @@ services:
       # FRONTEND_URL = URL do deploy Vercel (ex: https://iga-gestao.vercel.app)
       - key: FRONTEND_URL
         sync: false
-      # Aceita preview URLs do Vercel (PR deploys) e Render
+      # CORS — origens permitidas ALEM da FRONTEND_URL canonica.
+      # Padrao restritivo: apenas subdominios igagestao.com.br + o app deste deploy no Vercel.
+      # Ajuste o nome do app Vercel antes do deploy (ex.: app-igagestao-xyz).
+      # NAO use ".+\\.vercel\\.app$" — qualquer Vercel app teria CORS (risco de takeover).
       - key: CORS_TENANT_DOMAIN_REGEX
-        value: "^https://(.+\\.vercel\\.app|.+\\.onrender\\.com)$"
+        sync: false
 
       # ── Email transacional ────────────────────────────────────────────────
       # SMTP_HOST + SMTP_FROM sao obrigatorios em prod (validados em envValidation.ts).
