@@ -651,4 +651,25 @@ ALTER TABLE tenants ADD COLUMN IF NOT EXISTS contact_phone TEXT NULL;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS beta_notes TEXT NULL;
 `,
   },
+  {
+    id: '018_processed_webhook_events',
+    sql: `
+-- Idempotencia para webhooks Stripe (e outros provedores).
+-- O Stripe re-envia webhooks quando nao recebe 2xx em 30s; precisamos garantir
+-- que processar duas vezes nao duplica subscriptions/audit logs.
+CREATE TABLE IF NOT EXISTS processed_webhook_events (
+  event_id TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  event_type TEXT NULL,
+  processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_processed_webhook_events_processed_at
+  ON processed_webhook_events(processed_at DESC);
+
+-- Sem RLS — eventos webhook nao tem tenant_id em todos os casos
+-- (ex: customer.subscription antes do checkout completar).
+GRANT SELECT, INSERT, DELETE ON processed_webhook_events TO iga_app;
+`,
+  },
 ]

@@ -140,7 +140,7 @@ Após backend no ar (URL do tipo `https://iga-gestao-api.onrender.com`):
 
 1. Vercel Dashboard → **Add New → Project**
 2. Importe `gest-o-Analisededados`
-3. **Root Directory**: `front-end-gest-o`
+3. **Root Directory**: `apps/web`
 4. **Framework Preset**: Vite
 5. **Build Command**: `npm run build` (default)
 6. **Output Directory**: `dist` (default)
@@ -165,6 +165,43 @@ Após deploy, Vercel dá URL tipo `https://iga-gestao-xxx.vercel.app`.
 - `BILLING_SUCCESS_URL`, `BILLING_CANCEL_URL`, `BILLING_PORTAL_RETURN_URL` → URLs Vercel
 
 Render redeploy automático.
+
+### 4.4 Domínio próprio e wildcard `*.igagestao.com.br` (multi-tenant)
+
+O front resolve o tenant pelo **subdomínio** (`acme.igagestao.com.br` → tenant `acme`).
+Ver `apps/web/src/tenant/resolveTenant.ts`. Para isso funcionar em produção:
+
+**A) Apex + wildcard no Vercel:**
+
+1. Vercel → Project → **Settings → Domains** → **Add**
+2. Adicione `igagestao.com.br` (apex). Vercel mostra os DNS records (A 76.76.21.21 ou CNAME)
+3. Adicione `*.igagestao.com.br` (wildcard). Vercel pede CNAME ou pode usar Vercel DNS
+4. Adicione `app.igagestao.com.br` (canonical) — opcional, redireciona para a apex ou serve o app
+
+**B) DNS (Cloudflare/Registro.br):**
+
+| Record | Type | Name | Value | Proxy |
+|---|---|---|---|---|
+| 1 | `A` | `@` | `76.76.21.21` | DNS only (sem proxy laranja) |
+| 2 | `CNAME` | `*` | `cname.vercel-dns.com` | DNS only |
+| 3 | `CNAME` | `app` | `cname.vercel-dns.com` | DNS only |
+
+Cloudflare bloqueia wildcard com proxy ativo no plano Free — usar **DNS only** (cinza).
+
+**C) Render backend custom domain (opcional):**
+
+Se quiser API em `api.igagestao.com.br` em vez de `iga-gestao-api.onrender.com`:
+1. Render → Service → **Settings → Custom Domains** → Add `api.igagestao.com.br`
+2. Cloudflare: `CNAME api → iga-gestao-api.onrender.com`
+3. Atualize Vercel env `VITE_API_BASE_URL=https://api.igagestao.com.br` → redeploy front
+4. Atualize Render env `CORS_TENANT_DOMAIN_REGEX` para incluir o apex (`^https://(.+\.igagestao\.com\.br|...)$`)
+
+**D) Cliente com domínio próprio (`analytics.cliente.com.br`):**
+
+1. Cliente cria `CNAME analytics → cname.vercel-dns.com` no DNS dele
+2. Vercel → Project → **Domains → Add** → `analytics.cliente.com.br`
+3. Backend: criar tenant com `slug=analytics-cliente` ou ajustar `resolveTenant.ts` para mapear o host completo
+4. `FRONTEND_URL` permanece a apex (`https://igagestao.com.br`) para emails canônicos
 
 ---
 
@@ -264,7 +301,7 @@ SGBR_CREDENTIALS=iga:123456
 SGBR_SEED_TENANT_ID=default     # opcional, default já é o usado
 ```
 
-Após o deploy, no PRIMEIRO boot do backend, ele detecta que não há datasources cadastrados e roda `seedDefaultDataSources()` (em `back-end-gest-o/src/seedDataSources.ts`). Isso cria automaticamente **6 datasources** para o tenant `default`:
+Após o deploy, no PRIMEIRO boot do backend, ele detecta que não há datasources cadastrados e roda `seedDefaultDataSources()` (em `services/api/src/seedDataSources.ts`). Isso cria automaticamente **6 datasources** para o tenant `default`:
 
 | Nome | Endpoint | É auth source? |
 |------|----------|----------------|
@@ -314,7 +351,7 @@ Se preferir cadastrar pela tela (1 datasource por endpoint, ou 1 só com endpoin
 Antes de mexer em qualquer infra, rode local:
 
 ```bash
-cd back-end-gest-o
+cd services/api
 bash scripts/test-sgbr-tiete.sh
 ```
 

@@ -441,6 +441,15 @@ db.exec(`
     created_at TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_public_shares_tenant ON public_shares(tenant_id, created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS processed_webhook_events (
+    event_id TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    event_type TEXT NULL,
+    processed_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_processed_webhook_events_processed_at
+    ON processed_webhook_events(processed_at DESC);
 `)
 
 db.prepare(`

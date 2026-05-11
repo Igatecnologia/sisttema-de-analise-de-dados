@@ -15,6 +15,43 @@ import { evaluateAccess, getSubscription, upsertSubscription } from '../services
 import { logAudit } from '../services/auditLog.js'
 import type Stripe from 'stripe'
 import { getPlanUsageSummary } from '../services/planLimits.js'
+import { getDb } from '../db/sqlite.js'
+import { getPostgresPool, hasPostgresConfig } from '../db/postgres.js'
+
+const sqlite = getDb()
+
+function usePostgresStorage(): boolean {
+  return process.env.IGA_STORAGE_DRIVER === 'postgres' && hasPostgresConfig()
+}
+
+/**
+ * Reserva idempotente do evento de webhook. Retorna `true` se este é o primeiro
+ * processamento do event_id (segue adiante), `false` se já foi processado (caller
+ * deve responder 200 OK sem reprocessar). Em caso de erro de DB, log e retorna
+ * true (fail-open: melhor processar duas vezes que cair em loop infinito).
+ */
+async function reserveWebhookEvent(eventId: string, source: string, eventType: string): Promise<boolean> {
+  const now = new Date().toISOString()
+  try {
+    if (usePostgresStorage()) {
+      const result = await getPostgresPool().query(
+        `INSERT INTO processed_webhook_events (event_id, source, event_type, processed_at)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (event_id) DO NOTHING`,
+        [eventId, source, eventType, now],
+      )
+      return (result.rowCount ?? 0) > 0
+    }
+    const result = sqlite.prepare(
+      `INSERT OR IGNORE INTO processed_webhook_events (event_id, source, event_type, processed_at)
+       VALUES (?, ?, ?, ?)`,
+    ).run(eventId, source, eventType, now)
+    return result.changes > 0
+  } catch (err) {
+    console.warn('[billing] reserveWebhookEvent falhou, fail-open:', err)
+    return true
+  }
+}
 
 export const billingRouter = Router()
 
@@ -100,6 +137,14 @@ stripeWebhookRouter.post(
       event = constructWebhookEvent(req.body as Buffer, signature)
     } catch (err) {
       return res.status(400).json({ message: `Webhook signature invalido: ${err instanceof Error ? err.message : 'erro'}` })
+    }
+
+    /** Idempotencia: se o Stripe re-enviar o mesmo event.id (retry de timeout),
+     * pulamos o reprocessamento e respondemos 200 OK para nao gerar duplicacao
+     * em subscriptions/audit logs. */
+    const firstTime = await reserveWebhookEvent(event.id, 'stripe', event.type)
+    if (!firstTime) {
+      return res.json({ received: true, duplicate: true })
     }
 
     try {

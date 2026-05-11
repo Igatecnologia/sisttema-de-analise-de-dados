@@ -291,7 +291,7 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/api/proxy', proxyRouter)
   app.use('/dashboard', requireAuthOrApiKeyScope('dashboards:read'), dashboardRouter)
   app.use('/reports', requireAuthOrApiKeyScope('reports:read'), reportsRouter)
-  app.use('/audit', requireAdmin, auditRouter)
+  app.use('/api/v1/audit', requireAdmin, auditRouter)
   app.use('/erp', requireAuth, erpRouter)
   app.use('/finance', requireAuth, financeRouter)
 

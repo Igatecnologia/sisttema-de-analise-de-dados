@@ -18,6 +18,32 @@ type EnvCheck = {
   validate?: (value: string) => string | null
 }
 
+/**
+ * Variáveis cuja PRESENÇA é proibida em produção (dev-only bypasses).
+ * Se definidas com valor não-vazio em NODE_ENV=production, o boot aborta.
+ */
+const PROD_FORBIDDEN: Array<{ name: string; description: string; forbiddenValues?: string[] }> = [
+  {
+    name: 'BILLING_GATE_DISABLED',
+    description: 'Bypass do subscription gate. Bloqueado em produção para evitar acesso sem assinatura.',
+    forbiddenValues: ['1', 'true', 'yes'],
+  },
+  {
+    name: 'ALLOW_PRIVATE_HOSTS',
+    description: 'Permite proxy para IPs internos/localhost (SSRF mitigation override). Bloqueado em produção.',
+  },
+]
+
+/**
+ * Variáveis RECOMENDADAS em produção. Ausência gera warning no boot, mas não aborta.
+ */
+const PROD_RECOMMENDED: Array<{ name: string; description: string }> = [
+  {
+    name: 'SENTRY_DSN',
+    description: 'DSN do projeto Sentry para captura de exceções e alertas em produção.',
+  },
+]
+
 function minLength(min: number) {
   return (value: string): string | null =>
     value.length >= min ? null : `deve ter ao menos ${min} caracteres (atual: ${value.length})`
@@ -26,6 +52,11 @@ function minLength(min: number) {
 function urlPrefix(prefixes: string[]) {
   return (value: string): string | null =>
     prefixes.some((p) => value.startsWith(p)) ? null : `deve começar com ${prefixes.join(' ou ')}`
+}
+
+function nonEmptyCsv(value: string): string | null {
+  const items = value.split(',').map((s) => s.trim()).filter(Boolean)
+  return items.length > 0 ? null : 'deve conter ao menos 1 valor separado por vírgula'
 }
 
 const CHECKS: EnvCheck[] = [
@@ -69,19 +100,32 @@ const CHECKS: EnvCheck[] = [
     name: 'SUPER_ADMIN_EMAILS',
     description: 'Lista CSV de emails que podem entrar em /api/v1/super-admin. Sem isso, ninguém entra mesmo sendo admin do tenant.',
     requiredInProd: true,
+    validate: nonEmptyCsv,
+  },
+  {
+    name: 'SMTP_HOST',
+    description: 'Host SMTP para envio de emails transacionais (welcome, password reset, scheduled reports, trial expiry). Sem isso, emails falham silenciosos.',
+    requiredInProd: true,
+  },
+  {
+    name: 'SMTP_FROM',
+    description: 'Endereço remetente dos emails transacionais (ex.: no-reply@igagestao.com.br).',
+    requiredInProd: true,
   },
 ]
 
 export type EnvValidationResult =
-  | { ok: true }
-  | { ok: false; missing: string[]; invalid: Array<{ name: string; reason: string }> }
+  | { ok: true; warnings: string[] }
+  | { ok: false; missing: string[]; invalid: Array<{ name: string; reason: string }>; forbidden: Array<{ name: string; reason: string }>; warnings: string[] }
 
 export function validateEnv(): EnvValidationResult {
   const isProduction = process.env.NODE_ENV === 'production'
-  if (!isProduction) return { ok: true }
+  if (!isProduction) return { ok: true, warnings: [] }
 
   const missing: string[] = []
   const invalid: Array<{ name: string; reason: string }> = []
+  const forbidden: Array<{ name: string; reason: string }> = []
+  const warnings: string[] = []
 
   for (const check of CHECKS) {
     if (!check.requiredInProd) continue
@@ -94,8 +138,22 @@ export function validateEnv(): EnvValidationResult {
     if (reason) invalid.push({ name: check.name, reason })
   }
 
-  if (missing.length === 0 && invalid.length === 0) return { ok: true }
-  return { ok: false, missing, invalid }
+  for (const item of PROD_FORBIDDEN) {
+    const value = process.env[item.name]?.trim() ?? ''
+    if (!value) continue
+    if (item.forbiddenValues && !item.forbiddenValues.includes(value.toLowerCase())) continue
+    forbidden.push({ name: item.name, reason: item.description })
+  }
+
+  for (const item of PROD_RECOMMENDED) {
+    const value = process.env[item.name]?.trim() ?? ''
+    if (!value) warnings.push(`${item.name} ausente — ${item.description}`)
+  }
+
+  if (missing.length === 0 && invalid.length === 0 && forbidden.length === 0) {
+    return { ok: true, warnings }
+  }
+  return { ok: false, missing, invalid, forbidden, warnings }
 }
 
 /**
@@ -104,6 +162,12 @@ export function validateEnv(): EnvValidationResult {
  */
 export function assertEnvValid(): void {
   const result = validateEnv()
+
+  if (result.warnings.length > 0) {
+    console.warn('⚠️  [IGA Backend] Avisos de configuração de produção:')
+    for (const w of result.warnings) console.warn(`  • ${w}`)
+  }
+
   if (result.ok) return
 
   const lines = ['❌ [IGA Backend] Configuração de produção incompleta:', '']
@@ -121,6 +185,14 @@ export function assertEnvValid(): void {
   if (result.invalid.length > 0) {
     lines.push('Variáveis com formato inválido:')
     for (const { name, reason } of result.invalid) {
+      lines.push(`  • ${name}: ${reason}`)
+    }
+    lines.push('')
+  }
+
+  if (result.forbidden.length > 0) {
+    lines.push('Variáveis PROIBIDAS em produção (apenas dev):')
+    for (const { name, reason } of result.forbidden) {
       lines.push(`  • ${name}: ${reason}`)
     }
     lines.push('')

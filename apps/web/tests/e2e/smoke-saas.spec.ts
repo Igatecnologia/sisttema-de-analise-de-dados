@@ -214,10 +214,10 @@ test.describe('SaaS smoke — backend HTTP', () => {
     await ctx.dispose()
   })
 
-  test('GET /audit/verify recalcula chain e retorna valid=true', async () => {
+  test('GET /api/v1/audit/verify recalcula chain e retorna valid=true', async () => {
     const ctx = await request.newContext()
     /** csrf header padrao do backend para cookies — para Bearer token, csrf eh dispensado. */
-    const res = await ctx.get(`${apiUrl}/audit/verify`, { headers: authHeaders() })
+    const res = await ctx.get(`${apiUrl}/api/v1/audit/verify`, { headers: authHeaders() })
     expect([200, 409]).toContain(res.status())
     const body = await res.json()
     if (res.status() === 200) {

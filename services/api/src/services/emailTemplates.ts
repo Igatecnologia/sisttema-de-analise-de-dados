@@ -55,6 +55,19 @@ export function inviteTemplate(input: { companyName: string; inviteUrl: string }
   }
 }
 
+export function welcomeUserTemplate(input: { companyName: string; loginUrl: string; userName: string; createdByName?: string }): EmailTemplate {
+  const introBy = input.createdByName ? `${escapeHtml(input.createdByName)} criou seu acesso ao ` : 'Seu acesso foi criado em '
+  return {
+    subject: `Bem-vindo a ${input.companyName} no IGA`,
+    text: `Ola ${input.userName}. ${input.createdByName ?? 'Um administrador'} criou seu acesso em ${input.companyName}. Acesse: ${input.loginUrl}. Use a senha temporaria informada pelo administrador e troque no primeiro login.`,
+    html: shell(`Bem-vindo, ${input.userName}`,
+      `<p>${introBy}<strong>${escapeHtml(input.companyName)}</strong>.</p>` +
+      `<p>Use a senha temporaria informada pelo administrador. Voce sera solicitado a troca-la no primeiro acesso.</p>` +
+      button(input.loginUrl, 'Acessar IGA Gestao')
+    ),
+  }
+}
+
 export function resetPasswordTemplate(input: { resetUrl: string }): EmailTemplate {
   return {
     subject: 'Redefinicao de senha',

@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { getDb } from '../db/sqlite.js'
 import { getPostgresPool, hasPostgresConfig } from '../db/postgres.js'
 import { computeAuditRowHash, type AuditRowForHash } from '../utils/auditChainHash.js'
+import type { AuthenticatedRequest } from '../middleware/auth.js'
 
 export const auditRouter = Router()
 
@@ -12,10 +13,15 @@ function usePostgresStorage(): boolean {
 }
 
 /**
- * GET /audit?limit=50&offset=0&action=login_failed
- * Lista eventos de audit log com paginação e filtro opcional por action.
+ * GET /api/v1/audit?limit=50&offset=0&action=login_failed
+ * Lista eventos de audit log do tenant atual com paginação e filtro opcional por action.
+ *
+ * O filtro tenant_id é defesa em profundidade: RLS no Postgres já restringe via
+ * postgresTenantContext (rota está sob /api/), mas explicitamos para SQLite e
+ * para qualquer evolução de pool/role que possa contornar RLS.
  */
 auditRouter.get('/', async (req, res) => {
+  const authReq = req as unknown as AuthenticatedRequest
   const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '50'), 10) || 50, 1), 500)
   const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0)
   const action = typeof req.query.action === 'string' ? req.query.action.trim() : undefined
@@ -24,16 +30,16 @@ auditRouter.get('/', async (req, res) => {
     const pool = getPostgresPool()
     const rowsRes = action
       ? await pool.query(
-          'SELECT * FROM audit_log WHERE action = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
-          [action, limit, offset],
+          'SELECT * FROM audit_log WHERE tenant_id = $1 AND action = $2 ORDER BY created_at DESC LIMIT $3 OFFSET $4',
+          [authReq.tenantId, action, limit, offset],
         )
       : await pool.query(
-          'SELECT * FROM audit_log ORDER BY created_at DESC LIMIT $1 OFFSET $2',
-          [limit, offset],
+          'SELECT * FROM audit_log WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
+          [authReq.tenantId, limit, offset],
         )
     const totalRes = action
-      ? await pool.query<{ total: string }>('SELECT COUNT(*)::text AS total FROM audit_log WHERE action = $1', [action])
-      : await pool.query<{ total: string }>('SELECT COUNT(*)::text AS total FROM audit_log')
+      ? await pool.query<{ total: string }>('SELECT COUNT(*)::text AS total FROM audit_log WHERE tenant_id = $1 AND action = $2', [authReq.tenantId, action])
+      : await pool.query<{ total: string }>('SELECT COUNT(*)::text AS total FROM audit_log WHERE tenant_id = $1', [authReq.tenantId])
     const total = Number(totalRes.rows[0]?.total ?? 0)
     return res.json({ total, limit, offset, rows: rowsRes.rows })
   }
@@ -43,14 +49,14 @@ auditRouter.get('/', async (req, res) => {
 
   if (action) {
     rows = db.prepare(
-      'SELECT * FROM audit_log WHERE action = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
-    ).all(action, limit, offset)
-    total = (db.prepare('SELECT COUNT(*) AS total FROM audit_log WHERE action = ?').get(action) as { total: number }).total
+      'SELECT * FROM audit_log WHERE tenant_id = ? AND action = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+    ).all(authReq.tenantId, action, limit, offset)
+    total = (db.prepare('SELECT COUNT(*) AS total FROM audit_log WHERE tenant_id = ? AND action = ?').get(authReq.tenantId, action) as { total: number }).total
   } else {
     rows = db.prepare(
-      'SELECT * FROM audit_log ORDER BY created_at DESC LIMIT ? OFFSET ?',
-    ).all(limit, offset)
-    total = (db.prepare('SELECT COUNT(*) AS total FROM audit_log').get() as { total: number }).total
+      'SELECT * FROM audit_log WHERE tenant_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+    ).all(authReq.tenantId, limit, offset)
+    total = (db.prepare('SELECT COUNT(*) AS total FROM audit_log WHERE tenant_id = ?').get(authReq.tenantId) as { total: number }).total
   }
 
   res.json({ total, limit, offset, rows })

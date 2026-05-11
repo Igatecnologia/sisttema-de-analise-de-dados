@@ -115,7 +115,7 @@ async function main() {
 
   console.log('\nAlerts / Audit / Reports:')
   await test('GET', '/api/v1/alerts')
-  await test('GET', '/audit')
+  await test('GET', '/api/v1/audit')
   await test('GET', '/api/v1/scheduled-reports')
 
   console.log('\nBilling:')

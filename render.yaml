@@ -1,11 +1,14 @@
-# IGA Gestao — config de deploy free no Render.
+# IGA Gestao — config de deploy no Render.
 # Plano:
-#   - Backend: Render free (este service) — dorme apos 15min de inatividade
-#   - Frontend: Vercel free (deploy separado, nao dorme) — apontando VITE_API_BASE_URL pra cá
-#   - Postgres: Supabase free (500MB, backups automaticos 7d)
-#   - Redis: Upstash free (10k req/dia)
+#   - Backend API: Render (este service) — recebe requests HTTP
+#   - Backend Worker: Render (segundo service) — roda schedulers (trial expiry,
+#     scheduled reports, webhook recovery, cache warm, db backup, copilot retention).
+#     Requer plano pago (Render free NAO suporta workers persistentes).
+#     Se ficar em free, alternativa é GitHub Actions chamando /api/v1/internal-jobs/*.
+#   - Frontend: Vercel (deploy separado) — apontando VITE_API_BASE_URL pra cá
+#   - Postgres: Supabase (500MB free / paid acima disso)
+#   - Redis: Upstash (10k req/dia free / paid acima)
 #
-# Render free NAO suporta cron jobs/workers — usar GitHub Actions para tarefas agendadas.
 # Render Postgres free expira em 90 dias — por isso usamos Supabase external.
 
 services:
@@ -24,6 +27,11 @@ services:
         value: production
       - key: PORT
         value: "10000"
+      # Service web — NAO roda schedulers (worker service cuida disso).
+      # Se voce nao subir o worker (plano free), troque para "" ou remova esta key
+      # para que os schedulers rodem aqui mesmo.
+      - key: IGA_PROCESS_ROLE
+        value: web
 
       # ── Storage (Supabase Postgres + Upstash Redis) ───────────────────────
       - key: IGA_STORAGE_DRIVER
@@ -80,7 +88,23 @@ services:
       - key: CORS_TENANT_DOMAIN_REGEX
         value: "^https://(.+\\.vercel\\.app|.+\\.onrender\\.com)$"
 
-      # ── Email transacional (Resend) ───────────────────────────────────────
+      # ── Email transacional ────────────────────────────────────────────────
+      # SMTP_HOST + SMTP_FROM sao obrigatorios em prod (validados em envValidation.ts).
+      # Sugestoes: Amazon SES, Mailgun, SendGrid, Brevo, Postmark.
+      # RESEND_API_KEY listado por compatibilidade — atualmente NAO usado pelo backend
+      # (transactionalEmail.ts so consome SMTP_*). Deixar vazio se nao usar.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "0"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: PUBLIC_BASE_URL
@@ -99,3 +123,58 @@ services:
         value: "0"
       - key: SECURITY_CONTACT_EMAIL
         value: security@igagestao.com.br
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Worker — schedulers (trial expiry, scheduled reports, webhook recovery,
+  # cache warm, db backup, copilot retention). Requer plano PAGO no Render.
+  # Compartilha o mesmo banco/Redis/secret store que o service web acima.
+  # Se nao puder subir (plano free), defina IGA_PROCESS_ROLE="" no service web
+  # acima para que os schedulers rodem dentro do API.
+  # ─────────────────────────────────────────────────────────────────────────
+  - type: worker
+    name: iga-gestao-worker
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: cd services/api && npm ci && npm run build
+    startCommand: cd services/api && node dist/worker.js
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: IGA_PROCESS_ROLE
+        value: worker
+      - key: IGA_STORAGE_DRIVER
+        value: postgres
+      - key: POSTGRES_SSL
+        value: "1"
+      - key: POSTGRES_POOL_MAX
+        value: "3"
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: IGA_SESSION_JWT_SECRET
+        sync: false
+      - key: IGA_SECRETS_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "0"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: LOG_PROXY_DATA
+        value: "0"

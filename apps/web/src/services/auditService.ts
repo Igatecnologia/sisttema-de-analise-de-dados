@@ -11,7 +11,7 @@ type ListAuditParams = {
 
 export async function listAuditLogs(params: ListAuditParams = {}) {
   if (hasAnySources()) return []
-  return getValidated(http, '/audit', auditResponseSchema, {
+  return getValidated(http, '/api/v1/audit', auditResponseSchema, {
     params: { q: params.q, action: params.action },
   })
 }

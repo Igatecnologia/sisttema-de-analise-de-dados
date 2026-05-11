@@ -11,6 +11,9 @@ import { isValidPermission } from '../permissions.js'
 import type { AuthenticatedRequest } from '../middleware/auth.js'
 import { redisRateLimit } from '../middleware/redisRateLimit.js'
 import { evaluatePlanLimit } from '../services/planLimits.js'
+import { findTenantById } from '../tenantStorage.js'
+import { buildPublicUrl, sendTransactionalEmail } from '../services/transactionalEmail.js'
+import { welcomeUserTemplate } from '../services/emailTemplates.js'
 
 export const usersRouter = Router()
 
@@ -102,6 +105,23 @@ usersRouter.post('/', createUserLimiter, async (req, res) => {
   }
 
   await writeAllUsersAsync([...all, user])
+
+  /** Welcome email — fire-and-forget; falha de SMTP não bloqueia criação. */
+  void (async () => {
+    try {
+      const tenant = await findTenantById(authReq.tenantId)
+      const creator = tenantUsers.find((u) => u.id === authReq.userId)
+      await sendTransactionalEmail(user.email, welcomeUserTemplate({
+        companyName: tenant?.name ?? 'IGA Gestao',
+        loginUrl: buildPublicUrl('/login'),
+        userName: user.name,
+        createdByName: creator?.name,
+      }))
+    } catch {
+      /** swallow — email é best-effort */
+    }
+  })()
+
   res.status(201).json(sanitize(user))
 })
 
