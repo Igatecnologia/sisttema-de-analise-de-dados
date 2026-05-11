@@ -165,7 +165,6 @@ export function ForgotPasswordPage() {
                     placeholder="seu@email.com"
                     autoComplete="email"
                     maxLength={254}
-                    autoFocus
                   />
                 </Form.Item>
 

@@ -236,7 +236,7 @@ async function auditRoute(
   // Screenshot
   let screenshot: string | undefined
   try {
-    const safe = route.path.replace(/[\/?&=]/g, '_').replace(/^_/, '') || 'root'
+    const safe = route.path.replace(/[/?&=]/g, '_').replace(/^_/, '') || 'root'
     const fullPath = resolve(SCREENSHOTS_DIR, `${safe}.png`)
     mkdirSync(dirname(fullPath), { recursive: true })
     await page.screenshot({ path: fullPath, fullPage: false })

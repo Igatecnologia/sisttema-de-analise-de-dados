@@ -77,7 +77,6 @@ export async function* runCopilot(opts: OrchestratorOptions): AsyncGenerator<Str
   const startedAt = Date.now()
   const toolsCalledThisConversation: string[] = []
   let totalRounds = 0
-  let hadError = false
   logAudit({
     userId: opts.userId,
     tenantId: opts.tenantId,
@@ -108,7 +107,6 @@ export async function* runCopilot(opts: OrchestratorOptions): AsyncGenerator<Str
         // Não vazamos o tool_call para o cliente — é detalhe interno.
       } else if (evt.type === 'error') {
         console.error(`[copilot] erro: ${evt.message}`)
-        hadError = true
         const shouldFallbackLocal =
           provider.name !== 'local' &&
           (
@@ -161,7 +159,7 @@ export async function* runCopilot(opts: OrchestratorOptions): AsyncGenerator<Str
           toolsCalled: toolsCalledThisConversation,
           uniqueTools: [...new Set(toolsCalledThisConversation)].length,
           latencyMs: Date.now() - startedAt,
-          hadError,
+          hadError: false,
         },
       })
       yield { type: 'done' }
@@ -235,7 +233,7 @@ export async function* runCopilot(opts: OrchestratorOptions): AsyncGenerator<Str
       toolsCalled: toolsCalledThisConversation,
       uniqueTools: [...new Set(toolsCalledThisConversation)].length,
       latencyMs: Date.now() - startedAt,
-      hadError,
+      hadError: false,
       exitReason: 'max_rounds',
     },
   })

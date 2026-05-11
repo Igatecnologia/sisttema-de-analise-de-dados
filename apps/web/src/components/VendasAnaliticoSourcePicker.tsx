@@ -16,19 +16,20 @@ import {
 export function VendasAnaliticoSourcePicker() {
   const screens = Grid.useBreakpoint()
   const qc = useQueryClient()
-  const { dataUpdatedAt } = useQuery({
+  const dataSourcesQuery = useQuery({
     queryKey: queryKeys.dataSources(),
     queryFn: listDataSourcesFromApi,
     enabled: hasAnySources(),
   })
 
-  const sources = useMemo(() => getAllVendasAnaliticoDataSources(), [dataUpdatedAt])
+  void dataSourcesQuery.data
+  const sources = getAllVendasAnaliticoDataSources()
 
   const [version, setVersion] = useState(0)
   const stored = useMemo(() => {
     void version
     return getVendasAnaliticoSelectionStored()
-  }, [version, dataUpdatedAt])
+  }, [version])
 
   const selectValue = stored === 'all' ? '__all__' : stored
 

@@ -9,6 +9,11 @@ type Props = {
 
 const COLORS = ['#1A7AB5', '#E8930C', '#D94A38']
 
+type PieLabelProps = {
+  name?: string
+  percent?: number
+}
+
 export function ConciliacaoChart({ conciliados, pendentes, divergentes }: Props) {
   const data = [
     { name: 'Conciliado', value: conciliados },
@@ -30,7 +35,7 @@ export function ConciliacaoChart({ conciliados, pendentes, divergentes }: Props)
             outerRadius={100}
             paddingAngle={3}
             dataKey="value"
-            label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+            label={({ name, percent }: PieLabelProps) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`}
           >
             {data.map((_, i) => (
               <Cell key={i} fill={COLORS[i % COLORS.length]} />

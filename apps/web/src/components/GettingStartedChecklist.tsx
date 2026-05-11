@@ -7,11 +7,11 @@ import { hasAnySources, listDataSources } from '../services/dataSourceService'
 import { listUsers } from '../services/usersService'
 import { useTenant } from '../tenant/TenantContext'
 import { queryKeys } from '../query/queryKeys'
+import { hasOpenedCopilot, markCopilotOpened, OPEN_COPILOT_EVENT } from './gettingStartedEvents'
 
 const { Title, Text } = Typography
 
 const DISMISS_KEY = 'iga.gettingStarted.dismissed'
-const COPILOT_FLAG_KEY = 'iga.copilot.opened'
 
 type Step = {
   id: 'datasource' | 'team' | 'brand' | 'copilot'
@@ -24,16 +24,6 @@ type Step = {
   done: boolean
 }
 
-export function markCopilotOpened() {
-  try {
-    localStorage.setItem(COPILOT_FLAG_KEY, '1')
-  } catch {
-    /* ignora */
-  }
-}
-
-export const OPEN_COPILOT_EVENT = 'iga:open-copilot'
-
 export function GettingStartedChecklist() {
   const tenant = useTenant()
   const [dismissed, setDismissed] = useState(() => {
@@ -44,21 +34,13 @@ export function GettingStartedChecklist() {
     }
   })
   const [copilotOpened, setCopilotOpened] = useState(() => {
-    try {
-      return localStorage.getItem(COPILOT_FLAG_KEY) === '1'
-    } catch {
-      return false
-    }
+    return hasOpenedCopilot()
   })
 
   // Re-checa flag do copilot quando volta pro foco (caso usuário abra copilot e volte)
   useEffect(() => {
     function recheck() {
-      try {
-        setCopilotOpened(localStorage.getItem(COPILOT_FLAG_KEY) === '1')
-      } catch {
-        /* ignora */
-      }
+      setCopilotOpened(hasOpenedCopilot())
     }
     window.addEventListener('focus', recheck)
     window.addEventListener('storage', recheck)

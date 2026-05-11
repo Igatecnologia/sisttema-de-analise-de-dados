@@ -178,7 +178,7 @@ function ProducaoSgbrTab() {
     retry: 1,
   })
 
-  const rows = prodQ.data?.rows ?? []
+  const rows = useMemo(() => prodQ.data?.rows ?? [], [prodQ.data?.rows])
   const truncated = prodQ.data?.truncated ?? false
 
   const filtered = useMemo(() => {

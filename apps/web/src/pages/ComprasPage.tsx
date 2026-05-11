@@ -339,7 +339,7 @@ export function ComprasPage() {
     retry: 1,
   })
 
-  const rows = comprasQ.data?.rows ?? []
+  const rows = useMemo(() => comprasQ.data?.rows ?? [], [comprasQ.data?.rows])
   const truncated = comprasQ.data?.truncated ?? false
   const isPlaceholder = comprasQ.isPlaceholderData
   const sampleRow = rows[0] as CompraRow | undefined

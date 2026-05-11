@@ -1,7 +1,7 @@
-import type { AxiosResponse } from 'axios'
 import { vendasAnaliticoRawResponseSchema } from '../api/schemas'
 import type { VendaAnaliticaRow } from '../api/schemas'
 import { ApiContractError } from '../api/validatedHttp'
+import type { HttpResponse } from '../api/axiosWithAuth'
 import type { AnaliticoFetchMeta } from '../types/models'
 import { normalizeVendaAnaliticaRow } from '../utils/connectorVendaAnaliticoNormalize'
 import { http } from './http'
@@ -12,7 +12,7 @@ export function toSgbrBiDateParam(isoDay: string): string {
   return isoDay.replaceAll('-', '.')
 }
 
-function readProxyMeta(res: AxiosResponse<unknown>): Pick<AnaliticoFetchMeta, 'truncated' | 'pagesFetched'> & { headerRowCount: number } {
+function readProxyMeta(res: HttpResponse<unknown>): Pick<AnaliticoFetchMeta, 'truncated' | 'pagesFetched'> & { headerRowCount: number } {
   const h = res.headers as Record<string, string | number | undefined>
   const get = (name: string): string => {
     const direct = h[name] ?? h[name.toLowerCase()]

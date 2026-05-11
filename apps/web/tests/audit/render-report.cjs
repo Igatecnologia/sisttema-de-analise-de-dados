@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* eslint-disable no-console */
 /**
  * Le o results.json gerado pelo full-audit.spec.ts e renderiza um HTML
  * interativo (sem dependencias) em report.html no mesmo diretorio.

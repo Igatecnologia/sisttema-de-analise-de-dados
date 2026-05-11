@@ -21,7 +21,7 @@ import {
   message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Calendar, FileSpreadsheet, FileText, Mail, Plus, Trash2 } from 'lucide-react'
 import { PageHeaderCard } from '../components/PageHeaderCard'
 import {
@@ -73,7 +73,7 @@ export function ScheduledReportsPage() {
   const [form] = Form.useForm<FormValues>()
   const frequency = Form.useWatch('frequency', form)
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
       const list = await listScheduledReports()
@@ -83,11 +83,11 @@ export function ScheduledReportsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     void load()
-  }, [])
+  }, [load])
 
   function openCreate() {
     form.resetFields()
@@ -143,7 +143,7 @@ export function ScheduledReportsPage() {
     }
   }
 
-  async function remove(id: string) {
+  const remove = useCallback(async (id: string) => {
     try {
       await deleteScheduledReport(id)
       message.success('Removido')
@@ -151,7 +151,7 @@ export function ScheduledReportsPage() {
     } catch {
       message.error('Falha ao remover')
     }
-  }
+  }, [load])
 
   const columns = useMemo<ColumnsType<ScheduledReport>>(
     () => [
@@ -236,7 +236,7 @@ export function ScheduledReportsPage() {
         ),
       },
     ],
-    [],
+    [remove],
   )
 
   return (

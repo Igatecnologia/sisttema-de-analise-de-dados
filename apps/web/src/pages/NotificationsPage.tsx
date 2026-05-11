@@ -19,7 +19,7 @@ export function NotificationsPage() {
   const [severity, setSeverity] = useState<string>('all')
   const [status, setStatus] = useState<string>('all')
   const alertsQuery = useQuery({ queryKey: queryKeys.alerts(), queryFn: listAlerts, refetchInterval: 30_000 })
-  const alerts = alertsQuery.data ?? []
+  const alerts = useMemo(() => alertsQuery.data ?? [], [alertsQuery.data])
 
   const filtered = useMemo(() => {
     const text = q.trim().toLowerCase()

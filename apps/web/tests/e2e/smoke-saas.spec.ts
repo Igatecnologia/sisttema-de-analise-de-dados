@@ -7,12 +7,13 @@ import { expect, request, test } from '@playwright/test'
  * Pre-condicoes (env do backend):
  *   - PORT=3001
  *   - ADMIN_DEFAULT_EMAIL=admin@iga.com
- *   - ADMIN_DEFAULT_PASSWORD=AdminTeste2026! (>=14 chars)
+ *   - ADMIN_DEFAULT_PASSWORD=IgaGestao@2026! (>=14 chars no stack vivo)
  *   - BILLING_GATE_DISABLED=1
  *
  * Os testes rodam em projeto Playwright independente do storageState.
  */
-const apiUrl = 'http://127.0.0.1:3001'
+const apiUrl = process.env.E2E_API_BASE_URL ?? 'http://127.0.0.1:3001'
+const webOrigin = process.env.E2E_WEB_BASE_URL ?? 'http://127.0.0.1:4173'
 const adminEmail = process.env.E2E_ADMIN_EMAIL ?? 'admin@iga.com'
 const adminPass = process.env.E2E_ADMIN_PASSWORD ?? 'AdminTeste2026!'
 
@@ -20,12 +21,13 @@ test.describe('SaaS smoke — backend HTTP', () => {
   test.describe.configure({ mode: 'serial' })
 
   let token: string
+  let refreshToken: string
 
   test.beforeAll(async () => {
     const ctx = await request.newContext()
     const res = await ctx.post(`${apiUrl}/api/v1/auth/login`, {
       data: { email: adminEmail, password: adminPass },
-      headers: { Origin: 'http://127.0.0.1:4173' },
+      headers: { Origin: webOrigin },
     })
     expect(res.status(), 'login should succeed').toBe(200)
     const body = await res.json()
@@ -38,13 +40,16 @@ test.describe('SaaS smoke — backend HTTP', () => {
     expect(setCookies.some((c) => c.value.startsWith('iga_session='))).toBeTruthy()
     expect(setCookies.some((c) => c.value.startsWith('iga_refresh='))).toBeTruthy()
     expect(setCookies.some((c) => c.value.startsWith('XSRF-TOKEN='))).toBeTruthy()
+    const refreshCookie = setCookies.find((c) => c.value.startsWith('iga_refresh='))
+    refreshToken = decodeURIComponent(refreshCookie?.value.match(/^iga_refresh=([^;]+)/)?.[1] ?? '')
+    expect(refreshToken).toBeTruthy()
     await ctx.dispose()
   })
 
   function authHeaders(): Record<string, string> {
     return {
       Authorization: `Bearer ${token}`,
-      Origin: 'http://127.0.0.1:4173',
+      Origin: webOrigin,
     }
   }
 
@@ -175,7 +180,7 @@ test.describe('SaaS smoke — backend HTTP', () => {
 
     const keyHeaders = {
       Authorization: `Bearer ${created.secret}`,
-      Origin: 'http://127.0.0.1:4173',
+      Origin: webOrigin,
     }
 
     const reports = await ctx.get(`${apiUrl}/reports`, { headers: keyHeaders })
@@ -194,7 +199,7 @@ test.describe('SaaS smoke — backend HTTP', () => {
     const forbidden = await ctx.get(`${apiUrl}/dashboard`, {
       headers: {
         Authorization: `Bearer ${limitedBody.secret}`,
-        Origin: 'http://127.0.0.1:4173',
+        Origin: webOrigin,
       },
     })
     expect(forbidden.status()).toBe(403)
@@ -224,29 +229,9 @@ test.describe('SaaS smoke — backend HTTP', () => {
 
   test('POST /api/v1/auth/refresh rotaciona token e detecta reuse', async () => {
     const ctx = await request.newContext()
-    const refreshEmail = `refresh-${Date.now()}@admin.com`
-    await ctx.post(`${apiUrl}/api/v1/users`, {
-      data: {
-        name: 'Refresh E2E',
-        email: refreshEmail,
-        password: 'AdminTeste2026!',
-        role: 'viewer',
-        status: 'active',
-      },
-      headers: authHeaders(),
-    })
-
-    const login = await ctx.post(`${apiUrl}/api/v1/auth/login`, {
-      data: { email: refreshEmail, password: 'AdminTeste2026!' },
-      headers: { Origin: 'http://127.0.0.1:4173' },
-    })
-    const setCookies = login.headersArray().filter((h) => h.name.toLowerCase() === 'set-cookie')
-    const refreshCookie = setCookies.find((c) => c.value.startsWith('iga_refresh='))
-    expect(refreshCookie).toBeTruthy()
-
     const r1 = await ctx.post(`${apiUrl}/api/v1/auth/refresh`, {
-      data: {},
-      headers: { Origin: 'http://127.0.0.1:4173' },
+      data: { refreshToken },
+      headers: { Origin: webOrigin },
     })
     expect(r1.status()).toBe(200)
     const r1Body = await r1.json()
@@ -254,10 +239,9 @@ test.describe('SaaS smoke — backend HTTP', () => {
     expect(r1Body.refreshToken).toBeUndefined()
 
     /** Reuse manual do token original deve detectar e retornar 401 + revoga familia. */
-    const originalRefreshToken = decodeURIComponent(refreshCookie?.value.match(/^iga_refresh=([^;]+)/)?.[1] ?? '')
     const r2 = await ctx.post(`${apiUrl}/api/v1/auth/refresh`, {
-      data: { refreshToken: originalRefreshToken },
-      headers: { Origin: 'http://127.0.0.1:4173' },
+      data: { refreshToken },
+      headers: { Origin: webOrigin },
     })
     expect(r2.status()).toBe(401)
     const r2Body = await r2.json()
@@ -282,7 +266,7 @@ test.describe('SaaS smoke — backend HTTP', () => {
     const ctx = await request.newContext()
     const res = await ctx.post(`${apiUrl}/api/v1/auth/login`, {
       data: { email: 'a@b.com', password: 'x', __proto__: { polluted: true } } as never,
-      headers: { Origin: 'http://127.0.0.1:4173' },
+      headers: { Origin: webOrigin },
     })
     /** Backend deve rejeitar com 400 antes de processar. */
     /** axios/playwright pode strippar __proto__ no JSON.stringify; teste mais robusto via raw. */
@@ -291,12 +275,13 @@ test.describe('SaaS smoke — backend HTTP', () => {
     await ctx.dispose()
   })
 
-  test('CSP dinamico inclui *.sgbrbi.com.br para tenant default (sgbr-espuma)', async () => {
+  test('CSP dinamico inclui a origem do app e cabecalhos de seguranca', async () => {
     const ctx = await request.newContext()
-    const res = await ctx.get(`${apiUrl}/health/live`, { headers: { Origin: 'http://127.0.0.1:4173' } })
+    const res = await ctx.get(`${apiUrl}/health/live`, { headers: { Origin: webOrigin } })
     const csp = res.headers()['content-security-policy']
     expect(csp).toBeTruthy()
-    expect(csp).toMatch(/sgbrbi\.com\.br/)
+    expect(csp).toMatch(/http:\/\/localhost:5173|http:\/\/127\.0\.0\.1:4173/)
+    expect(csp).toMatch(/report-uri/)
     await ctx.dispose()
   })
 })

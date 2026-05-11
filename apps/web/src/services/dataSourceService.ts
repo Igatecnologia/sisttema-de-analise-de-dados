@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { z } from 'zod'
 import { API_BASE_URL } from '../api/apiEnv'
 import { getCurrentTenantId } from '../tenant/tenantStorage'
@@ -12,6 +11,7 @@ import {
 import { http } from './http'
 import { getValidated, postValidated, putValidated } from '../api/validatedHttp'
 import { tenantStorage } from '../tenant/tenantStorage'
+import { isHttpClientError } from '../api/axiosWithAuth'
 
 const BASE = '/api/v1/datasources'
 const STORAGE_KEY = 'datasources'
@@ -329,7 +329,7 @@ export async function testDataSourceConnection(id: string): Promise<DataSourceTe
     }
     return result
   } catch (e) {
-    if (axios.isAxiosError(e) && e.response?.status === 404) {
+    if (isHttpClientError(e) && e.response?.status === 404) {
       try {
         await listDataSourcesFromApi()
       } catch {

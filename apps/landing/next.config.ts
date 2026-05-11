@@ -1,7 +1,11 @@
 import type { NextConfig } from 'next'
+import path from 'node:path'
 
 const config: NextConfig = {
   reactStrictMode: true,
+  turbopack: {
+    root: path.resolve(process.cwd(), '../..'),
+  },
   poweredByHeader: false,
   compiler: {
     /** Remove logs em produção. */

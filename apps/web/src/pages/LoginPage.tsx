@@ -212,7 +212,6 @@ export function LoginPage() {
                   placeholder="seu@email.com"
                   autoComplete="username"
                   maxLength={254}
-                  autoFocus
                 />
               </Form.Item>
 

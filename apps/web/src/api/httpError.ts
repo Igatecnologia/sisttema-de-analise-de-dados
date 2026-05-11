@@ -1,6 +1,6 @@
-import axios from 'axios'
 import { ZodError } from 'zod'
 import { ApiContractError } from './validatedHttp'
+import { isHttpClientError } from './axiosWithAuth'
 
 const statusMessages: Record<number, string> = {
   400: 'Requisicao invalida. Revise os filtros e tente novamente.',
@@ -25,7 +25,7 @@ export function getErrorMessage(error: unknown, fallback: string): string {
     return 'Resposta da API fora do contrato esperado.'
   }
 
-  if (axios.isAxiosError(error)) {
+  if (isHttpClientError(error)) {
     const status = error.response?.status
     const data = error.response?.data as { message?: string } | undefined
     if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {

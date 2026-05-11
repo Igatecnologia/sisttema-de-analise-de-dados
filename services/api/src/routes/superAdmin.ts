@@ -382,36 +382,38 @@ superAdminRouter.get('/tenants/:id/detail', async (req, res: Response) => {
     .filter((d) => d.tenantId === tenant.id)
     .map((d) => ({ id: d.id, name: d.name }))
 
-  let recentAudit: Array<{ id: string; action: string; resource: string; createdAt: string; userId: string | null; metadata: unknown }> = []
-  if (usePostgresStorage()) {
+  const recentAudit: Array<{ id: string; action: string; resource: string; createdAt: string; userId: string | null; metadata: unknown }> = usePostgresStorage()
+    ? await (async () => {
     const result = await getPostgresPool().query<{ id: string; action: string; resource: string; created_at: string; user_id: string | null; metadata_json: string | null }>(
       `SELECT id, action, resource, created_at::text AS created_at, user_id, metadata_json
        FROM audit_log WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 25`,
       [tenant.id],
     )
-    recentAudit = result.rows.map((r) => ({ id: r.id, action: r.action, resource: r.resource, createdAt: r.created_at, userId: r.user_id, metadata: r.metadata_json ? safeJson(r.metadata_json) : null }))
-  } else {
+    return result.rows.map((r) => ({ id: r.id, action: r.action, resource: r.resource, createdAt: r.created_at, userId: r.user_id, metadata: r.metadata_json ? safeJson(r.metadata_json) : null }))
+  })()
+    : (() => {
     const rows = db.prepare(`SELECT id, action, resource, created_at, user_id, metadata_json FROM audit_log WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 25`).all(tenant.id) as Array<{ id: string; action: string; resource: string; created_at: string; user_id: string | null; metadata_json: string | null }>
-    recentAudit = rows.map((r) => ({ id: r.id, action: r.action, resource: r.resource, createdAt: r.created_at, userId: r.user_id, metadata: r.metadata_json ? safeJson(r.metadata_json) : null }))
-  }
+    return rows.map((r) => ({ id: r.id, action: r.action, resource: r.resource, createdAt: r.created_at, userId: r.user_id, metadata: r.metadata_json ? safeJson(r.metadata_json) : null }))
+  })()
 
   res.json({ tenant: serializeTenant(tenant), users, datasources, recentAudit })
 })
 
 /** GET /api/v1/super-admin/audit-recent — eventos super_admin_* recentes. */
 superAdminRouter.get('/audit-recent', async (_req, res: Response) => {
-  let rows: Array<{ id: string; action: string; resource: string; createdAt: string; userId: string | null; tenantId: string | null; metadata: unknown }> = []
-  if (usePostgresStorage()) {
+  const rows: Array<{ id: string; action: string; resource: string; createdAt: string; userId: string | null; tenantId: string | null; metadata: unknown }> = usePostgresStorage()
+    ? await (async () => {
     const result = await getPostgresPool().query<{ id: string; action: string; resource: string; created_at: string; user_id: string | null; tenant_id: string | null; metadata_json: string | null }>(
       `SELECT id, action, resource, created_at::text AS created_at, user_id, tenant_id, metadata_json
        FROM audit_log WHERE action LIKE 'super_admin_%' OR action IN ('tenant_suspended','tenant_activated')
        ORDER BY created_at DESC LIMIT 50`,
     )
-    rows = result.rows.map((r) => ({ id: r.id, action: r.action, resource: r.resource, createdAt: r.created_at, userId: r.user_id, tenantId: r.tenant_id, metadata: r.metadata_json ? safeJson(r.metadata_json) : null }))
-  } else {
+    return result.rows.map((r) => ({ id: r.id, action: r.action, resource: r.resource, createdAt: r.created_at, userId: r.user_id, tenantId: r.tenant_id, metadata: r.metadata_json ? safeJson(r.metadata_json) : null }))
+  })()
+    : (() => {
     const result = db.prepare(`SELECT id, action, resource, created_at, user_id, tenant_id, metadata_json FROM audit_log WHERE action LIKE 'super_admin_%' OR action IN ('tenant_suspended','tenant_activated') ORDER BY created_at DESC LIMIT 50`).all() as Array<{ id: string; action: string; resource: string; created_at: string; user_id: string | null; tenant_id: string | null; metadata_json: string | null }>
-    rows = result.map((r) => ({ id: r.id, action: r.action, resource: r.resource, createdAt: r.created_at, userId: r.user_id, tenantId: r.tenant_id, metadata: r.metadata_json ? safeJson(r.metadata_json) : null }))
-  }
+    return result.map((r) => ({ id: r.id, action: r.action, resource: r.resource, createdAt: r.created_at, userId: r.user_id, tenantId: r.tenant_id, metadata: r.metadata_json ? safeJson(r.metadata_json) : null }))
+  })()
   res.json({ events: rows })
 })
 
@@ -480,8 +482,8 @@ superAdminRouter.get('/metrics', async (_req, res) => {
   let active = 0
   let mrrCents = 0
   let trialing = 0
-  let suspended = 0
   let canceled = 0
+  let suspended: number
 
   if (usePostgresStorage()) {
     const subs = await getPostgresPool().query<{ plan: string; status: string }>(

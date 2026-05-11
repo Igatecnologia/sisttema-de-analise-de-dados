@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const frontendRoot = resolve(__dirname, '../..')
-const repoRoot = resolve(frontendRoot, '..')
-const backendRoot = resolve(repoRoot, 'back-end-gest-o')
+const repoRoot = resolve(frontendRoot, '../..')
+const backendRoot = resolve(repoRoot, 'services/api')
 const pidFile = resolve(__dirname, '.e2e-pids.json')
 
 const apiUrl = 'http://127.0.0.1:3001/health/live'
@@ -45,7 +45,7 @@ export default async function globalSetup() {
     PORT: '3001',
     PORT_MAX: '3001',
     START_SCHEDULERS: '0',
-    IGA_DATA_DIR: '../front-end-gest-o/tests/e2e/.backend-data',
+    IGA_DATA_DIR: resolve(frontendRoot, 'tests/e2e/.backend-data'),
     ADMIN_DEFAULT_EMAIL: process.env.E2E_ADMIN_EMAIL ?? 'admin@iga.com',
     ADMIN_DEFAULT_PASSWORD: process.env.E2E_ADMIN_PASSWORD ?? 'AdminTeste2026!',
     BILLING_GATE_DISABLED: '1',

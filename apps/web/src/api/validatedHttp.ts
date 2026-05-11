@@ -1,5 +1,5 @@
-import type { AxiosInstance, AxiosRequestConfig } from 'axios'
 import { z, type ZodTypeAny } from 'zod'
+import type { HttpClient, HttpRequestConfig } from './axiosWithAuth'
 
 export class ApiContractError extends Error {
   details?: unknown
@@ -12,10 +12,10 @@ export class ApiContractError extends Error {
 }
 
 export async function getValidated<TSchema extends ZodTypeAny>(
-  http: AxiosInstance,
+  http: HttpClient,
   url: string,
   schema: TSchema,
-  config?: AxiosRequestConfig,
+  config?: HttpRequestConfig,
 ): Promise<z.infer<TSchema>> {
   const res = await http.get(url, config)
   const parsed = schema.safeParse(res.data)
@@ -26,11 +26,11 @@ export async function getValidated<TSchema extends ZodTypeAny>(
 }
 
 export async function postValidated<TSchema extends ZodTypeAny>(
-  http: AxiosInstance,
+  http: HttpClient,
   url: string,
   body: unknown,
   schema: TSchema,
-  config?: AxiosRequestConfig,
+  config?: HttpRequestConfig,
 ): Promise<z.infer<TSchema>> {
   const res = await http.post(url, body, config)
   const parsed = schema.safeParse(res.data)
@@ -41,11 +41,11 @@ export async function postValidated<TSchema extends ZodTypeAny>(
 }
 
 export async function putValidated<TSchema extends ZodTypeAny>(
-  http: AxiosInstance,
+  http: HttpClient,
   url: string,
   body: unknown,
   schema: TSchema,
-  config?: AxiosRequestConfig,
+  config?: HttpRequestConfig,
 ): Promise<z.infer<TSchema>> {
   const res = await http.put(url, body, config)
   const parsed = schema.safeParse(res.data)
@@ -56,10 +56,10 @@ export async function putValidated<TSchema extends ZodTypeAny>(
 }
 
 export async function deleteValidated<TSchema extends ZodTypeAny>(
-  http: AxiosInstance,
+  http: HttpClient,
   url: string,
   schema: TSchema,
-  config?: AxiosRequestConfig,
+  config?: HttpRequestConfig,
 ): Promise<z.infer<TSchema>> {
   const res = await http.delete(url, config)
   const parsed = schema.safeParse(res.data)

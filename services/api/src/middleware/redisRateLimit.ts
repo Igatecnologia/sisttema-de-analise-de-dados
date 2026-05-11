@@ -35,8 +35,7 @@ export function redisRateLimit(opts: RedisRateLimitOptions) {
         store: new RedisStore({
           prefix: `iga:rl:${namespace ?? 'default'}:`,
           /** Async ioredis -> rate-limit-redis spec. */
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          sendCommand: (async (...args: string[]): Promise<any> => {
+          sendCommand: (async (...args: string[]): Promise<unknown> => {
             if (client.status === 'wait') await client.connect()
             return client.call(args[0], ...args.slice(1))
           }) as never,

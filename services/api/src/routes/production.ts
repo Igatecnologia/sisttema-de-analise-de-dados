@@ -218,16 +218,17 @@ productionRouter.get('/oee', async (req, res) => {
   }
 
   /** Carrega targets. */
-  let targets: ProductionTarget[] = []
-  if (usePostgresStorage()) {
+  const targets: ProductionTarget[] = usePostgresStorage()
+    ? await (async () => {
     const r = await queryPostgres(
       `SELECT * FROM production_targets
        WHERE tenant_id = $1 AND target_type = $2
          AND valid_from <= CURRENT_DATE AND (valid_to IS NULL OR valid_to >= CURRENT_DATE)`,
       [authReq.tenantId, period],
     )
-    targets = r.rows.map((row) => mapTarget(row as Record<string, unknown>))
-  } else {
+    return r.rows.map((row) => mapTarget(row as Record<string, unknown>))
+  })()
+    : (() => {
     const todayIso = new Date().toISOString().slice(0, 10)
     const rows = db
       .prepare(
@@ -236,8 +237,8 @@ productionRouter.get('/oee', async (req, res) => {
            AND valid_from <= ? AND (valid_to IS NULL OR valid_to >= ?)`,
       )
       .all(authReq.tenantId, period, todayIso, todayIso) as Record<string, unknown>[]
-    targets = rows.map(mapTarget)
-  }
+    return rows.map(mapTarget)
+  })()
 
   const aggregateTarget = targets.find((t) => t.sku == null)
   const targetsBySku = new Map(targets.filter((t) => t.sku != null).map((t) => [t.sku!, t]))

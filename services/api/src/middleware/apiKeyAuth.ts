@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import type { NextFunction, Request, Response } from 'express'
 import { getDb } from '../db/sqlite.js'
-import { hasPostgresConfig, queryPostgres } from '../db/postgres.js'
+import { getPostgresPool, hasPostgresConfig } from '../db/postgres.js'
 import { requireAuth, type AuthenticatedRequest } from './auth.js'
 
 type ApiKeyScope = 'reports:read' | 'dashboards:read' | 'datasources:read' | 'webhooks:write'
@@ -56,7 +56,7 @@ function hashEquals(a: string, b: string): boolean {
 async function findApiKey(secret: string): Promise<ApiKeyAuthRow | null> {
   const secretHash = hashSecret(secret)
   if (usePostgresStorage()) {
-    const result = await queryPostgres<ApiKeyAuthRow>(`
+    const result = await getPostgresPool().query<ApiKeyAuthRow>(`
       SELECT id, tenant_id, user_id, secret_hash, scopes_json, status
       FROM api_keys
       WHERE secret_hash = $1 AND status = 'active'
@@ -78,7 +78,7 @@ async function findApiKey(secret: string): Promise<ApiKeyAuthRow | null> {
 async function markApiKeyUsed(id: string) {
   const now = new Date().toISOString()
   if (usePostgresStorage()) {
-    await queryPostgres('UPDATE api_keys SET last_used_at = $1 WHERE id = $2', [now, id])
+    await getPostgresPool().query('UPDATE api_keys SET last_used_at = $1 WHERE id = $2', [now, id])
     return
   }
   db.prepare('UPDATE api_keys SET last_used_at = ? WHERE id = ?').run(now, id)

@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { Router } from 'express'
 import { z } from 'zod'
 import { getDb } from '../db/sqlite.js'
@@ -9,10 +9,18 @@ import { logAudit } from '../services/auditLog.js'
 export const publicSharesRouter = Router()
 const db = getDb()
 
+const DEFAULT_SHARE_TTL_DAYS = 30
+const MAX_SHARE_TTL_DAYS = 90
+const MAX_PAYLOAD_BYTES = 64 * 1024
+const PUBLIC_TOKEN_SCHEMA = z.string().regex(/^[A-Za-z0-9_-]{24,128}$/)
+
 const createShareSchema = z.object({
   title: z.string().min(2).max(120),
   description: z.string().max(500).nullable().optional(),
-  payload: z.record(z.string(), z.unknown()).default({}),
+  payload: z.record(z.string(), z.unknown()).default({}).refine(
+    (value) => Buffer.byteLength(JSON.stringify(value), 'utf8') <= MAX_PAYLOAD_BYTES,
+    'Payload do link publico excede 64KB.',
+  ),
   expiresAt: z.string().datetime().nullable().optional(),
 })
 
@@ -32,6 +40,27 @@ function usePostgresStorage(): boolean {
   return process.env.IGA_STORAGE_DRIVER === 'postgres' && hasPostgresConfig()
 }
 
+function tokenAuditMetadata(token: string) {
+  return {
+    tokenPrefix: token.slice(0, 8),
+    tokenHash: createHash('sha256').update(token).digest('hex'),
+  }
+}
+
+function resolveExpiresAt(input: string | null | undefined): string {
+  const now = Date.now()
+  if (!input) return new Date(now + DEFAULT_SHARE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString()
+  const parsed = Date.parse(input)
+  if (!Number.isFinite(parsed) || parsed <= now) {
+    throw new Error('expiresAt deve ser uma data futura.')
+  }
+  const max = now + MAX_SHARE_TTL_DAYS * 24 * 60 * 60 * 1000
+  if (parsed > max) {
+    throw new Error(`expiresAt nao pode passar de ${MAX_SHARE_TTL_DAYS} dias.`)
+  }
+  return new Date(parsed).toISOString()
+}
+
 function mapShare(row: PublicShareRow, includePayload = false) {
   const payload = typeof row.payload_json === 'string'
     ? JSON.parse(row.payload_json) as Record<string, unknown>
@@ -49,9 +78,11 @@ function mapShare(row: PublicShareRow, includePayload = false) {
 }
 
 publicSharesRouter.get('/public/:token', async (req, res) => {
+  const token = PUBLIC_TOKEN_SCHEMA.safeParse(req.params.token)
+  if (!token.success) return res.status(404).json({ message: 'Link nao encontrado' })
   const row = usePostgresStorage()
-    ? (await queryPostgres<PublicShareRow>('SELECT * FROM public_shares WHERE token = $1 LIMIT 1', [req.params.token])).rows[0]
-    : db.prepare('SELECT * FROM public_shares WHERE token = ? LIMIT 1').get(req.params.token) as PublicShareRow | undefined
+    ? (await queryPostgres<PublicShareRow>('SELECT * FROM public_shares WHERE token = $1 LIMIT 1', [token.data])).rows[0]
+    : db.prepare('SELECT * FROM public_shares WHERE token = ? LIMIT 1').get(token.data) as PublicShareRow | undefined
   if (!row || row.revoked_at) return res.status(404).json({ message: 'Link nao encontrado' })
   if (row.expires_at && Date.parse(row.expires_at) < Date.now()) {
     return res.status(410).json({ message: 'Link expirado' })
@@ -81,6 +112,12 @@ publicSharesRouter.post('/', async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
   }
+  let expiresAt: string
+  try {
+    expiresAt = resolveExpiresAt(parsed.data.expiresAt)
+  } catch (err) {
+    return res.status(400).json({ message: err instanceof Error ? err.message : 'expiresAt invalido' })
+  }
   const token = randomBytes(18).toString('base64url')
   const now = new Date().toISOString()
   if (usePostgresStorage()) {
@@ -94,7 +131,7 @@ publicSharesRouter.post('/', async (req, res) => {
       parsed.data.title.trim(),
       parsed.data.description ?? null,
       JSON.stringify(parsed.data.payload),
-      parsed.data.expiresAt ?? null,
+      expiresAt,
       now,
     ])
   } else {
@@ -108,7 +145,7 @@ publicSharesRouter.post('/', async (req, res) => {
       parsed.data.title.trim(),
       parsed.data.description ?? null,
       JSON.stringify(parsed.data.payload),
-      parsed.data.expiresAt ?? null,
+      expiresAt,
       now,
     )
   }
@@ -117,7 +154,7 @@ publicSharesRouter.post('/', async (req, res) => {
     tenantId: authReq.tenantId,
     action: 'public_share_created',
     resource: 'public_shares',
-    metadata: { token },
+    metadata: tokenAuditMetadata(token),
   })
   res.status(201).json(mapShare({
     token,
@@ -126,7 +163,7 @@ publicSharesRouter.post('/', async (req, res) => {
     title: parsed.data.title.trim(),
     description: parsed.data.description ?? null,
     payload_json: JSON.stringify(parsed.data.payload),
-    expires_at: parsed.data.expiresAt ?? null,
+    expires_at: expiresAt,
     revoked_at: null,
     created_at: now,
   }, true))
@@ -134,17 +171,19 @@ publicSharesRouter.post('/', async (req, res) => {
 
 publicSharesRouter.post('/:token/revoke', async (req, res) => {
   const authReq = req as unknown as AuthenticatedRequest
+  const token = PUBLIC_TOKEN_SCHEMA.safeParse(req.params.token)
+  if (!token.success) return res.status(404).json({ message: 'Link nao encontrado ou ja revogado' })
   const now = new Date().toISOString()
   if (usePostgresStorage()) {
     const result = await queryPostgres(
       'UPDATE public_shares SET revoked_at = $1 WHERE token = $2 AND tenant_id = $3 AND revoked_at IS NULL',
-      [now, req.params.token, authReq.tenantId],
+      [now, token.data, authReq.tenantId],
     )
     if (!result.rowCount) return res.status(404).json({ message: 'Link nao encontrado ou ja revogado' })
     return res.json({ ok: true })
   }
   const result = db.prepare('UPDATE public_shares SET revoked_at = ? WHERE token = ? AND tenant_id = ? AND revoked_at IS NULL')
-    .run(now, req.params.token, authReq.tenantId)
+    .run(now, token.data, authReq.tenantId)
   if (result.changes === 0) return res.status(404).json({ message: 'Link nao encontrado ou ja revogado' })
   res.json({ ok: true })
 })

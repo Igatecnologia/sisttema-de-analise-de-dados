@@ -48,7 +48,7 @@ export function NotasFiscaisPage() {
     staleTime: 5 * 60_000,
   })
 
-  const rows = nfQ.data ?? []
+  const rows = useMemo(() => nfQ.data ?? [], [nfQ.data])
 
   const filtered = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase()

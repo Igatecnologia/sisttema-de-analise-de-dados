@@ -210,7 +210,7 @@ export function DataSourceConfigPage() {
   const [form] = Form.useForm()
   const { notification, modal } = App.useApp()
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
       setDataSources(await listDataSourcesFromApi())
@@ -223,8 +223,8 @@ export function DataSourceConfigPage() {
     } finally {
       setLoading(false)
     }
-  }
-  useEffect(() => { load() }, [])
+  }, [notification])
+  useEffect(() => { load() }, [load])
 
   const refreshStats = useCallback(async (dsId: string) => {
     setStats((prev) => ({
@@ -258,7 +258,7 @@ export function DataSourceConfigPage() {
           error: result.success ? null : result.message,
         },
       }))
-      load()
+      await load()
     } catch (err) {
       setStats((prev) => ({
         ...prev,
@@ -273,7 +273,7 @@ export function DataSourceConfigPage() {
         },
       }))
     }
-  }, [])
+  }, [load])
 
   // Buscar stats ao carregar a pagina
   useEffect(() => {
@@ -599,7 +599,7 @@ export function DataSourceConfigPage() {
     } else {
       await doApply()
     }
-  }, [notification, modal, refreshStats])
+  }, [notification, modal, refreshStats, load])
 
   const sampleFieldOptions = (testResult?.sampleFields ?? []).map((f) => ({ value: f }))
   const selectedEndpoints: string[] = Form.useWatch('erpEndpoints', form) ?? []

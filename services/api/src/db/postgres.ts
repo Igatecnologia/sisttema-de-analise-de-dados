@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import type { Request, Response, NextFunction } from 'express'
 import { POSTGRES_MIGRATIONS } from './postgresMigrations.js'
 import { resolveTenantId } from '../utils/tenant.js'
+import { verifySessionJwt } from '../services/sessionJwt.js'
 
 const { Pool } = pg
 
@@ -43,12 +44,34 @@ export async function queryPostgres<T extends pg.QueryResultRow = pg.QueryResult
   return getPostgresPool().query<T>(text, params)
 }
 
+function readCookie(cookieHeader: string | undefined, name: string): string | null {
+  if (!cookieHeader) return null
+  for (const pair of cookieHeader.split(';')) {
+    const [rawName, ...rawValue] = pair.trim().split('=')
+    if (rawName !== name) continue
+    const value = rawValue.join('=')
+    return value ? decodeURIComponent(value) : null
+  }
+  return null
+}
+
+function resolveTenantIdForPostgresContext(req: Request): string {
+  const auth = req.headers.authorization
+  const bearerToken = auth?.startsWith('Bearer ') ? auth.slice(7).trim() : null
+  const sessionToken = bearerToken && bearerToken.includes('.')
+    ? bearerToken
+    : readCookie(req.headers.cookie, 'iga_session')
+  const claims = sessionToken ? verifySessionJwt(sessionToken) : null
+  if (claims?.tid) return claims.tid
+  return resolveTenantId(req)
+}
+
 export function postgresTenantContext(req: Request, res: Response, next: NextFunction) {
   if (process.env.IGA_STORAGE_DRIVER !== 'postgres' || !hasPostgresConfig() || !req.path.startsWith('/api/')) {
     return next()
   }
 
-  const tenantId = resolveTenantId(req)
+  const tenantId = resolveTenantIdForPostgresContext(req)
 
   getPostgresPool()
     .connect()

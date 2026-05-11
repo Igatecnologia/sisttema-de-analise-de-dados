@@ -39,6 +39,13 @@ function usePostgresStorage(): boolean {
   return process.env.IGA_STORAGE_DRIVER === 'postgres' && hasPostgresConfig()
 }
 
+function normalizeTimestamp(value: string | Date | null | undefined): string | null {
+  if (!value) return null
+  if (value instanceof Date) return value.toISOString()
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString()
+}
+
 /** Decripta credenciais lidas do banco. Suporta payload criptografado (JSON) e plaintext legado. */
 function decryptStoredCredentials(raw: unknown): string | undefined {
   if (!raw) return undefined
@@ -176,8 +183,8 @@ export function writeAll(items: DataSource[]) {
         default_per_page: item.defaultPerPage ?? null,
         cursor_param: item.cursorParam ?? null,
         cursor_response_field: item.cursorResponseField ?? null,
-        created_at: item.createdAt,
-        updated_at: item.updatedAt,
+        created_at: normalizeTimestamp(item.createdAt) ?? new Date().toISOString(),
+        updated_at: normalizeTimestamp(item.updatedAt) ?? new Date().toISOString(),
       })
     }
   })
@@ -233,8 +240,8 @@ export async function writeAllAsync(items: DataSource[]) {
             item.defaultPerPage ?? null,
             item.cursorParam ?? null,
             item.cursorResponseField ?? null,
-            item.createdAt,
-            item.updatedAt,
+            normalizeTimestamp(item.createdAt) ?? new Date().toISOString(),
+            normalizeTimestamp(item.updatedAt) ?? new Date().toISOString(),
           ],
         )
       }

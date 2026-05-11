@@ -13,7 +13,7 @@ export function APIKeysPage() {
   const [createdSecret, setCreatedSecret] = useState<string | null>(null)
   const [form] = Form.useForm<{ name: string; scopes: string[] }>()
   const keysQuery = useQuery({ queryKey: queryKeys.apiKeys(), queryFn: listApiKeys })
-  const keys = keysQuery.data ?? []
+  const keys = useMemo(() => keysQuery.data ?? [], [keysQuery.data])
 
   const createMutation = useMutation({
     mutationFn: createApiKey,

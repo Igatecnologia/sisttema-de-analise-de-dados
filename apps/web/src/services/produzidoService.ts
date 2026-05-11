@@ -1,6 +1,6 @@
-import type { AxiosResponse } from 'axios'
 import { z } from 'zod'
 import { ApiContractError } from '../api/validatedHttp'
+import type { HttpResponse } from '../api/axiosWithAuth'
 import type { AnaliticoFetchMeta } from '../types/models'
 import { http } from './http'
 import { getProduzidoSgbrDataSource } from './dataSourceService'
@@ -9,7 +9,7 @@ import { toSgbrBiDateParam } from './vendasAnaliticoService'
 const produzidoRawResponseSchema = z.array(z.record(z.string(), z.unknown()))
 
 function readProxyMeta(
-  res: AxiosResponse<unknown>,
+  res: HttpResponse<unknown>,
 ): Pick<AnaliticoFetchMeta, 'truncated' | 'pagesFetched'> & { headerRowCount: number } {
   const h = res.headers as Record<string, string | number | undefined>
   const get = (name: string): string => {

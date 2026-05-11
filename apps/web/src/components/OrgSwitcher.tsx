@@ -30,7 +30,8 @@ export function OrgSwitcher() {
     },
   })
 
-  const orgs = orgsQuery.data ?? []
+  const { mutate: switchOrg } = switchMutation
+  const orgs = useMemo(() => orgsQuery.data ?? [], [orgsQuery.data])
   const hasMultiple = orgs.length > 1
 
   const items = useMemo(() => {
@@ -47,14 +48,14 @@ export function OrgSwitcher() {
         </Space>
       ),
       disabled: org.current,
-      onClick: () => switchMutation.mutate(org.slug),
+      onClick: () => switchOrg(org.slug),
     }))
     return [
       ...orgItems,
       { type: 'divider' as const },
       { key: 'manage', label: 'Gerenciar organizações', onClick: () => navigate('/orgs') },
     ]
-  }, [orgs, navigate, switchMutation])
+  }, [orgs, navigate, switchOrg])
 
   if (!hasMultiple && orgs.length <= 1) {
     /** Single-tenant — só mostra o nome, sem dropdown. */

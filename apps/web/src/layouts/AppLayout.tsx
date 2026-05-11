@@ -516,7 +516,7 @@ export function AppLayout() {
   )
   const { tabs, activePath, closeTab, closeOthers, closeAll } = useOpenTabs(getTabTitle)
 
-  function navigateToSafeHome() {
+  const navigateToSafeHome = useCallback(() => {
     const preferred = uxPreferences.homePath
     if (preferred && navRouteMap.has(preferred)) {
       navigate(preferred)
@@ -528,7 +528,7 @@ export function AppLayout() {
       return
     }
     navigate('/gestao')
-  }
+  }, [navigate, uxPreferences.homePath, workspaceDefinition.defaultHomePath, navRouteMap])
 
   async function stopImpersonation() {
     try {
@@ -587,7 +587,7 @@ export function AppLayout() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [navigate])
+  }, [collapsed, navigateToSafeHome, setCollapsed])
 
   return (
     <Layout className="app-shell" hasSider style={{ minHeight: '100vh' }}>

@@ -211,12 +211,13 @@ export class AnthropicProvider implements AiProvider {
         } else if (evt.type === 'content_block_stop') {
           const block = blocks.get(evt.index)
           if (block?.type === 'tool_use' && block.toolName) {
-            let args: Record<string, unknown> = {}
-            try {
-              args = block.toolArgsJson ? (JSON.parse(block.toolArgsJson) as Record<string, unknown>) : {}
-            } catch {
-              args = {}
-            }
+            const args: Record<string, unknown> = (() => {
+              try {
+                return block.toolArgsJson ? (JSON.parse(block.toolArgsJson) as Record<string, unknown>) : {}
+              } catch {
+                return {}
+              }
+            })()
             yield {
               type: 'tool_call',
               call: { id: block.toolId ?? randomUUID(), name: block.toolName, args },

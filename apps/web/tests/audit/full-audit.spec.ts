@@ -137,7 +137,6 @@ test.afterAll(async () => {
     results,
   }
   writeFileSync(join(RUN_DIR, 'results.json'), JSON.stringify(out, null, 2), 'utf-8')
-  // eslint-disable-next-line no-console
   console.log(`\n[audit] Resultados salvos em: ${RUN_DIR}`)
 })
 

@@ -492,7 +492,6 @@ export function RegisterPage() {
                       onChange={(e) => setCnpj(e.target.value)}
                       maxLength={18}
                       placeholder="00.000.000/0000-00"
-                      autoFocus
                       inputMode="numeric"
                       status={
                         cnpjLookup.state === 'invalid' || cnpjLookup.state === 'not-found' || cnpjLookup.state === 'error'
@@ -605,7 +604,6 @@ export function RegisterPage() {
                       onChange={(e) => setAdminName(e.target.value)}
                       maxLength={120}
                       placeholder="Maria Silva"
-                      autoFocus
                     />
                   </Form.Item>
                   <Form.Item label="Email corporativo" required>

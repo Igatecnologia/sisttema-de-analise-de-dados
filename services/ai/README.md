@@ -11,7 +11,7 @@ para AI-4 (RAG com pgvector + Voyage) e AI-5 (eval + cost tracking).
 ## Setup local
 
 ```bash
-# Pre-requisito: Python 3.12+, uv (https://docs.astral.sh/uv/)
+# Pre-requisito: Python 3.11+, uv (https://docs.astral.sh/uv/)
 cd iga-ai
 cp .env.example .env
 # Preencha OPENAI_API_KEY (sk-proj-...) e IGA_AI_SHARED_SECRET (32+ bytes random)

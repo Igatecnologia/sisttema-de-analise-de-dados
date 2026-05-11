@@ -113,7 +113,6 @@ async function recoverPendingDeliveries() {
     }
   } catch (err) {
     // Loop nao pode quebrar — qualquer erro fica logado e tentamos de novo no proximo tick.
-    // eslint-disable-next-line no-console
     console.warn('[webhook] recovery scan falhou:', err instanceof Error ? err.message : err)
   }
 }
