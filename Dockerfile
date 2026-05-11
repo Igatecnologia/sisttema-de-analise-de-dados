@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:22-bookworm-slim AS backend-deps
+FROM node:26-bookworm-slim AS backend-deps
 WORKDIR /app/services/api
 COPY services/api/package*.json ./
 RUN npm ci
@@ -15,7 +15,7 @@ FROM backend-deps AS backend-build
 COPY services/api ./
 RUN npm run build
 
-FROM node:22-bookworm-slim AS frontend-deps
+FROM node:26-bookworm-slim AS frontend-deps
 WORKDIR /app/apps/web
 COPY apps/web/package*.json ./
 RUN npm ci
@@ -32,7 +32,7 @@ ARG VITE_API_BASE_URL=
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 
-FROM node:22-bookworm-slim AS landing-deps
+FROM node:26-bookworm-slim AS landing-deps
 WORKDIR /app/apps/landing
 COPY apps/landing/package*.json ./
 RUN npm install
@@ -43,7 +43,7 @@ COPY apps/landing ./
 EXPOSE 3000
 CMD ["npm", "run", "dev"]
 
-FROM node:22-bookworm-slim AS admin-deps
+FROM node:26-bookworm-slim AS admin-deps
 WORKDIR /app/apps/admin
 COPY apps/admin/package*.json ./
 RUN npm install
@@ -54,7 +54,7 @@ COPY apps/admin ./
 EXPOSE 3003
 CMD ["npm", "run", "dev"]
 
-FROM node:22-bookworm-slim AS production
+FROM node:26-bookworm-slim AS production
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3000 \
