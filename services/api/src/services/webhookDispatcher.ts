@@ -2,6 +2,7 @@ import {
   createWebhookDelivery,
   findWebhookDelivery,
   findWebhookSubscription,
+  listPendingRetries,
   signWebhookPayload,
   updateWebhookDelivery,
   type WebhookDelivery,
@@ -23,7 +24,14 @@ async function send(subscription: WebhookSubscription, delivery: WebhookDelivery
     tenantId: delivery.tenantId,
     createdAt: delivery.createdAt,
   })
-  const signature = signWebhookPayload(subscription.signingSecret, payload)
+  /**
+   * SEC: assinatura com timestamp + payload (estilo Stripe). O receiver deve:
+   *   1) ler X-IGA-Webhook-Timestamp e rejeitar se |now - timestamp| > tolerancia (ex: 5min)
+   *   2) recalcular HMAC sobre `timestamp.payload` e comparar com X-IGA-Webhook-Signature
+   * Isso bloqueia replay com payload capturado e protege contra clock skew.
+   */
+  const timestamp = Math.floor(Date.now() / 1000)
+  const signature = signWebhookPayload(subscription.signingSecret, payload, timestamp)
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 10_000)
   try {
@@ -33,7 +41,11 @@ async function send(subscription: WebhookSubscription, delivery: WebhookDelivery
         'Content-Type': 'application/json',
         'X-IGA-Webhook-Id': delivery.id,
         'X-IGA-Webhook-Event': delivery.eventType,
-        'X-IGA-Webhook-Signature': `sha256=${signature}`,
+        'X-IGA-Webhook-Timestamp': String(timestamp),
+        'X-IGA-Webhook-Signature': `t=${timestamp},sha256=${signature}`,
+        // Idempotencia: receiver deve dedupar por este id se enxergar o mesmo
+        // numa janela curta (retry duplicado, ex: timeout + processo seguinte).
+        'Idempotency-Key': delivery.id,
       },
       body: payload,
       signal: controller.signal,
@@ -79,6 +91,47 @@ export async function dispatchWebhook(subscription: WebhookSubscription, eventTy
   })
   void send(subscription, delivery)
   return delivery
+}
+
+// ── Recovery loop ───────────────────────────────────────────────────────────
+//
+// Os retries usam setTimeout no processo atual — se o servidor reinicia entre
+// tentativas, a entrega fica "presa" com nextAttemptAt no passado. Esse loop
+// varre periodicamente e re-dispara as elegiveis. Idempotency-Key garante que
+// um receiver bem implementado nao processa o evento duas vezes.
+const RECOVERY_INTERVAL_MS = 60_000
+let recoveryTimer: NodeJS.Timeout | null = null
+
+async function recoverPendingDeliveries() {
+  try {
+    const pending = await listPendingRetries()
+    for (const delivery of pending) {
+      const subscription = await findWebhookSubscription(delivery.tenantId, delivery.subscriptionId)
+      if (!subscription || !subscription.active) continue
+      // Re-dispara sem await pra nao serializar tudo num tick — send tem timeout proprio.
+      void send(subscription, delivery)
+    }
+  } catch (err) {
+    // Loop nao pode quebrar — qualquer erro fica logado e tentamos de novo no proximo tick.
+    // eslint-disable-next-line no-console
+    console.warn('[webhook] recovery scan falhou:', err instanceof Error ? err.message : err)
+  }
+}
+
+export function startWebhookRecoveryLoop(): void {
+  if (recoveryTimer) return
+  // Primeira execucao em 5s pra capturar deliveries que estavam pendentes
+  // quando o processo subiu, depois cada 60s.
+  setTimeout(() => { void recoverPendingDeliveries() }, 5_000)
+  recoveryTimer = setInterval(() => { void recoverPendingDeliveries() }, RECOVERY_INTERVAL_MS)
+  if (typeof recoveryTimer.unref === 'function') recoveryTimer.unref()
+}
+
+export function stopWebhookRecoveryLoop(): void {
+  if (recoveryTimer) {
+    clearInterval(recoveryTimer)
+    recoveryTimer = null
+  }
 }
 
 export async function retryWebhookDelivery(tenantId: string, subscriptionId: string, deliveryId: string) {

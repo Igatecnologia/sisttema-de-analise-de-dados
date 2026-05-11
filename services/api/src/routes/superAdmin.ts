@@ -13,6 +13,7 @@ import { signSessionJwt } from '../services/sessionJwt.js'
 import { buildSessionBinding } from '../services/sessionStore.js'
 import { resolveEffectivePermissions } from '../permissions.js'
 import { readAllAsync as readAllDataSourcesAsync } from '../storage.js'
+import { getResilienceMetrics, resetCircuit } from '../services/proxyResilience.js'
 
 export const superAdminRouter = Router()
 
@@ -772,3 +773,21 @@ function safeJsonParse(text: string): unknown {
     return null
   }
 }
+
+// ── Proxy resilience (circuit breakers + retry counters) ────────────────────
+
+superAdminRouter.get('/proxy-health', (_req, res) => {
+  res.json(getResilienceMetrics())
+})
+
+superAdminRouter.post('/proxy-health/circuits/:key/reset', async (req, res: Response) => {
+  const key = String(req.params.key || '')
+  const ok = resetCircuit(key)
+  if (!ok) {
+    res.status(404).json({ message: 'Circuit nao encontrado' })
+    return
+  }
+  const userId = (req as unknown as AuthenticatedRequest).userId ?? ''
+  logAudit({ userId, action: 'proxy_circuit_reset', resource: 'proxy', metadata: { key } })
+  res.json({ ok: true, key })
+})

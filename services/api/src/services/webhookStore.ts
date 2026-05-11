@@ -163,6 +163,19 @@ export async function findWebhookDelivery(tenantId: string, id: string) {
   return readDb().deliveries.find((item) => item.tenantId === tenantId && item.id === id) ?? null
 }
 
-export function signWebhookPayload(secret: string, payload: string): string {
-  return createHmac('sha256', secret).update(payload).digest('hex')
+/**
+ * Assina o payload com HMAC-SHA256. Compativel com formato legado (so payload)
+ * mas chamadores novos devem passar `timestamp` pra incluir prefixo
+ * `<timestamp>.<payload>` (estilo Stripe) — bloqueia replay.
+ */
+export function signWebhookPayload(secret: string, payload: string, timestamp?: number): string {
+  const data = typeof timestamp === 'number' ? `${timestamp}.${payload}` : payload
+  return createHmac('sha256', secret).update(data).digest('hex')
+}
+
+/** Lista deliveries pendentes elegiveis pra reentrega (nextAttemptAt <= now). */
+export async function listPendingRetries(now: number = Date.now()): Promise<WebhookDelivery[]> {
+  const db = readDb()
+  const cutoffIso = new Date(now).toISOString()
+  return db.deliveries.filter((d) => d.status === 'pending' && d.nextAttemptAt !== null && d.nextAttemptAt <= cutoffIso)
 }

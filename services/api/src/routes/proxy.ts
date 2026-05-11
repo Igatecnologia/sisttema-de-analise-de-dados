@@ -14,6 +14,7 @@ import { ConnectorRegistry } from '../connectors/connectorRegistry.js'
 import { findTenantBySlug } from '../tenantStorage.js'
 import { assertSafeExternalUrl, validateExternalApiUrl } from '../utils/urlSafety.js'
 import { logInfo } from '../services/structuredLog.js'
+import { retryableFetch, withCircuit, CircuitOpenError } from '../services/proxyResilience.js'
 
 /**
  * Agente HTTP com keep-alive — reutiliza conexões TCP com a API externa.
@@ -39,6 +40,25 @@ type UFetchInit = Parameters<typeof uFetch>[1]
 async function safeUFetch(url: string, init: UFetchInit) {
   assertSafeExternalUrl(url)
   return uFetch(url, init)
+}
+
+/**
+ * Versao com retry exponencial + circuit breaker por chave (geralmente dsId).
+ * Use em GETs idempotentes. NUNCA use em POST/PUT/DELETE sem chave de idempotencia.
+ *
+ *   - Retry: 3 tentativas em 5xx/408/429 e network reset/timeout, com jitter.
+ *   - Circuit: abre em 5 falhas consecutivas, cooldown 60s, depois half-open probe.
+ */
+async function resilientFetch(
+  circuitKey: string,
+  url: string,
+  init: UFetchInit,
+  retryLabel?: string,
+) {
+  assertSafeExternalUrl(url)
+  return withCircuit(circuitKey, () =>
+    retryableFetch(url, init, uFetch, { label: retryLabel ?? circuitKey }),
+  )
 }
 
 /** Rate limit: máximo 60 chamadas ao proxy por IP a cada 1 min */
@@ -1096,13 +1116,14 @@ proxyRouter.get('/data', async (req, res) => {
   res.setHeader('x-iga-datasource-id', source.id)
   res.setHeader('x-iga-data-endpoint', dataEndpoint)
 
+  const circuitKey = `erp:${source.id}`
   const fetchUrl = async (url: string, authHeaders: Record<string, string>) => {
-    return safeUFetch(url, {
+    return resilientFetch(circuitKey, url, {
       method: 'GET',
       headers: authHeaders,
       signal: AbortSignal.timeout(PROXY_UPSTREAM_MS),
       dispatcher: keepAliveAgent,
-    })
+    }, `proxy:${source.id}`)
   }
 
   const deadlineAt = Date.now() + PROXY_GLOBAL_DEADLINE_MS
@@ -1284,6 +1305,15 @@ proxyRouter.get('/data', async (req, res) => {
   } catch (err) {
     proxyStats.dataErrors++
     markProxyError(err instanceof Error ? err.message : 'erro')
+    if (err instanceof CircuitOpenError) {
+      const retryAfterSec = Math.max(1, Math.ceil((err.retryAt - Date.now()) / 1000))
+      res.setHeader('Retry-After', String(retryAfterSec))
+      return res.status(503).json({
+        message: 'ERP temporariamente indisponivel — protegendo recursos. Tente novamente em alguns segundos.',
+        retryAfterSec,
+        circuit: err.key,
+      })
+    }
     res.status(502).json({
       message: `Falha ao buscar dados. Tente novamente.`,
     })

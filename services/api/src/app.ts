@@ -59,6 +59,7 @@ import { startBackupScheduler } from './jobs/dbBackup.js'
 import { startCopilotRetentionJob } from './jobs/copilotRetention.js'
 import { startWarmCacheJob } from './jobs/warmCache.js'
 import { startTrialLifecycleJob } from './jobs/trialLifecycle.js'
+import { startWebhookRecoveryLoop } from './services/webhookDispatcher.js'
 import { getDbPath } from './db/sqlite.js'
 import { checkPostgresHealth, hasPostgresConfig, postgresTenantContext } from './db/postgres.js'
 import { checkRedisHealth, hasRedisConfig } from './services/redis.js'
@@ -347,6 +348,7 @@ export function createApp(options: CreateAppOptions = {}) {
   if (startSchedulers) startCopilotRetentionJob()
   if (startSchedulers) startWarmCacheJob()
   if (startSchedulers) startTrialLifecycleJob()
+  if (startSchedulers) startWebhookRecoveryLoop()
 
   return app
 }
