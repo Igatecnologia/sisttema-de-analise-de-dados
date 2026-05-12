@@ -54,8 +54,19 @@ function toHeadersObject(headers: Headers): Record<string, string> {
 
 function buildUrl(baseURL: string, url: string, params?: HttpRequestConfig['params']): string {
   const absolute = /^https?:\/\//i.test(url)
-  const base = absolute ? url : `${baseURL.replace(/\/$/, '')}/${url.replace(/^\//, '')}`
-  const parsed = new URL(base)
+  /**
+   * baseURL pode ser vazio (same-origin via Vercel rewrite). Nesse caso new URL()
+   * sem base lanca TypeError. Resolvemos contra window.location.origin no browser
+   * para manter same-origin semantics.
+   */
+  const rawTarget = absolute
+    ? url
+    : `${baseURL.replace(/\/$/, '')}/${url.replace(/^\//, '')}`
+  const fallbackOrigin =
+    typeof window !== 'undefined' ? window.location.origin : 'http://localhost'
+  const parsed = absolute
+    ? new URL(rawTarget)
+    : new URL(rawTarget.startsWith('/') ? rawTarget : `/${rawTarget}`, fallbackOrigin)
   if (params) {
     for (const [key, value] of Object.entries(params)) {
       if (value === null || value === undefined) continue
