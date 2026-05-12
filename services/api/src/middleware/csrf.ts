@@ -46,12 +46,18 @@ export function generateCsrfToken(): string {
 const useSecureCookie =
   process.env.NODE_ENV === 'production' && !process.env.ELECTRON_RUN_AS_NODE
 
+function resolveCookieSameSite(): 'Strict' | 'Lax' | 'None' {
+  const v = process.env.COOKIE_SAMESITE?.trim()
+  if (v === 'None' || v === 'Lax' || v === 'Strict') return v
+  return 'Strict'
+}
+
 export function buildCsrfCookie(token: string): string {
   const parts = [
     `${CSRF_COOKIE}=${token}`,
     'Path=/',
     'Max-Age=28800', // 8h, mesmo que a sessão
-    'SameSite=Strict',
+    `SameSite=${resolveCookieSameSite()}`,
   ]
   if (useSecureCookie) parts.push('Secure')
   // NÃO HttpOnly — o frontend precisa ler esse cookie

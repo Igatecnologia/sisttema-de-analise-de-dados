@@ -74,13 +74,26 @@ authRouter.use(maxBodySize(4 * 1024))
 const useSecureCookie =
   process.env.NODE_ENV === 'production' && !process.env.ELECTRON_RUN_AS_NODE
 
+/**
+ * SameSite policy para cookies de auth.
+ * - Default Strict (mais seguro — single-origin like front+back no mesmo dominio)
+ * - None: cross-origin (ex.: vercel.app frontend + fly.dev backend). Require Secure.
+ * - Lax: meio-termo (envia em top-level navigation; bom default p/ SaaS).
+ * Override via env COOKIE_SAMESITE=Strict|Lax|None.
+ */
+function resolveCookieSameSite(): 'Strict' | 'Lax' | 'None' {
+  const v = process.env.COOKIE_SAMESITE?.trim()
+  if (v === 'None' || v === 'Lax' || v === 'Strict') return v
+  return 'Strict'
+}
+
 function buildSessionCookie(token: string): string {
   const parts = [
     `iga_session=${encodeURIComponent(token)}`,
     'HttpOnly',
     'Path=/',
     'Max-Age=28800',
-    'SameSite=Strict',
+    `SameSite=${resolveCookieSameSite()}`,
   ]
   if (useSecureCookie) parts.push('Secure')
   return parts.join('; ')
@@ -93,7 +106,7 @@ function buildRefreshCookie(token: string, expiresAt: number): string {
     'HttpOnly',
     'Path=/api/v1/auth/refresh',
     `Max-Age=${maxAge}`,
-    'SameSite=Strict',
+    `SameSite=${resolveCookieSameSite()}`,
   ]
   if (useSecureCookie) parts.push('Secure')
   return parts.join('; ')
@@ -105,7 +118,7 @@ function clearSessionCookie(): string {
     'HttpOnly',
     'Path=/',
     'Max-Age=0',
-    'SameSite=Strict',
+    `SameSite=${resolveCookieSameSite()}`,
   ]
   if (useSecureCookie) parts.push('Secure')
   return parts.join('; ')
@@ -117,7 +130,7 @@ function clearRefreshCookie(): string {
     'HttpOnly',
     'Path=/api/v1/auth/refresh',
     'Max-Age=0',
-    'SameSite=Strict',
+    `SameSite=${resolveCookieSameSite()}`,
   ]
   if (useSecureCookie) parts.push('Secure')
   return parts.join('; ')

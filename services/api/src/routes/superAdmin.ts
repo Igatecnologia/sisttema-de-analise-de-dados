@@ -55,13 +55,19 @@ function usePostgresStorage(): boolean {
 const useSecureCookie =
   process.env.NODE_ENV === 'production' && !process.env.ELECTRON_RUN_AS_NODE
 
+function resolveCookieSameSite(): 'Strict' | 'Lax' | 'None' {
+  const v = process.env.COOKIE_SAMESITE?.trim()
+  if (v === 'None' || v === 'Lax' || v === 'Strict') return v
+  return 'Strict'
+}
+
 function buildCookie(name: string, value: string, maxAgeSeconds: number): string {
   const parts = [
     `${name}=${encodeURIComponent(value)}`,
     'HttpOnly',
     'Path=/',
     `Max-Age=${maxAgeSeconds}`,
-    'SameSite=Strict',
+    `SameSite=${resolveCookieSameSite()}`,
   ]
   if (useSecureCookie) parts.push('Secure')
   return parts.join('; ')
@@ -73,7 +79,7 @@ function clearCookie(name: string): string {
     'HttpOnly',
     'Path=/',
     'Max-Age=0',
-    'SameSite=Strict',
+    `SameSite=${resolveCookieSameSite()}`,
   ]
   if (useSecureCookie) parts.push('Secure')
   return parts.join('; ')
