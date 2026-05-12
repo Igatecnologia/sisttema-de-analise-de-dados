@@ -371,6 +371,39 @@ demoSgbrRouter.get('/compras', (req: Request, res: Response) => {
   res.json(rows)
 })
 
+// ── Contas a receber ───────────────────────────────────────────────────────
+demoSgbrRouter.get('/contas/receber', (req: Request, res: Response) => {
+  const { dtDe, dtAte } = readDateQuery(req)
+  const rng = mulberry32(606)
+  const rows: Record<string, unknown>[] = []
+  let nrTitulo = 70000
+
+  for (let d = 89; d >= 0; d--) {
+    const data = daysAgo(d)
+    if (!inRange(data, dtDe, dtAte)) continue
+    if (rng() > 0.3) continue
+    const cli = pick(rng, CLIENTES)
+    const valor = round2(1500 + rng() * 18000)
+    const venceuHa = randInt(rng, -30, 45)
+    const situacao = venceuHa > 0 ? (venceuHa > 14 ? 'EM_ATRASO' : 'VENCIDO') : 'EM_ABERTO'
+    rows.push({
+      nrtitulo: nrTitulo++,
+      codcliente: cli.cod,
+      cliente: cli.nome,
+      nomecliente: cli.nome,
+      cnpjcliente: cli.doc,
+      dataemis: fmtIso(data),
+      datavenc: fmtIso(daysAgo(d - 30)),
+      datavencimento: fmtIso(daysAgo(d - 30)),
+      valor,
+      valoraberto: situacao === 'EM_ABERTO' ? valor : round2(valor * 0.4),
+      situacao,
+      formapagamento: pick(rng, ['BOLETO', 'PIX', 'CARTAO']),
+    })
+  }
+  res.json(rows)
+})
+
 // ── Contas pagas ───────────────────────────────────────────────────────────
 demoSgbrRouter.get('/contas/pagas', (req: Request, res: Response) => {
   const { dtDe, dtAte } = readDateQuery(req)
