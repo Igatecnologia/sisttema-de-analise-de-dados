@@ -13,6 +13,7 @@ import { usersRouter } from './routes/users.js'
 import { dashboardRouter } from './routes/dashboard.js'
 import { reportsRouter } from './routes/reports.js'
 import { auditRouter } from './routes/audit.js'
+import { demoSgbrRouter } from './routes/demoSgbr.js'
 import { erpRouter } from './routes/erp.js'
 import { financeRouter } from './routes/finance.js'
 import { seedDefaultAdmin } from './seedAdmin.js'
@@ -189,6 +190,12 @@ export function createApp(options: CreateAppOptions = {}) {
     return express.json({ limit: '1mb' })(req, res, next)
   })
   app.use(blockPrototypePollution)
+  /**
+   * Mock SGBR-BI: rotas /sgbrbi/* simulam a API externa da Tiete Espumas para o
+   * tenant em modo demo. Sem CSRF/auth (simula servidor externo público).
+   * Quando o api_url do datasource aponta pro próprio host, o proxy chama estas rotas.
+   */
+  app.use('/sgbrbi', demoSgbrRouter)
   app.use(csrfProtection)
   app.use(jsonRequestLog)
   app.use(postgresTenantContext)
