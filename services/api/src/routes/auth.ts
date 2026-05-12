@@ -12,6 +12,7 @@ import {
 } from '../userStorage.js'
 import { resolveEffectivePermissions } from '../permissions.js'
 import { registerToken, revokeToken, revokeAllUserSessions, requireAuth, requireAdmin, type AuthenticatedRequest } from '../middleware/auth.js'
+import { ipKeyGenerator } from 'express-rate-limit'
 import { redisRateLimit } from '../middleware/redisRateLimit.js'
 import { resolveTenantId } from '../utils/tenant.js'
 import { logAudit } from '../services/auditLog.js'
@@ -231,7 +232,7 @@ const forgotPasswordEmailLimiter = redisRateLimit({
   max: 5,
   keyGenerator: (req): string => {
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
-    return email || (req.ip ?? 'anon')
+    return email || ipKeyGenerator(req.ip ?? req.socket.remoteAddress ?? 'anon')
   },
   message: { message: 'Muitas solicitacoes para este email. Aguarde 1 hora.' },
 })

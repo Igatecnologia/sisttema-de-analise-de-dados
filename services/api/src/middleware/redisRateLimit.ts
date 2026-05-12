@@ -1,6 +1,16 @@
-import rateLimit, { type Options } from 'express-rate-limit'
+import rateLimit, { ipKeyGenerator, type Options } from 'express-rate-limit'
 import RedisStore from 'rate-limit-redis'
 import { getRedisClient, hasRedisConfig } from '../services/redis.js'
+
+/**
+ * Default keyGenerator que normaliza o IP via `ipKeyGenerator` (IPv6-safe).
+ * O Fly.io entrega clientes via IPv6 — usar `req.ip` direto faz o express-rate-limit
+ * v7+ rejeitar com ValidationError, deixando a request travada por 30s no proxy.
+ * Chamadores podem sobrescrever o keyGenerator (ex.: bucket por email no /forgot).
+ */
+function defaultIpKeyGenerator(req: import('express').Request) {
+  return ipKeyGenerator(req.ip ?? req.socket.remoteAddress ?? 'unknown')
+}
 
 /**
  * Wrapper de express-rate-limit que usa rate-limit-redis quando REDIS_URL esta
@@ -25,11 +35,13 @@ type RedisRateLimitOptions = Partial<Options> & {
 
 export function redisRateLimit(opts: RedisRateLimitOptions) {
   const { namespace, ...rest } = opts
+  const keyGenerator = rest.keyGenerator ?? defaultIpKeyGenerator
   if (hasRedisConfig()) {
     try {
       const client = getRedisClient()
       return rateLimit({
         ...rest,
+        keyGenerator,
         standardHeaders: rest.standardHeaders ?? true,
         legacyHeaders: rest.legacyHeaders ?? false,
         store: new RedisStore({
@@ -47,6 +59,7 @@ export function redisRateLimit(opts: RedisRateLimitOptions) {
   }
   return rateLimit({
     ...rest,
+    keyGenerator,
     standardHeaders: rest.standardHeaders ?? true,
     legacyHeaders: rest.legacyHeaders ?? false,
   })
