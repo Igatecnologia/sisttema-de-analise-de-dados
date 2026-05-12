@@ -14,6 +14,7 @@ import { buildSessionBinding } from '../services/sessionStore.js'
 import { resolveEffectivePermissions } from '../permissions.js'
 import { readAllAsync as readAllDataSourcesAsync } from '../storage.js'
 import { getResilienceMetrics, resetCircuit } from '../services/proxyResilience.js'
+import { createTenantWithAdmin, createTenantWithAdminSchema } from '../services/tenantBootstrap.js'
 
 export const superAdminRouter = Router()
 
@@ -244,6 +245,48 @@ superAdminRouter.get('/tenants', async (_req, res) => {
       }, {}),
     },
   })
+})
+
+/**
+ * POST /api/v1/super-admin/tenants/bootstrap
+ * Cria uma empresa nova completa: tenant + subscription + onboarding completed
+ * + admin user em 1 chamada idempotente. Use ao invés de POST /tenants quando
+ * precisar do admin inicial pronto pra login. `name` é obrigatório.
+ *
+ * Idempotente: se o slug ja existe, retorna alreadyExisted=true sem sobrescrever
+ * o tenant. Atualiza apenas subscription + onboarding + admin (senha/nome).
+ *
+ * Resposta: { tenant, admin: { id, email, name, role }, alreadyExisted }
+ */
+superAdminRouter.post('/tenants/bootstrap', async (req, res: Response) => {
+  const authReq = req as unknown as AuthenticatedRequest
+  const parsed = createTenantWithAdminSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({
+      message: parsed.error.issues[0]?.message ?? 'Dados invalidos',
+      issues: parsed.error.issues,
+    })
+  }
+  try {
+    const result = await createTenantWithAdmin(parsed.data)
+    logAudit({
+      userId: authReq.userId,
+      tenantId: authReq.tenantId,
+      action: 'super_admin_tenant_bootstrapped',
+      resource: 'super_admin',
+      metadata: {
+        tenantId: result.tenant.id,
+        slug: result.tenant.slug,
+        name: result.tenant.name,
+        adminEmail: result.admin.email,
+        alreadyExisted: result.alreadyExisted,
+      },
+    })
+    res.status(result.alreadyExisted ? 200 : 201).json(result)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erro ao criar empresa'
+    res.status(500).json({ message })
+  }
 })
 
 superAdminRouter.post('/tenants', async (req, res: Response) => {
