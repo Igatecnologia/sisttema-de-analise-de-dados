@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { readAllAsync, writeAllAsync, genId, runWithDatasourcesLock, type DataSource } from '../storage.js'
+import { deleteDataSourceAsync, readAllAsync, upsertDataSourceAsync, genId, runWithDatasourcesLock, type DataSource } from '../storage.js'
 import { testConnection } from '../services/connectionTester.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireAuthOrApiKeyScope } from '../middleware/apiKeyAuth.js'
@@ -310,10 +310,7 @@ dataSourceRouter.post('/', async (req, res) => {
     createdAt: now,
     updatedAt: now,
   }
-  await runWithDatasourcesLock(async () => {
-    const all = await readAllAsync()
-    await writeAllAsync([...all, ds])
-  })
+  await runWithDatasourcesLock(() => upsertDataSourceAsync(ds))
   res.status(201).json(toPublicDataSource(ds))
 })
 
@@ -392,10 +389,7 @@ dataSourceRouter.post('/bulk', async (req, res) => {
       updatedAt: now,
     }
     try {
-      await runWithDatasourcesLock(async () => {
-        const all = await readAllAsync()
-        await writeAllAsync([...all, ds])
-      })
+      await runWithDatasourcesLock(() => upsertDataSourceAsync(ds))
       created.push({ index: i, id: ds.id, name: ds.name })
     } catch (err) {
       failed.push({ index: i, name: body.name, reason: (err as Error).message ?? 'Falha ao gravar' })
@@ -451,7 +445,7 @@ dataSourceRouter.put('/:id', async (req, res) => {
       updatedAt: new Date().toISOString(),
     }
     updated = all[idx]
-    await writeAllAsync(all)
+    await upsertDataSourceAsync(updated)
   })
 
   if (!updated) return res.status(404).json({ message: 'Nao encontrada' })
@@ -461,9 +455,8 @@ dataSourceRouter.put('/:id', async (req, res) => {
 // DELETE /:id
 dataSourceRouter.delete('/:id', async (req, res) => {
   const tenantId = resolveTenantId(req)
-  await runWithDatasourcesLock(async () => {
-    await writeAllAsync((await readAllAsync()).filter((d) => !(d.id === req.params.id && d.tenantId === tenantId)))
-  })
+  const deleted = await runWithDatasourcesLock(() => deleteDataSourceAsync(req.params.id, tenantId))
+  if (!deleted) return res.status(404).json({ message: 'Nao encontrada' })
   res.json({ ok: true })
 })
 
@@ -481,18 +474,12 @@ dataSourceRouter.post('/:id/test', dataSourceTestLimiter, async (req, res) => {
 
   const result = await testConnection(ds)
 
-  await runWithDatasourcesLock(async () => {
-    const list = await readAllAsync()
-    const idx = list.findIndex((d) => d.id === ds.id && d.tenantId === tenantId)
-    if (idx < 0) return
-    list[idx] = {
-      ...list[idx],
-      status: result.success ? 'connected' : 'error',
-      lastCheckedAt: new Date().toISOString(),
-      lastError: result.success ? null : result.message,
-    }
-    await writeAllAsync(list)
-  })
+  await runWithDatasourcesLock(() => upsertDataSourceAsync({
+    ...ds,
+    status: result.success ? 'connected' : 'error',
+    lastCheckedAt: new Date().toISOString(),
+    lastError: result.success ? null : result.message,
+  }))
 
   res.json(result)
 })

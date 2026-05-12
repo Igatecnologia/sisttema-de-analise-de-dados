@@ -1,8 +1,9 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import {
+  deleteUserByIdAsync,
   readAllUsersAsync,
-  writeAllUsersAsync,
+  upsertUserAsync,
   genUserId,
   hashUserPassword,
   type UserRecord,
@@ -104,7 +105,7 @@ usersRouter.post('/', createUserLimiter, async (req, res) => {
     }),
   }
 
-  await writeAllUsersAsync([...all, user])
+  await upsertUserAsync(user)
 
   /** Welcome email — fire-and-forget; falha de SMTP não bloqueia criação. */
   void (async () => {
@@ -169,7 +170,7 @@ usersRouter.put('/:id', async (req, res) => {
 
   all[idx] = next
 
-  await writeAllUsersAsync(all)
+  await upsertUserAsync(all[idx])
   res.json(sanitize(all[idx]))
 })
 
@@ -184,19 +185,21 @@ usersRouter.delete('/:id', async (req, res) => {
 
   const all = await readAllUsersAsync()
   const target = all.find((u) => u.id === req.params.id && u.tenantId === authReq.tenantId)
-  const filtered = target ? all.filter((u) => u.id !== req.params.id) : all
-  if (filtered.length === all.length) {
+  if (!target) {
     return res.status(404).json({ message: 'Usuario nao encontrado' })
   }
 
   // Impedir exclusão do último admin
-  if (target?.role === 'admin') {
-    const remainingAdmins = filtered.filter((u) => u.tenantId === authReq.tenantId && u.role === 'admin' && u.status === 'active')
+  if (target.role === 'admin') {
+    const remainingAdmins = all.filter(
+      (u) => u.tenantId === authReq.tenantId && u.id !== target.id && u.role === 'admin' && u.status === 'active',
+    )
     if (remainingAdmins.length === 0) {
       return res.status(400).json({ message: 'Nao e possivel excluir o ultimo administrador ativo' })
     }
   }
 
-  await writeAllUsersAsync(filtered)
+  const deleted = await deleteUserByIdAsync(target.id, authReq.tenantId)
+  if (!deleted) return res.status(404).json({ message: 'Usuario nao encontrado' })
   res.json({ ok: true })
 })

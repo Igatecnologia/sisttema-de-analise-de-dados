@@ -1,6 +1,6 @@
 import { Router, type Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js'
-import { findUserByIdForTenantAsync, writeAllUsersAsync, readAllUsersAsync } from '../userStorage.js'
+import { findUserByIdForTenantAsync, upsertUserAsync, readAllUsersAsync } from '../userStorage.js'
 import { findTenantBySlug } from '../tenantStorage.js'
 import { logAudit } from '../services/auditLog.js'
 import { revokeAllUserSessions } from '../middleware/auth.js'
@@ -88,7 +88,7 @@ lgpdRouter.post('/anonymize', async (req, res: Response) => {
     status: 'inactive',
     updatedAt: new Date().toISOString(),
   }
-  await writeAllUsersAsync(all)
+  await upsertUserAsync(all[idx])
   await revokeAllUserSessions(authReq.userId)
   logAudit({
     userId: authReq.userId,
@@ -125,7 +125,7 @@ lgpdRouter.post('/erase', async (req, res: Response) => {
     status: 'inactive',
     updatedAt: new Date().toISOString(),
   }
-  await writeAllUsersAsync(all)
+  await upsertUserAsync(all[idx])
   await revokeAllUserSessions(authReq.userId)
   logAudit({
     userId: authReq.userId,

@@ -7,7 +7,7 @@
  */
 import { getDb } from '../db/sqlite.js'
 import { getPostgresPool, hasPostgresConfig } from '../db/postgres.js'
-import { verifyUserPassword } from '../userStorage.js'
+import { verifyUserPasswordAsync } from '../userStorage.js'
 
 const HISTORY_SIZE = 5
 const RETENTION_DAYS = 365
@@ -51,7 +51,7 @@ async function getRecentHashes(userId: string): Promise<string[]> {
 export async function isPasswordReused(userId: string, plaintextPassword: string): Promise<boolean> {
   const recent = await getRecentHashes(userId)
   for (const hash of recent) {
-    if (verifyUserPassword(plaintextPassword, hash)) return true
+    if (await verifyUserPasswordAsync(plaintextPassword, hash)) return true
   }
   return false
 }

@@ -165,48 +165,108 @@ export function writeAllUsers(items: UserRecord[]) {
   invalidateUserCache()
 }
 
-export async function writeAllUsersAsync(items: UserRecord[]) {
+/**
+ * UPSERT idempotente de **um** user. Substitui o anti-pattern de chamar
+ * `writeAllUsersAsync([...all, user])` que apagava todos os users antes.
+ * Escopo de tenant é respeitado via `tenant_id` no INSERT/UPDATE.
+ */
+export async function upsertUserAsync(user: UserRecord): Promise<void> {
   if (usePostgresStorage()) {
     const contextClient = getPostgresClientFromContext()
     const client = contextClient ?? await getPostgresPool().connect()
+    const ownsConnection = !contextClient
     try {
-      if (!contextClient) await client.query('BEGIN')
-      await client.query('DELETE FROM users')
-      for (const item of items) {
-        await client.query(
-          `
-          INSERT INTO users (
-            id, tenant_id, name, email, role, status, permissions_json, password_hash, must_change_password, email_verified_at, preferences_json, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULL, $11, $12)
-          `,
-          [
-            item.id,
-            item.tenantId,
-            item.name,
-            item.email.toLowerCase(),
-            item.role,
-            item.status,
-            item.permissions?.length ? JSON.stringify(item.permissions) : null,
-            item.passwordHash,
-            item.mustChangePassword ?? false,
-            item.emailVerifiedAt ?? null,
-            item.createdAt,
-            item.updatedAt,
-          ],
-        )
-      }
-      if (!contextClient) await client.query('COMMIT')
-    } catch (err) {
-      if (!contextClient) await client.query('ROLLBACK')
-      throw err
+      await client.query(
+        `
+        INSERT INTO users (
+          id, tenant_id, name, email, role, status, permissions_json, password_hash,
+          must_change_password, email_verified_at, preferences_json, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULL, $11, $12)
+        ON CONFLICT (id) DO UPDATE SET
+          tenant_id = EXCLUDED.tenant_id,
+          name = EXCLUDED.name,
+          email = EXCLUDED.email,
+          role = EXCLUDED.role,
+          status = EXCLUDED.status,
+          permissions_json = EXCLUDED.permissions_json,
+          password_hash = EXCLUDED.password_hash,
+          must_change_password = EXCLUDED.must_change_password,
+          email_verified_at = EXCLUDED.email_verified_at,
+          updated_at = EXCLUDED.updated_at
+        `,
+        [
+          user.id,
+          user.tenantId,
+          user.name,
+          user.email.toLowerCase(),
+          user.role,
+          user.status,
+          user.permissions?.length ? JSON.stringify(user.permissions) : null,
+          user.passwordHash,
+          user.mustChangePassword ?? false,
+          user.emailVerifiedAt ?? null,
+          user.createdAt,
+          user.updatedAt,
+        ],
+      )
     } finally {
-      if (!contextClient) client.release()
+      if (ownsConnection) client.release()
     }
     invalidateUserCache()
     return
   }
+  // SQLite (dev): emula UPSERT por delete-then-insert sem afetar outros users.
+  db.prepare('DELETE FROM users WHERE id = ?').run(user.id)
+  db.prepare(`
+    INSERT INTO users (
+      id, tenant_id, name, email, role, status, permissions_json, password_hash, must_change_password, email_verified_at, preferences_json, created_at, updated_at
+    ) VALUES (@id, @tenant_id, @name, @email, @role, @status, @permissions_json, @password_hash, @must_change_password, @email_verified_at, NULL, @created_at, @updated_at)
+  `).run({
+    id: user.id,
+    tenant_id: user.tenantId,
+    name: user.name,
+    email: user.email.toLowerCase(),
+    role: user.role,
+    status: user.status,
+    permissions_json: user.permissions?.length ? JSON.stringify(user.permissions) : null,
+    password_hash: user.passwordHash,
+    must_change_password: user.mustChangePassword ? 1 : 0,
+    email_verified_at: user.emailVerifiedAt ?? null,
+    created_at: user.createdAt,
+    updated_at: user.updatedAt,
+  })
+  invalidateUserCache()
+}
 
-  writeAllUsers(items)
+/**
+ * DELETE escopado por tenant — evita apagar user de outro tenant por id colidido.
+ * Retorna true se deletou; false caso não exista no tenant informado.
+ */
+export async function deleteUserByIdAsync(userId: string, tenantId: string): Promise<boolean> {
+  assertTenantId(tenantId, 'deleteUserByIdAsync')
+  if (!userId) return false
+  if (usePostgresStorage()) {
+    const result = await queryPostgres(
+      'DELETE FROM users WHERE id = $1 AND tenant_id = $2',
+      [userId, tenantId],
+    )
+    invalidateUserCache()
+    return Boolean(result.rowCount && result.rowCount > 0)
+  }
+  const result = db.prepare('DELETE FROM users WHERE id = ? AND tenant_id = ?').run(userId, tenantId)
+  invalidateUserCache()
+  return result.changes > 0
+}
+
+/**
+ * @deprecated Anti-pattern: faz UPSERT em cada item mas NÃO remove users
+ * que não estão na lista. Use `upsertUserAsync` para mutações pontuais
+ * e `deleteUserByIdAsync` para remoções. Mantida apenas para fluxos de seed.
+ */
+export async function writeAllUsersAsync(items: UserRecord[]) {
+  for (const item of items) {
+    await upsertUserAsync(item)
+  }
 }
 
 export function genUserId(): string {

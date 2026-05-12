@@ -1,10 +1,11 @@
 import { Router, type Response } from 'express'
 import { z } from 'zod'
 import {
+  deleteUserByIdAsync,
+  findUserByIdForTenantAsync,
   genUserId,
   readAllUsersAsync,
-  writeAllUsersAsync,
-  verifyUserPassword,
+  upsertUserAsync,
   verifyUserPasswordAsync,
   hashUserPassword,
   hashUserPasswordAsync,
@@ -337,15 +338,14 @@ authRouter.post('/login', tenantAuthLimiter, loginLimiter, requireTurnstile, asy
 
   await clearLoginFailures(tenantId, normalizedEmail)
 
-  /** SEC-1.2 graceful migration: rehash para argon2id no proximo login bem-sucedido. */
+  /** SEC-1.2 graceful migration: rehash para argon2id no proximo login bem-sucedido.
+   *  Usa upsert escopado ao user atual — antes chamava writeAllUsersAsync que
+   *  fazia DELETE FROM users + reinsert all, abortando a transacao do middleware
+   *  postgresTenantContext via RLS (bug A-C2 do audit 2026-05-12). */
   if (isLegacyPasswordHash(user.passwordHash)) {
     try {
       const upgradedHash = await hashUserPasswordAsync(password)
-      const idx = allUsers.findIndex((u) => u.id === user.id)
-      if (idx >= 0) {
-        allUsers[idx] = { ...allUsers[idx], passwordHash: upgradedHash, updatedAt: new Date().toISOString() }
-        await writeAllUsersAsync(allUsers)
-      }
+      await upsertUserAsync({ ...user, passwordHash: upgradedHash, updatedAt: new Date().toISOString() })
     } catch {
       /** Falha no rehash nao impede o login. */
     }
@@ -424,11 +424,21 @@ authRouter.post('/refresh', async (req, res) => {
     return res.status(401).json({ message: 'Refresh token invalido ou expirado' })
   }
   /** Cria novo access token na mesma "sessao" (registerToken). */
-  const tenant = await findTenantBySlug(result.tenantId)
+  const [tenant, user] = await Promise.all([
+    findTenantBySlug(result.tenantId),
+    findUserByIdForTenantAsync(result.userId, result.tenantId),
+  ])
+  /** SEC: NUNCA assumir role='admin' aqui — privilege escalation. Se o user
+   *  sumiu (deletado entre o refresh e este lookup), revoga a sessao. */
+  if (!user || user.status !== 'active') {
+    res.setHeader('Set-Cookie', clearRefreshCookie())
+    logAudit({ userId: result.userId, action: 'refresh_user_missing', resource: 'auth', metadata: { ip: req.ip, tenantId: result.tenantId } })
+    return res.status(401).json({ message: 'Sessao invalida. Faca login novamente.', revoked: true })
+  }
   const accessToken = signSessionJwt({
     sub: result.userId,
     tid: result.tenantId,
-    role: 'admin',
+    role: user.role,
     plan: tenant?.plan ?? 'trial',
   })
   await registerToken(accessToken, result.userId, result.tenantId, binding)
@@ -508,7 +518,7 @@ authRouter.post('/change-password', requireAuth, changePasswordLimiter, async (r
   const idx = all.findIndex((u) => u.id === authReq.userId)
   if (idx < 0) return res.status(404).json({ message: 'Usuario nao encontrado' })
 
-  if (!verifyUserPassword(currentPassword, all[idx].passwordHash)) {
+  if (!(await verifyUserPasswordAsync(currentPassword, all[idx].passwordHash))) {
     logAudit({ userId: authReq.userId, action: 'password_change_failed', resource: 'auth', metadata: { ip: req.ip } })
     return res.status(401).json({ message: 'Senha atual incorreta' })
   }
@@ -525,7 +535,7 @@ authRouter.post('/change-password', requireAuth, changePasswordLimiter, async (r
     mustChangePassword: false,
     updatedAt: new Date().toISOString(),
   }
-  await writeAllUsersAsync(all)
+  await upsertUserAsync(all[idx])
   await recordPasswordHistory(authReq.userId, newHash).catch(() => undefined)
   logAudit({ userId: authReq.userId, action: 'password_changed', resource: 'auth', metadata: { ip: req.ip } })
   /** SEC-2.10: alerta o usuario que a senha mudou — best-effort, fora do critical path. */
@@ -621,7 +631,7 @@ authRouter.post('/register', tenantAuthLimiter, requireTurnstile, async (req, re
     createdAt: now,
     updatedAt: now,
   }
-  await writeAllUsersAsync([...users, user])
+  await upsertUserAsync(user)
   const verification = await createAuthActionToken({
     tenantId: tenant.id,
     userId: user.id,
@@ -715,7 +725,7 @@ authRouter.post('/accept-invite', tenantAuthLimiter, async (req, res) => {
     createdAt: now,
     updatedAt: now,
   }
-  await writeAllUsersAsync([...users, user])
+  await upsertUserAsync(user)
   logAudit({ userId: user.id, action: 'invite_accepted', resource: 'auth', metadata: { tenantId: invite.tenantId } })
   res.status(201).json({ ok: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } })
 })
@@ -796,7 +806,7 @@ authRouter.post('/reset-password', tenantAuthLimiter, async (req, res) => {
     mustChangePassword: false,
     updatedAt: new Date().toISOString(),
   }
-  await writeAllUsersAsync(users)
+  await upsertUserAsync(users[idx])
   await recordPasswordHistory(users[idx].id, newHash).catch(() => undefined)
   await revokeAllUserSessions(users[idx].id)
   logAudit({ userId: users[idx].id, action: 'password_reset_completed', resource: 'auth', metadata: { tenantId: reset.tenantId } })
@@ -815,7 +825,7 @@ authRouter.post('/verify-email', tenantAuthLimiter, async (req, res) => {
     const idx = users.findIndex((u) => u.id === verification.userId && u.tenantId === verification.tenantId)
     if (idx >= 0) {
       users[idx] = { ...users[idx], emailVerifiedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-      await writeAllUsersAsync(users)
+      await upsertUserAsync(users[idx])
     }
   }
   logAudit({ userId: verification.userId ?? undefined, action: 'email_verified', resource: 'auth', metadata: { tenantId: verification.tenantId } })
