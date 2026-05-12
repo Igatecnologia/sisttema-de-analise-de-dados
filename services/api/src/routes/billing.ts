@@ -30,7 +30,7 @@ function usePostgresStorage(): boolean {
  * deve responder 200 OK sem reprocessar). Em caso de erro de DB, log e retorna
  * true (fail-open: melhor processar duas vezes que cair em loop infinito).
  */
-async function reserveWebhookEvent(eventId: string, source: string, eventType: string): Promise<boolean> {
+export async function reserveWebhookEvent(eventId: string, source: string, eventType: string): Promise<boolean> {
   const now = new Date().toISOString()
   try {
     if (usePostgresStorage()) {
