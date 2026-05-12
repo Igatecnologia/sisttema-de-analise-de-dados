@@ -76,6 +76,26 @@ function resolveTenantIdForPostgresContext(req: Request): string {
   return resolveTenantId(req)
 }
 
+/**
+ * A-C1 (audit 2026-05-12): patch minimo de robustez.
+ *
+ * Antes: BEGIN dependia de `res.on('finish'/'close')` para COMMIT/ROLLBACK.
+ * Se a query inicial (BEGIN/SET LOCAL/SELECT set_config) falhava, `next(err)`
+ * caia no handler global mas a conexao ja tinha sido pega do pool sem
+ * ROLLBACK garantido. Tambem: `release()` era chamado sem await — qualquer
+ * erro nele virava `unhandledRejection` (causou o crash + reboot do Fly hoje).
+ *
+ * Mudancas:
+ *  1) try/catch ao redor do BEGIN/SET inicial — se falhar, ROLLBACK + release
+ *     ANTES de propagar via next(err).
+ *  2) `client.on('error', ...)` swallow + audit — sem isso, qualquer erro
+ *     async no client (timeout server-side, idle_in_transaction kill) virava
+ *     uncaughtException que reinicia o processo.
+ *  3) Idempotencia de release via flag `finished` mantida; await em
+ *     COMMIT/ROLLBACK.
+ *  4) Fallback para garantir release no `next tick` se nem finish nem close
+ *     dispararem (defesa em profundidade).
+ */
 export function postgresTenantContext(req: Request, res: Response, next: NextFunction) {
   if (process.env.IGA_STORAGE_DRIVER !== 'postgres' || !hasPostgresConfig() || !req.path.startsWith('/api/')) {
     return next()
@@ -92,23 +112,36 @@ export function postgresTenantContext(req: Request, res: Response, next: NextFun
         finished = true
         try {
           await client.query(commit ? 'COMMIT' : 'ROLLBACK')
-        } catch {
-          // A conexao sera liberada de qualquer forma.
+        } catch (err) {
+          /** Postgres pode ter encerrado a conexao (timeout, idle-in-transaction).
+           *  Nao re-lancamos: connection pool ja vai descartar. */
+          console.warn('[IGA][pg-middleware] release() commit/rollback falhou:', err instanceof Error ? err.message : err)
         } finally {
-          client.release()
+          try { client.release() } catch { /* idempotente */ }
         }
       }
 
-      await client.query('BEGIN')
-      await client.query('SET LOCAL ROLE iga_app')
-      await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [tenantId])
-
-      res.on('finish', () => {
-        void release(res.statusCode < 500)
-      })
-      res.on('close', () => {
+      /** Sem este listener, erros async no client (ex: server-side termination
+       *  via idle_in_transaction_session_timeout) viram uncaughtException. */
+      client.on('error', (err) => {
+        console.warn('[IGA][pg-middleware] client error event:', err.message)
         void release(false)
       })
+
+      try {
+        await client.query('BEGIN')
+        await client.query('SET LOCAL ROLE iga_app')
+        await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [tenantId])
+      } catch (initErr) {
+        /** BEGIN/SET falhou — libera conexao IMEDIATAMENTE antes de cair no
+         *  error handler global. Senao a conexao fica "presa" no pool ate
+         *  idle_in_transaction matar (5min). */
+        await release(false)
+        return next(initErr)
+      }
+
+      res.on('finish', () => { void release(res.statusCode < 500) })
+      res.on('close', () => { void release(false) })
 
       requestPgClient.run(client, () => next())
     })

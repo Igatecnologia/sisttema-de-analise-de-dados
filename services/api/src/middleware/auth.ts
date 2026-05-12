@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { Request, Response, NextFunction } from 'express'
 import { findUserByIdForTenantAsync } from '../userStorage.js'
 import {
@@ -11,6 +12,9 @@ import {
   type SessionBinding,
 } from '../services/sessionStore.js'
 import { verifySessionJwt } from '../services/sessionJwt.js'
+import { logAudit } from '../services/auditLog.js'
+
+const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 export interface AuthenticatedRequest extends Request {
   userId: string
@@ -100,9 +104,31 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
    * indica session hijack ou cookie roubado. Forca reauth.
    * IP nao bloqueia (celular muda subnet); fica para alerta por email.
    */
+  const currentUa = typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : ''
   if (sessionRow.uaFamily) {
-    const currentFamily = detectUaFamily(typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : '')
+    const currentFamily = detectUaFamily(currentUa)
     if (currentFamily !== 'other' && sessionRow.uaFamily !== 'other' && currentFamily !== sessionRow.uaFamily) {
+      await revokeToken(token)
+      return res.status(401).json({ message: 'Sessao expirada por mudanca de dispositivo. Faca login novamente.' })
+    }
+  }
+
+  /**
+   * S-A2 (audit 2026-05-12): mutations exigem binding mais estrito — UA-string
+   * completo (uaHash) ou IP devem bater. CSRF post-hijack passa a UA family
+   * check mas geralmente muda User-Agent completo. Bloqueia apenas em mutations
+   * (GET segue tolerante a updates de browser/network).
+   */
+  if (MUTATION_METHODS.has(req.method) && sessionRow.uaHash) {
+    const currentUaHash = createHash('sha256').update(currentUa, 'utf8').digest('hex')
+    if (currentUaHash !== sessionRow.uaHash) {
+      logAudit({
+        userId: sessionRow.userId,
+        tenantId: sessionRow.tenantId,
+        action: 'session_binding_violation',
+        resource: 'auth',
+        metadata: { method: req.method, path: req.path, ip: req.ip },
+      })
       await revokeToken(token)
       return res.status(401).json({ message: 'Sessao expirada por mudanca de dispositivo. Faca login novamente.' })
     }
