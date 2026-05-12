@@ -14,7 +14,25 @@ const preferencesSchema = z.object({
   dashboardLayout: z.array(z.string().max(80)).max(40).optional(),
   /** Layout de widgets por pagina: { dashboard: ['a','b'], operacional: [...] } */
   pageLayouts: z.record(z.string().max(40), z.array(z.string().max(80)).max(40)).optional(),
+  /** P0-05 (audit 2026-05-12): LGPD Art. 18 IX — revogação granular de consentimento.
+   *  Quando true, /copilot/chat retorna 403 sem processar nada. */
+  copilotOptOut: z.boolean().optional(),
 })
+
+/**
+ * Helper para outros módulos checarem o opt-out sem ter que parsear JSON
+ * manualmente. Retorna `true` se o user explicitamente desativou o Copilot.
+ */
+export async function isCopilotOptedOut(userId: string): Promise<boolean> {
+  const raw = await readPreferencesJson(userId)
+  if (!raw) return false
+  try {
+    const parsed = JSON.parse(raw) as { copilotOptOut?: unknown }
+    return parsed.copilotOptOut === true
+  } catch {
+    return false
+  }
+}
 
 export const userPreferencesRouter = Router()
 userPreferencesRouter.use(requireAuth)

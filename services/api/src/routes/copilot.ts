@@ -21,6 +21,7 @@ import {
   type CopilotProviderChoice,
 } from '../services/ai/copilotConfigStore.js'
 import { evaluatePlanLimit } from '../services/planLimits.js'
+import { isCopilotOptedOut } from './userPreferences.js'
 
 export const copilotRouter = Router()
 /** Mensagens do copilot ficam em ~4-8KB; 32KB cobre prompts longos com folga. */
@@ -128,6 +129,13 @@ copilotRouter.post('/chat', chatLimiter, async (req, res) => {
   const parsed = ChatBody.safeParse(req.body ?? {})
   if (!parsed.success) {
     return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Payload inválido' })
+  }
+  /** P0-05 (LGPD Art. 18 IX): respeitar opt-out granular do user. */
+  if (await isCopilotOptedOut(authReq.userId)) {
+    return res.status(403).json({
+      message: 'Você desativou o Copilot nas suas preferências. Reative em /configuracoes.',
+      reason: 'copilot_opted_out',
+    })
   }
   const userPrompt = parsed.data.prompt
   const limit = await evaluatePlanLimit(tenantId, 'copilotMessagesMonthly')

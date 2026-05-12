@@ -1,0 +1,23 @@
+{
+  "name": "IGA Gestão",
+  "short_name": "IGA",
+  "description": "Painel de gestão operacional, BI e Copilot IA para PMEs.",
+  "id": "/",
+  "start_url": "/?source=pwa",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d0d0d",
+  "theme_color": "#0052ff",
+  "lang": "pt-BR",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "finance"],
+  "screenshots": []
+}

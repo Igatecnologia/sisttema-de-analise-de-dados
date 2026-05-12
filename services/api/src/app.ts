@@ -57,6 +57,7 @@ import { productionRouter } from './routes/production.js'
 import { startScheduledReportsJob } from './jobs/scheduledReports.js'
 import { startBackupScheduler } from './jobs/dbBackup.js'
 import { startCopilotRetentionJob } from './jobs/copilotRetention.js'
+import { startRefreshTokenCleanupJob } from './jobs/refreshTokenCleanup.js'
 import { startWarmCacheJob } from './jobs/warmCache.js'
 import { startTrialLifecycleJob } from './jobs/trialLifecycle.js'
 import { startWebhookRecoveryLoop } from './services/webhookDispatcher.js'
@@ -349,6 +350,7 @@ export function createApp(options: CreateAppOptions = {}) {
   if (startSchedulers) startScheduledReportsJob()
   if (startSchedulers) startBackupScheduler()
   if (startSchedulers) startCopilotRetentionJob()
+  if (startSchedulers) startRefreshTokenCleanupJob()
   if (startSchedulers) startWarmCacheJob()
   if (startSchedulers) startTrialLifecycleJob()
   if (startSchedulers) startWebhookRecoveryLoop()
