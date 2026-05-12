@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Modal, Space, Typography } from 'antd'
+import { Button, Modal, Space, Typography, theme } from 'antd'
 import { RocketOutlined, MessageOutlined, SafetyOutlined, ExportOutlined } from '@ant-design/icons'
 import { useAuth } from '../auth/AuthContext'
 
@@ -97,13 +97,29 @@ export function BetaWelcomeModal() {
           />
         </Space>
 
-        <Typography.Paragraph style={{ marginTop: 24, padding: 16, background: '#f5f6f8', borderRadius: 12, fontSize: 13 }}>
-          <strong>Próximo passo:</strong> configure sua primeira fonte de dados em{' '}
-          <strong>Fontes de Dados</strong> (no menu lateral). Em 10 minutos você está vendo seus
-          dados reais no dashboard.
-        </Typography.Paragraph>
+        <NextStepHint />
       </Typography>
     </Modal>
+  )
+}
+
+function NextStepHint() {
+  const { token } = theme.useToken()
+  return (
+    <Typography.Paragraph
+      style={{
+        marginTop: 24,
+        padding: 16,
+        background: token.colorFillTertiary,
+        borderRadius: 12,
+        fontSize: 13,
+        color: token.colorText,
+      }}
+    >
+      <strong>Próximo passo:</strong> configure sua primeira fonte de dados em{' '}
+      <strong>Fontes de Dados</strong> (no menu lateral). Em 10 minutos você está vendo seus
+      dados reais no dashboard.
+    </Typography.Paragraph>
   )
 }
 
@@ -116,6 +132,7 @@ function FeatureRow({
   title: string
   desc: string
 }) {
+  const { token } = theme.useToken()
   return (
     <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
       <div
@@ -123,7 +140,7 @@ function FeatureRow({
           width: 36,
           height: 36,
           borderRadius: 10,
-          background: '#fafafa',
+          background: token.colorFillTertiary,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -134,8 +151,13 @@ function FeatureRow({
         {icon}
       </div>
       <div>
-        <div style={{ fontWeight: 600, fontSize: 14 }}>{title}</div>
-        <div style={{ fontSize: 13, color: '#5b616e', marginTop: 2, lineHeight: 1.5 }}>{desc}</div>
+        <div style={{ fontWeight: 600, fontSize: 14, color: token.colorText }}>{title}</div>
+        <Typography.Text
+          type="secondary"
+          style={{ fontSize: 13, marginTop: 2, lineHeight: 1.5, display: 'block' }}
+        >
+          {desc}
+        </Typography.Text>
       </div>
     </div>
   )
