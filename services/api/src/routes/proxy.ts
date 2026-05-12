@@ -1,7 +1,7 @@
 import { Router, type Response, type Request } from 'express'
 import { redisRateLimit } from '../middleware/redisRateLimit.js'
 import { Agent as UndiciAgent, fetch as uFetch } from 'undici'
-import { readAll, readAllForTenant, type DataSource } from '../storage.js'
+import { readAll, readAllAsync, readAllForTenant, readAllForTenantAsync, type DataSource } from '../storage.js'
 import { hashPassword } from '../services/passwordHasher.js'
 import { extractDataArray } from '../utils/extractDataArray.js'
 import { resolvePaginationState, resolvePaginationStateSequential, type PaginationStyle } from '../utils/paginationMeta.js'
@@ -371,7 +371,7 @@ proxyRouter.post('/login', async (req, res) => {
     return res.status(400).json({ message: 'Usuario e senha obrigatorios' })
   }
 
-  const authSource = readAll().find((ds) => ds.tenantId === tenantId && ds.isAuthSource)
+  const authSource = (await readAllAsync()).find((ds) => ds.tenantId === tenantId && ds.isAuthSource)
   if (!authSource) {
     return res.status(400).json({ message: 'Nenhuma conexao configurada para login' })
   }
@@ -432,7 +432,7 @@ proxyRouter.post('/login', async (req, res) => {
 proxyRouter.get('/fields', async (req, res) => {
   const tenantId = resolveTenantId(req)
   const dsId = typeof req.query.dsId === 'string' ? req.query.dsId : undefined
-  const source = selectDataSource(readAll(), tenantId, dsId)
+  const source = selectDataSource(await readAllAsync(), tenantId, dsId)
   if (!source) {
     return res.status(400).json({ message: dsId ? 'Fonte informada não encontrada.' : 'Nenhuma conexao com caminho de dados configurado' })
   }
@@ -509,7 +509,7 @@ proxyRouter.get('/fields', async (req, res) => {
 proxyRouter.get('/compare', async (req, res) => {
   const tenantId = resolveTenantId(req)
   proxyStats.compareCalls++
-  const all = readAll()
+  const all = await readAllAsync()
   const source =
     all.find((ds) => ds.tenantId === tenantId && ds.isAuthSource) ??
     all.find((ds) => ds.tenantId === tenantId && ds.dataEndpoint)
@@ -614,7 +614,7 @@ proxyRouter.get('/reconcile', async (req, res) => {
   const officialEndpoint = typeof req.query.officialEndpoint === 'string' ? req.query.officialEndpoint : ''
   if (!officialEndpoint) return res.status(400).json({ message: 'Informe officialEndpoint.' })
 
-  const all = readAll()
+  const all = await readAllAsync()
   const source = selectDataSource(all, tenantId, dsId)
   if (!source || !source.dataEndpoint) {
     return res.status(400).json({ message: 'Fonte não encontrada para reconciliação.' })
@@ -684,7 +684,7 @@ async function runReconcileCheck(args: {
   if (!args.tenantId || !args.tenantId.trim()) {
     throw new Error('[proxy.runReconcileCheck] tenantId obrigatorio')
   }
-  const all = readAllForTenant(args.tenantId)
+  const all = await readAllForTenantAsync(args.tenantId)
   const source = selectDataSource(all, args.tenantId, args.dsId)
   if (!source || !source.dataEndpoint) throw new Error('Fonte não encontrada para alerta de reconciliação.')
 
@@ -1055,7 +1055,7 @@ proxyRouter.get('/data', async (req, res) => {
   proxyStats.dataCalls++
   const requireDsId = req.query.requireDsId === '1'
   const dsId = typeof req.query.dsId === 'string' ? req.query.dsId : undefined
-  const all = readAll()
+  const all = await readAllAsync()
   if (requireDsId && !dsId) {
     return res.status(422).json({ message: 'Fonte obrigatória não informada (dsId).' })
   }
@@ -1353,7 +1353,7 @@ export async function fetchProxyDataForTool(opts: {
 }): Promise<{ ok: true; rows: unknown[]; pagesFetched: number; truncated: boolean; totalPagesReported?: number } | { ok: false; status: number; message: string }> {
   const { tenantId, dsId } = opts
   proxyStats.dataCalls++
-  const all = readAll()
+  const all = await readAllAsync()
   const source = selectDataSource(all, tenantId, dsId)
   if (!source) {
     return { ok: false, status: 400, message: 'Fonte informada não encontrada.' }
