@@ -25,7 +25,17 @@ export function getPostgresPool(): pg.Pool {
       max: Number(process.env.POSTGRES_POOL_MAX ?? 10),
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 5_000,
-      ssl: process.env.POSTGRES_SSL === '1' ? { rejectUnauthorized: true } : undefined,
+      /**
+       * SSL handling para providers gerenciados (Supabase, Render, Neon).
+       * - POSTGRES_SSL=1 + POSTGRES_SSL_REJECT_UNAUTHORIZED=0 (default): conexao
+       *   criptografada mas sem validar cert. Necessario p/ Supabase pooler que
+       *   usa cert intermediario nao incluido na CA store padrao do Node.
+       * - POSTGRES_SSL=1 + POSTGRES_SSL_REJECT_UNAUTHORIZED=1: full validation.
+       *   Use quando voce tem o CA bundle do provider (PGSSLROOTCERT via filesystem).
+       */
+      ssl: process.env.POSTGRES_SSL === '1'
+        ? { rejectUnauthorized: process.env.POSTGRES_SSL_REJECT_UNAUTHORIZED === '1' }
+        : undefined,
     })
   }
   return pool

@@ -1,0 +1,39 @@
+# fly.toml — Fly.io app config para o backend IGA Gestao
+# Deploy: fly deploy (rode do monorepo root)
+
+app = "iga-gestao-api"
+primary_region = "iad"  # Washington, DC (us-east-1) — proximo do Supabase us-east-2
+
+[build]
+  dockerfile = "services/api/Dockerfile"
+  build_target = "runtime"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+  IGA_STORAGE_DRIVER = "postgres"
+  POSTGRES_SSL = "1"
+  POSTGRES_POOL_MAX = "5"
+  LOG_PROXY_DATA = "0"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"   # economiza creditos free quando sem trafic
+  auto_start_machines = true
+  min_machines_running = 0      # 0 = totalmente dorme; 1 = sempre acordado (custa mais)
+  processes = ["app"]
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "30s"
+    method = "GET"
+    path = "/health/ready"
+    protocol = "http"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
