@@ -8,7 +8,7 @@ import { hasPostgresConfig, queryPostgres } from '../db/postgres.js'
 import { fetchProxyDataForTool } from './proxy.js'
 import { findTenantBySlug } from '../tenantStorage.js'
 import { ConnectorRegistry } from '../connectors/connectorRegistry.js'
-import { findDsIdForArea } from '../connectors/findDsIdForArea.js'
+import { findDsIdForAreaAsync } from '../connectors/findDsIdForArea.js'
 
 export const productionRouter = Router()
 productionRouter.use(requireAuth)
@@ -171,7 +171,7 @@ productionRouter.get('/oee', async (req, res) => {
 
   const tenant = await findTenantBySlug(authReq.tenantId)
   const connector = ConnectorRegistry.get(tenant?.connectorId)
-  const dsId = findDsIdForArea(authReq.tenantId, 'produzido', connector)
+  const dsId = await findDsIdForAreaAsync(authReq.tenantId, 'produzido', connector)
   if (!dsId) {
     return res.json({ ok: false, reason: 'no_production_source', period, message: 'Nenhuma fonte de produção configurada.' })
   }

@@ -5,7 +5,7 @@ import { fetchProxyDataForTool } from './proxy.js'
 import { readAll as readAllDataSources } from '../storage.js'
 import { findTenantBySlug } from '../tenantStorage.js'
 import { ConnectorRegistry } from '../connectors/connectorRegistry.js'
-import { findDsIdForArea } from '../connectors/findDsIdForArea.js'
+import { findDsIdForAreaAsync } from '../connectors/findDsIdForArea.js'
 
 export const forecastRouter = Router()
 forecastRouter.use(requireAuth)
@@ -210,7 +210,7 @@ forecastRouter.get('/stock-rupture', async (req, res) => {
   const connector = ConnectorRegistry.get(tenant?.connectorId)
 
   /** Saldo atual de cada SKU. */
-  const estoqueDsId = findDsIdForArea(tenantId, 'estoque', connector)
+  const estoqueDsId = await findDsIdForAreaAsync(tenantId, 'estoque', connector)
   if (!estoqueDsId) {
     return res.json({ ok: false, reason: 'no_stock_source', message: 'Nenhuma fonte de estoque configurada.' })
   }
@@ -250,7 +250,7 @@ forecastRouter.get('/stock-rupture', async (req, res) => {
   const consumoBySku = new Map<string, number>()
 
   /** Produção: tenta primeiro. */
-  const producaoDsId = findDsIdForArea(tenantId, 'produzido', connector)
+  const producaoDsId = await findDsIdForAreaAsync(tenantId, 'produzido', connector)
   if (producaoDsId) {
     try {
       const r = await fetchProxyDataForTool({
@@ -275,7 +275,7 @@ forecastRouter.get('/stock-rupture', async (req, res) => {
 
   /** Fallback vendas: para itens sem dados de produção (produto final). */
   if (consumoBySku.size === 0) {
-    const vendasDsId = findDsIdForArea(tenantId, 'vendas', connector)
+    const vendasDsId = await findDsIdForAreaAsync(tenantId, 'vendas', connector)
     if (vendasDsId) {
       try {
         const r = await fetchProxyDataForTool({

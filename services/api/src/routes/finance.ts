@@ -5,7 +5,7 @@ import { resolveTenantId } from '../utils/tenant.js'
 import { createSharedCache } from '../services/sharedCache.js'
 import { ConnectorRegistry } from '../connectors/connectorRegistry.js'
 import { findTenantBySlug } from '../tenantStorage.js'
-import { findDsIdForArea } from '../connectors/findDsIdForArea.js'
+import { findDsIdForAreaAsync } from '../connectors/findDsIdForArea.js'
 import type { IndustryConnector } from '../connectors/industryConnector.js'
 
 export const financeRouter = Router()
@@ -24,7 +24,7 @@ financeRouter.get('/', (_req, res) => {
 
 async function getContasPagarDataSourceId(tenantId: string): Promise<string | null> {
   const connector = await getTenantConnector(tenantId)
-  return findDsIdForArea(tenantId, 'contas', connector)
+  return findDsIdForAreaAsync(tenantId,'contas', connector)
 }
 
 const contasPagarCache = createSharedCache<Record<string, unknown>[]>({
@@ -58,7 +58,7 @@ financeRouter.get('/contas-pagar', async (req, res) => {
 
 async function getContasReceberDataSourceId(tenantId: string): Promise<string | null> {
   const connector = await getTenantConnector(tenantId)
-  return findDsIdForArea(tenantId, 'recebiveis', connector)
+  return findDsIdForAreaAsync(tenantId,'recebiveis', connector)
 }
 
 const contasReceberCache = createSharedCache<Record<string, unknown>[]>({
@@ -98,7 +98,7 @@ type EstoqueRawRow = Record<string, unknown>
 
 async function getEstoqueDataSourceId(tenantId: string): Promise<string | null> {
   const connector = await getTenantConnector(tenantId)
-  return findDsIdForArea(tenantId, 'estoque', connector)
+  return findDsIdForAreaAsync(tenantId,'estoque', connector)
 }
 
 function pickRaw(row: EstoqueRawRow, keys: string[]): unknown {

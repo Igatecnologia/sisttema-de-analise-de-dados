@@ -4,7 +4,7 @@ import { resolveTenantId } from '../utils/tenant.js'
 import { createSharedCache } from '../services/sharedCache.js'
 import { ConnectorRegistry } from '../connectors/connectorRegistry.js'
 import { findTenantBySlug } from '../tenantStorage.js'
-import { findDsIdForArea } from '../connectors/findDsIdForArea.js'
+import { findDsIdForAreaAsync } from '../connectors/findDsIdForArea.js'
 import type { ConnectorArea, IndustryConnector } from '../connectors/industryConnector.js'
 
 export const erpRouter = Router()
@@ -44,7 +44,7 @@ async function loadCachedProxyByArea(
   extraQuery?: Record<string, string>,
 ): Promise<Rows> {
   const connector = await getTenantConnector(tenantId)
-  const dsId = findDsIdForArea(tenantId, area, connector)
+  const dsId = await findDsIdForAreaAsync(tenantId, area, connector)
   if (!dsId) return []
   const key = `${tenantId}:${dsId}`
   const cached = await cache.get(key)
@@ -158,7 +158,7 @@ erpRouter.get('/producao-diaria', async (req, res) => {
   const dtAte = typeof req.query.dt_ate === 'string' ? req.query.dt_ate : formatSgbrDate(new Date())
 
   const connector = await getTenantConnector(tenantId)
-  const dsId = findDsIdForArea(tenantId, 'produzido', connector)
+  const dsId = await findDsIdForAreaAsync(tenantId, 'produzido', connector)
   if (!dsId) return res.json({ rows: [], truncated: false, periodoReal: { de: dtDe, ate: dtAte } })
 
   const cacheKey = `${tenantId}:${dsId}:${dtDe}:${dtAte}`
@@ -218,7 +218,7 @@ erpRouter.get('/vendas-sgbr', async (req, res) => {
   const dtAte = typeof req.query.dt_ate === 'string' ? req.query.dt_ate : formatSgbrDate(new Date())
 
   const connector = await getTenantConnector(tenantId)
-  const dsId = findDsIdForArea(tenantId, 'vendas', connector)
+  const dsId = await findDsIdForAreaAsync(tenantId, 'vendas', connector)
   if (!dsId) return res.json([])
 
   const result = await fetchProxyDataForTool({
@@ -280,7 +280,7 @@ erpRouter.get('/compras-materia-prima', async (req, res) => {
   const dtAte = typeof req.query.dt_ate === 'string' ? req.query.dt_ate : formatSgbrDate(new Date())
 
   const connector = await getTenantConnector(tenantId)
-  const dsId = findDsIdForArea(tenantId, 'compras', connector)
+  const dsId = await findDsIdForAreaAsync(tenantId, 'compras', connector)
   if (!dsId) {
     return res.json({ rows: [], truncated: false, periodoReal: { de: dtDe, ate: dtAte } })
   }
@@ -327,7 +327,7 @@ erpRouter.get('/faturamentos', async (req, res) => {
   const dtAte = typeof req.query.dt_ate === 'string' ? req.query.dt_ate : formatSgbrDate(new Date())
 
   const connector = await getTenantConnector(tenantId)
-  const dsId = findDsIdForArea(tenantId, 'notasfiscais', connector)
+  const dsId = await findDsIdForAreaAsync(tenantId, 'notasfiscais', connector)
   if (!dsId) return res.json([])
 
   const cacheKey = `${tenantId}:${dsId}:${dtDe}:${dtAte}`

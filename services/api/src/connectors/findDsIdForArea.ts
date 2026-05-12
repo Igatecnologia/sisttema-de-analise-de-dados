@@ -1,4 +1,4 @@
-import { readAll, type DataSource } from '../storage.js'
+import { readAll, readAllForTenantAsync, type DataSource } from '../storage.js'
 import type { ConnectorArea, IndustryConnector } from './industryConnector.js'
 
 function normalize(ep: string | undefined): string {
@@ -23,6 +23,20 @@ export function findDsIdForArea(
   connector: IndustryConnector,
 ): string | null {
   const all = readAll().filter((d) => d.tenantId === tenantId)
+  return findDsIdForAreaIn(all, area, connector)
+}
+
+/**
+ * Versão async que respeita `IGA_STORAGE_DRIVER=postgres`. Use em handlers que
+ * já são async — `findDsIdForArea` (sync) só serve em flows que ainda dependem
+ * do SQLite e ficaria vazia em deploys Postgres.
+ */
+export async function findDsIdForAreaAsync(
+  tenantId: string,
+  area: ConnectorArea,
+  connector: IndustryConnector,
+): Promise<string | null> {
+  const all = await readAllForTenantAsync(tenantId)
   return findDsIdForAreaIn(all, area, connector)
 }
 
