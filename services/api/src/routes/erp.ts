@@ -8,11 +8,9 @@ import { findDsIdForAreaAsync } from '../connectors/findDsIdForArea.js'
 import type { ConnectorArea, IndustryConnector } from '../connectors/industryConnector.js'
 import {
   demoLotesProducao,
-  demoComprasMateriaPrima,
-  demoFichasTecnicas,
   demoPedidos,
   demoOrdensProducao,
-} from '../data/erpDemoData.js'
+} from '../fixtures/erpDemoData.js'
 
 export const erpRouter = Router()
 
