@@ -15,18 +15,25 @@ O sistema tem **fundação técnica sólida** (RLS multi-tenant correto, argon2i
 
 | Eixo | Crítico | Alto | Médio | Baixo | Nota |
 |---|---|---|---|---|---|
-| Segurança | **2** | **4** | 4 | 2 | crypto forte, mas role hardcoded no refresh + binding incompleto |
-| Arquitetura & DB | **3** | **3** | 2 | — | DELETE+INSERT global, sync storage em prod, middleware engole erro |
+| Segurança | ~~2~~ → **1** | ~~4~~ → 2 | 4 | 2 | S-A1, S-A2 ✅ corrigidos no mesmo dia; S-C1 era falso positivo |
+| Arquitetura & DB | ~~3~~ → 0 | ~~3~~ → 2 | 2 | — | A-C1, A-C2, A-A1 ✅ corrigidos |
 | Frontend | — | 2 | 5 | 3 | bundle inchado por PDF/Canvas estático, i18n só 20% |
-| Testes & Observabilidade | — | 3 | 4 | 2 | cobertura ~25% de áreas críticas; sem trace context |
+| Testes & Observabilidade | — | ~~3~~ → 1 | 4 | 2 | T-A1 + T-A2 ✅ adicionados (31 specs novos); falta T-A3 |
 
-### Top-5 ações **antes de promover novos clientes**
+### Status pós-fixes (12/05/2026 tarde)
 
-1. **Refresh token rotativa com role hardcoded** — privilege escalation viva (`auth.ts:431`)
-2. **`writeAllUsersAsync` + `writeAllAsync` fazem `DELETE FROM` global** — race conditions, FK breaks cross-tenant (`userStorage.ts:174`, `storage.ts:200`)
-3. **Middleware `postgresTenantContext` não trata erro em transação** — uma query falhada deixa BEGIN órfão por até 5 min (`db/postgres.ts:79-116`)
-4. **`verifyUserPassword` sync em handler async com argon2id** — lança "Use verifyUserPasswordAsync" em runtime no `change-password` (`auth.ts:511`)
-5. **MFA e Stripe webhook sem testes** — 2 fluxos críticos para Beta pago totalmente não cobertos
+**P0 fechado** — 7 dos 8 itens P0 corrigidos no mesmo dia da auditoria; S-C1
+verificado como falso positivo. Commits: `99a6d74`, `3103064`, e teste suite
+em `mfa.test.ts` + `billing.test.ts`. Total de testes: **121 passing / 5
+skipped** (era 90 antes).
+
+### Top-5 ações originais
+
+1. ~~**Refresh token rotativa com role hardcoded**~~ — ✅ **corrigido** (`99a6d74`)
+2. ~~**`writeAllUsersAsync` + `writeAllAsync` fazem `DELETE FROM` global**~~ — ✅ **corrigido** (`upsertUserAsync`, `upsertDataSourceAsync`)
+3. ~~**Middleware `postgresTenantContext` não trata erro em transação**~~ — ✅ **patch mínimo aplicado** (`3103064`); refator grande fica P1 com testes
+4. ~~**`verifyUserPassword` sync em handler async com argon2id**~~ — ✅ **corrigido** em 2 lugares
+5. ~~**MFA e Stripe webhook sem testes**~~ — ✅ **31 specs novos** (T-A1 + T-A2)
 
 ---
 
@@ -45,11 +52,16 @@ O sistema tem **fundação técnica sólida** (RLS multi-tenant correto, argon2i
 
 ### 2.2 CRÍTICA
 
-#### S-C1 · Refresh token comparado em plaintext antes do hash
+#### ~~S-C1 · Refresh token comparado em plaintext antes do hash~~ — **FALSO POSITIVO** ✓
 
-- **Arquivo**: `services/api/src/services/refreshTokenStore.ts:33` *(verificar linha exata)*
-- **Risco**: vazamento do DB permite forjar refresh tokens
-- **Fix**: hash imediatamente após geração; comparar via `timingSafeEqual` de hashes
+- **Arquivo verificado**: `services/api/src/services/refreshTokenStore.ts`
+- **Análise**: o agente alucinou. Linha 11 (comentário): *"O token plain é entregue
+  ao client uma vez; armazenamos apenas o hash"*. `hashToken()` (l.24) faz SHA-256;
+  `issueRefreshTokenForLogin` (l.114) e `rotateRefreshToken` (l.137,149) hasheiam
+  **antes** de qualquer SELECT/INSERT. Coluna no DB é `token_hash`.
+- **Conclusão**: design correto. Vazamento do DB não permite forjar tokens
+  (precisaria inverter SHA-256). Reuse detection via `row.used_at` + revogação
+  de família. Sem fix necessário.
 
 #### S-C2 · `Math.random()` para jitter de retry em proxy
 
@@ -280,13 +292,15 @@ Ganho potencial: **~30 % LCP em conexão lenta**.
 
 ## 7. Roadmap priorizado
 
-### P0 — esta semana (antes de Beta paga)
+### P0 — esta semana (antes de Beta paga) — **CONCLUÍDO 12/05/2026**
 
-- **A-C1 / S-A1 / S-A2** — refresh com role correto + session binding em mutations + transaction handling robusto
-- **A-C2** — substituir `writeAllUsersAsync` por UPSERT (mexe em `auth.ts:347` e em qualquer caller do `writeAllAsync` de storage)
-- **A-A1** — `verifyUserPassword` sync → `await verifyUserPasswordAsync` em todos os callers
-- **T-A1 / T-A2** — testes de MFA + Stripe webhook (idempotência, retry, charge.succeeded)
-- **S-C1** — hash de refresh token antes de armazenar; comparar hashes
+- ✅ **S-A1** — refresh com role correto + sessão revogada se user some
+- ✅ **S-A2** — session binding (uaHash completo) em mutations POST/PUT/PATCH/DELETE
+- ✅ **A-C1** — patch mínimo: try/catch + client.on('error') + await em release no middleware Postgres
+- ✅ **A-C2** — `upsertUserAsync`/`upsertDataSourceAsync` substituem `writeAll*` em 14 callers
+- ✅ **A-A1** — `await verifyUserPasswordAsync` em todos os callers (auth.ts, passwordHistory.ts)
+- ✅ **T-A1 / T-A2** — 31 testes novos (17 MFA + 14 Stripe webhook)
+- ✅ **S-C1** — falso positivo; verificado que refresh token já é armazenado como hash SHA-256
 
 ### P1 — próximas 2 semanas
 
@@ -335,6 +349,8 @@ WHERE datname='postgres' GROUP BY state;
 
 ## Apêndice B — Commits do dia (12/05/2026)
 
+### Manhã: bugs descobertos em produção
+
 | SHA | Tipo | Resumo |
 |---|---|---|
 | `df842a9` | fix | rate-limit IPv6-safe via `ipKeyGenerator` (Fly) |
@@ -344,3 +360,19 @@ WHERE datname='postgres' GROUP BY state;
 | `de91415` | fix | move `erpDemoData.ts` pra `src/fixtures/` (pasta `data/` era `.gitignore`d) |
 | `71d94b9` | feat | mock `/sgbrbi/contas/receber` |
 | `1809d1a` | feat | fixtures pros stubs vazios `/erp/*` |
+
+### Tarde: aplicação do P0 da auditoria
+
+| SHA | Tipo | Resumo |
+|---|---|---|
+| `5a8dded` | docs | relatório de auditoria técnica ampla |
+| `99a6d74` | fix | **S-A1 + A-A1 + A-C2**: privilege escalation no refresh, verify sync, DELETE global em writeAll* (14 callers migrados) |
+| `3103064` | fix | **S-A2 + A-C1 patch**: session binding em mutations + middleware Postgres robusto (try/catch + client.on('error') + await release) |
+| `(test)`  | test | **T-A1 + T-A2**: 17 specs MFA + 14 specs Stripe webhook (idempotência + mapeamento de status) |
+
+**S-C1** verificado e marcado como falso positivo (refresh token já é armazenado como hash SHA-256).
+
+### Suite de testes
+
+- **121 passing** / 5 skipped (era 90 antes da auditoria)
+- Cobertura nova em 2 áreas críticas pra Beta pago: MFA flow completo + Stripe webhook idempotência
