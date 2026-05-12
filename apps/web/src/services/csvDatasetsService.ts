@@ -35,13 +35,16 @@ export async function getCsvDataset(
   return data
 }
 
-export async function uploadCsvDataset(input: {
-  name: string
-  filename: string
-  columns: string[]
-  rows: Array<Array<string | number | boolean | null>>
-}): Promise<CsvDatasetSummary> {
-  const { data } = await http.post<CsvDatasetSummary>(BASE, input)
+export async function uploadCsvDataset(
+  input: {
+    name: string
+    filename: string
+    columns: string[]
+    rows: Array<Array<string | number | boolean | null>>
+  },
+  options?: { signal?: AbortSignal },
+): Promise<CsvDatasetSummary> {
+  const { data } = await http.post<CsvDatasetSummary>(BASE, input, { signal: options?.signal })
   return data
 }
 

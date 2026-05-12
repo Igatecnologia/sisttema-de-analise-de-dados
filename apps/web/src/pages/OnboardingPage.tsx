@@ -37,15 +37,47 @@ type OnboardingFormValues = {
   emails?: string
 }
 
-type TemplateDef = { id: string; title: string; description: string }
+/** UX-Q3 (audit 2026-05-12): KPIs concretos em vez de descrições vagas para
+ *  o admin saber o que vem em cada template sem precisar configurar antes. */
+type TemplateDef = { id: string; title: string; description: string; kpis: string[] }
 
 const ALL_TEMPLATES: TemplateDef[] = [
-  { id: 'executive', title: 'Gestão executiva', description: 'KPIs, faturamento, margem e alertas.' },
-  { id: 'finance', title: 'Financeiro', description: 'Contas, fluxo e relatórios recorrentes.' },
-  { id: 'operations', title: 'Operação', description: 'Estoque, produção e exceções.' },
-  { id: 'sales', title: 'Vendas', description: 'Pipeline, conversão e ranking de clientes.' },
-  { id: 'services-ops', title: 'Operação de serviços', description: 'Contratos, recorrência e cobrança.' },
-  { id: 'logistics', title: 'Logística', description: 'Pedidos por filial, estoque e entregas.' },
+  {
+    id: 'executive',
+    title: 'Gestão executiva',
+    description: 'Visão consolidada para o C-level acompanhar a saúde do negócio em 30 segundos.',
+    kpis: ['Faturamento do mês vs meta', 'Margem operacional', 'Top-5 produtos', 'Alertas críticos'],
+  },
+  {
+    id: 'finance',
+    title: 'Financeiro',
+    description: 'Fluxo de caixa, contas a pagar/receber e indicadores de inadimplência.',
+    kpis: ['Saldo previsto 30 dias', 'Contas vencendo', 'Inadimplência por cliente', 'DRE simplificado'],
+  },
+  {
+    id: 'operations',
+    title: 'Operação industrial',
+    description: 'Acompanha produção diária, consumo de matéria-prima e estoque crítico.',
+    kpis: ['Produção do dia', 'Estoque abaixo do mínimo', 'Rendimento por lote', 'Custo médio por m³'],
+  },
+  {
+    id: 'sales',
+    title: 'Vendas',
+    description: 'Pipeline, conversão e desempenho da equipe comercial.',
+    kpis: ['Vendas do mês', 'Ticket médio', 'Top vendedores', 'Conversão de pedidos'],
+  },
+  {
+    id: 'services-ops',
+    title: 'Operação de serviços',
+    description: 'Contratos ativos, recorrência e cobrança automática.',
+    kpis: ['MRR ativo', 'Churn do mês', 'Contratos a renovar', 'Cobrança em aberto'],
+  },
+  {
+    id: 'logistics',
+    title: 'Logística',
+    description: 'Pedidos por filial, estoque distribuído e prazos de entrega.',
+    kpis: ['Pedidos no SLA', 'Estoque por CD', 'Entregas atrasadas', 'Top rotas'],
+  },
 ]
 
 const TEMPLATES_BY_SEGMENT: Record<BusinessSegment, string[]> = {
@@ -378,11 +410,27 @@ export function OnboardingPage() {
                     <Card key={template.id} size="small" style={{ borderRadius: 8 }}>
                       <Space align="start">
                         <CheckCircleOutlined style={{ color: primaryColor, marginTop: 4 }} />
-                        <div>
+                        <div style={{ flex: 1 }}>
                           <Typography.Text strong>{template.title}</Typography.Text>
                           <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
                             {template.description}
                           </Typography.Paragraph>
+                          {/* UX-Q3: KPIs concretos pra admin saber o que vem */}
+                          <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {template.kpis.map((kpi) => (
+                              <span
+                                key={kpi}
+                                style={{
+                                  fontSize: 11,
+                                  padding: '2px 8px',
+                                  borderRadius: 10,
+                                  background: 'rgba(125,125,125,0.12)',
+                                }}
+                              >
+                                {kpi}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </Space>
                     </Card>

@@ -18,7 +18,7 @@ import { redisRateLimit } from '../middleware/redisRateLimit.js'
 import { resolveTenantId } from '../utils/tenant.js'
 import { logAudit } from '../services/auditLog.js'
 import { generateCsrfToken, buildCsrfCookie } from '../middleware/csrf.js'
-import { createAuthActionToken, consumeAuthActionToken } from '../services/authActionTokens.js'
+import { createAuthActionToken, consumeAuthActionToken, listAuthActionTokensForTenant, revokeAuthActionToken } from '../services/authActionTokens.js'
 import { findTenantBySlug, genTenantId, upsertTenant } from '../tenantStorage.js'
 import { signSessionJwt } from '../services/sessionJwt.js'
 import { buildSessionBinding } from '../services/sessionStore.js'
@@ -654,6 +654,48 @@ authRouter.post('/register', tenantAuthLimiter, requireTurnstile, async (req, re
   })
 })
 
+/**
+ * UX-M3 (audit 2026-05-12): GET /api/v1/auth/invites
+ * Lista convites pendentes do tenant atual pra UI de gestão de convites.
+ * Sem token plain — apenas metadados (email, expiresAt, sentAt, role).
+ */
+authRouter.get('/invites', requireAdmin, async (req, res) => {
+  const authReq = req as unknown as AuthenticatedRequest
+  const includeExpired = req.query.includeExpired === '1'
+  const includeUsed = req.query.includeUsed === '1'
+  const tokens = await listAuthActionTokensForTenant(authReq.tenantId, {
+    type: 'invite',
+    includeUsed,
+    includeExpired,
+  })
+  res.json({
+    invites: tokens.map((t) => ({
+      id: t.id,
+      email: t.email,
+      role: typeof t.metadata.role === 'string' ? t.metadata.role : 'viewer',
+      name: typeof t.metadata.name === 'string' ? t.metadata.name : null,
+      createdAt: t.createdAt,
+      expiresAt: t.expiresAt,
+      usedAt: t.usedAt,
+      status: t.usedAt
+        ? 'accepted'
+        : new Date(t.expiresAt).getTime() < Date.now()
+          ? 'expired'
+          : 'pending',
+    })),
+  })
+})
+
+/** DELETE /api/v1/auth/invites/:id — revoga convite pendente. */
+authRouter.delete('/invites/:id', requireAdmin, async (req, res) => {
+  const authReq = req as unknown as AuthenticatedRequest
+  const inviteId = String(req.params.id ?? '')
+  const ok = await revokeAuthActionToken(authReq.tenantId, inviteId)
+  if (!ok) return res.status(404).json({ message: 'Convite nao encontrado ou ja consumido' })
+  logAudit({ userId: authReq.userId, tenantId: authReq.tenantId, action: 'invite_revoked', resource: 'auth', metadata: { inviteId } })
+  res.json({ ok: true })
+})
+
 authRouter.post('/invite', requireAdmin, tenantAuthLimiter, async (req, res) => {
   const authReq = req as unknown as AuthenticatedRequest
   const parsed = inviteSchema.safeParse(req.body)
@@ -726,8 +768,53 @@ authRouter.post('/accept-invite', tenantAuthLimiter, async (req, res) => {
     updatedAt: now,
   }
   await upsertUserAsync(user)
-  logAudit({ userId: user.id, action: 'invite_accepted', resource: 'auth', metadata: { tenantId: invite.tenantId } })
-  res.status(201).json({ ok: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } })
+
+  /** UX-Q6 (audit 2026-05-12): magic link — após aceitar invite, já emite
+   *  sessão + cookies + refresh. Antes o user precisava de 3 passos: clicar
+   *  link → submeter form → fazer login manualmente. Agora é 1 passo. */
+  const tenant = await findTenantBySlug(invite.tenantId)
+  const sessionToken = signSessionJwt({
+    sub: user.id,
+    tid: invite.tenantId,
+    role: user.role,
+    plan: tenant?.plan ?? 'trial',
+  })
+  const userAgent = typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : ''
+  const binding = buildSessionBinding(req.ip ?? '', userAgent)
+  await registerToken(sessionToken, user.id, invite.tenantId, binding)
+  const refreshIssue = await issueRefreshTokenForLogin(user.id, invite.tenantId, {
+    ipHash: binding.ipHash, uaHash: binding.uaHash,
+  }).catch(() => null)
+  const csrfToken = generateCsrfToken()
+  res.setHeader('Set-Cookie', [
+    buildSessionCookie(sessionToken),
+    buildCsrfCookie(csrfToken),
+    ...(refreshIssue ? [buildRefreshCookie(refreshIssue.token, refreshIssue.expiresAt)] : []),
+  ])
+
+  logAudit({
+    userId: user.id,
+    tenantId: invite.tenantId,
+    action: 'invite_accepted_with_auto_login',
+    resource: 'auth',
+    metadata: { ip: req.ip, uaFamily: binding.uaFamily },
+  })
+
+  const permissions = resolveEffectivePermissions(user.role, user.permissions)
+  res.status(201).json({
+    ok: true,
+    token: sessionToken,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+      mustChangePassword: false,
+    },
+    permissions,
+    csrfToken,
+  })
 })
 
 /**

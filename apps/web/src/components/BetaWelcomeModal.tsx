@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button, Modal, Space, Typography, theme } from 'antd'
-import { RocketOutlined, MessageOutlined, SafetyOutlined, ExportOutlined } from '@ant-design/icons'
+import { RocketOutlined, MessageOutlined, SafetyOutlined, ExportOutlined, ApiOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 
 const STORAGE_KEY = 'iga.betaWelcome.dismissed.v1'
@@ -17,6 +18,7 @@ const STORAGE_KEY = 'iga.betaWelcome.dismissed.v1'
  */
 export function BetaWelcomeModal() {
   const { session } = useAuth()
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
@@ -54,9 +56,18 @@ export function BetaWelcomeModal() {
           <Button type="text" onClick={dismiss}>
             Não mostrar novamente
           </Button>
-          <Button type="primary" onClick={dismiss} icon={<RocketOutlined />}>
-            Vamos começar
-          </Button>
+          <Space>
+            <Button onClick={dismiss}>Explorar depois</Button>
+            {/* UX-M2 (audit): CTA primary direto pra ação principal — admin
+                nao precisa ler texto, ja vai pro caminho mais valioso. */}
+            <Button
+              type="primary"
+              onClick={() => { dismiss(); navigate('/fontes-de-dados') }}
+              icon={<ApiOutlined />}
+            >
+              Cadastrar primeira fonte
+            </Button>
+          </Space>
         </Space>
       }
       title={

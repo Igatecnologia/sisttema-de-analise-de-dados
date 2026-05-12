@@ -57,13 +57,28 @@ const dataSourceBodySchema = z
 
 type DataSourceBodyInput = z.infer<typeof dataSourceBodySchema>
 
+/** UX-Q1: erro field-level para o front mostrar mensagens acionáveis perto
+ *  do input certo, em vez de um "Dados invalidos" genérico. */
+type FieldError = { field: string; message: string }
 function parseDataSourceBody(input: unknown, partial = false):
   | { ok: true; data: DataSourceBodyInput }
-  | { ok: false; message: string } {
+  | { ok: false; message: string; fieldErrors: FieldError[] } {
   const schema = partial ? dataSourceBodySchema.partial() : dataSourceBodySchema
   const parsed = schema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? 'Dados invalidos' }
+    const fieldErrors: FieldError[] = parsed.error.issues.map((issue) => ({
+      field: issue.path.length > 0 ? issue.path.join('.') : '_root',
+      message: issue.message,
+    }))
+    const first = fieldErrors[0]
+    /** Mensagem principal: "<field>: <mensagem>" pra fica claro de cara, com
+     *  fallback amigável quando o issue é em `_root` (form todo invalido). */
+    const message = first
+      ? first.field === '_root'
+        ? first.message
+        : `${first.field}: ${first.message}`
+      : 'Dados invalidos'
+    return { ok: false, message, fieldErrors }
   }
   return { ok: true, data: parsed.data as DataSourceBodyInput }
 }
@@ -235,7 +250,7 @@ dataSourceRouter.get('/', async (_req, res) => {
 dataSourceRouter.post('/test', async (req, res) => {
   const tenantId = resolveTenantId(req)
   const validation = parseDataSourceBody(req.body, true)
-  if (!validation.ok) return res.status(400).json({ message: validation.message })
+  if (!validation.ok) return res.status(400).json({ message: validation.message, fieldErrors: validation.fieldErrors })
   const body = validation.data as DataSourceBody
   const dsForTest = {
     ...body,
@@ -270,7 +285,7 @@ dataSourceRouter.post('/', async (req, res) => {
     })
   }
   const validation = parseDataSourceBody(req.body)
-  if (!validation.ok) return res.status(400).json({ message: validation.message })
+  if (!validation.ok) return res.status(400).json({ message: validation.message, fieldErrors: validation.fieldErrors })
   const body = validation.data as DataSourceBody
   sanitize(body)
   if (!body.name || !body.apiUrl) {
@@ -403,7 +418,7 @@ dataSourceRouter.post('/bulk', async (req, res) => {
 dataSourceRouter.put('/:id', async (req, res) => {
   const tenantId = resolveTenantId(req)
   const validation = parseDataSourceBody(req.body, true)
-  if (!validation.ok) return res.status(400).json({ message: validation.message })
+  if (!validation.ok) return res.status(400).json({ message: validation.message, fieldErrors: validation.fieldErrors })
   const body = validation.data as DataSourceBody
   sanitize(body)
   if (body.apiUrl) {

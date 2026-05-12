@@ -91,27 +91,38 @@ export function CsvUploadModal({ open, onClose, onUploaded }: Props) {
     return false
   }
 
-  async function save() {
+  /** UX-Q5 (audit 2026-05-12): timeout explícito + último estado de falha
+   *  pra mostrar botão "Tentar novamente" em vez de upload silencioso. */
+  const UPLOAD_TIMEOUT_MS = 90_000
+  async function save(attempt = 1): Promise<void> {
     if (!parsed) return
     if (!name.trim()) {
       message.error('Dê um nome ao dataset')
       return
     }
     setSaving(true)
+    setError(null)
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS)
     try {
       const result = await uploadCsvDataset({
         name: name.trim(),
         filename: parsed.filename,
         columns: parsed.columns,
         rows: parsed.rows,
-      })
+      }, { signal: controller.signal })
       message.success(`CSV importado — ${result.rowCount.toLocaleString('pt-BR')} linhas`)
       onUploaded?.(result)
       close()
     } catch (err) {
-      const e = err as { response?: { data?: { message?: string } } }
-      setError(e.response?.data?.message ?? 'Falha ao salvar')
+      const e = err as { response?: { data?: { message?: string } }; name?: string }
+      const isAbort = e.name === 'AbortError' || e.name === 'CanceledError'
+      const baseMsg = e.response?.data?.message
+        ?? (isAbort ? `Tempo limite atingido (${UPLOAD_TIMEOUT_MS / 1000}s). Tente novamente — arquivos grandes podem demorar.` : 'Falha ao salvar')
+      const suffix = attempt === 1 ? ' Clique em "Tentar novamente" abaixo.' : ''
+      setError(baseMsg + suffix)
     } finally {
+      window.clearTimeout(timer)
       setSaving(false)
     }
   }
@@ -252,12 +263,25 @@ export function CsvUploadModal({ open, onClose, onUploaded }: Props) {
             />
           </Space>
 
-          {error ? <Alert type="error" showIcon title={error} /> : null}
+          {error ? (
+            <Alert
+              type="error"
+              showIcon
+              title={error}
+              action={
+                <Button size="small" onClick={() => save(2)} loading={saving}>
+                  Tentar novamente
+                </Button>
+              }
+            />
+          ) : null}
 
           <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
             <Button onClick={close}>Cancelar</Button>
-            <Button type="primary" loading={saving} onClick={save} icon={<UploadIcon size={14} />}>
-              Importar {parsed.totalRows.toLocaleString('pt-BR')} linhas
+            <Button type="primary" loading={saving} onClick={() => save()} icon={<UploadIcon size={14} />}>
+              {saving
+                ? `Enviando${parsed.totalRows > 5000 ? ' (pode levar 30s+)' : ''}...`
+                : `Importar ${parsed.totalRows.toLocaleString('pt-BR')} linhas`}
             </Button>
           </Space>
         </Space>

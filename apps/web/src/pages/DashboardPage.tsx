@@ -27,6 +27,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useSortableWidgets } from '../hooks/useSortableWidgets'
 import { MetricCard } from '../components/MetricCard'
 import { EmptyState } from '../components/EmptyState'
+import { ColdStartHint } from '../components/ColdStartHint'
 import { metricColors, marginColor } from '../theme/colors'
 import {
   Area,
@@ -230,6 +231,8 @@ export function DashboardPage() {
     return (
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         {header}
+        {/* UX-M1: hint discreto apos 2.5s — cold start do Fly pode levar ~5s */}
+        <ColdStartHint show={dashboardQuery.isLoading} />
         <Card className="app-card no-hover" variant="borderless">
           <DashboardSkeleton />
         </Card>

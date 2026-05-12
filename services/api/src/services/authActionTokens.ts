@@ -147,3 +147,59 @@ export async function consumeAuthActionToken(type: AuthActionTokenType, token: s
   return mapRow(row)
 }
 
+/**
+ * UX-M3 (audit 2026-05-12): lista action tokens de um tenant pra UI de
+ * "Convites pendentes" — admin vê quem aceitou, quem está pendente, quem
+ * expirou, sem precisar perguntar.
+ *
+ * Retorna metadados (sem token plain — apenas hash não-reversível).
+ * Filtros: type, includeUsed (default false), includeExpired (default false).
+ */
+export async function listAuthActionTokensForTenant(
+  tenantId: string,
+  options: { type?: AuthActionTokenType; includeUsed?: boolean; includeExpired?: boolean } = {},
+): Promise<AuthActionTokenRecord[]> {
+  if (!tenantId || !tenantId.trim()) return []
+  const filters: string[] = ['tenant_id = $1']
+  const params: unknown[] = [tenantId]
+  if (options.type) {
+    params.push(options.type)
+    filters.push(`type = $${params.length}`)
+  }
+  if (!options.includeUsed) filters.push('used_at IS NULL')
+  if (!options.includeExpired) {
+    params.push(new Date().toISOString())
+    filters.push(`expires_at > $${params.length}`)
+  }
+  const where = filters.join(' AND ')
+
+  if (usePostgresStorage()) {
+    const result = await queryPostgres(
+      `SELECT * FROM auth_action_tokens WHERE ${where} ORDER BY created_at DESC`,
+      params,
+    )
+    return result.rows.map((r) => mapRow(r as Record<string, unknown>))
+  }
+  /** SQLite: ? em vez de $N. Reconstrói. */
+  const sqliteWhere = filters
+    .map((f) => f.replace(/\$\d+/g, '?'))
+    .join(' AND ')
+  const rows = db.prepare(`SELECT * FROM auth_action_tokens WHERE ${sqliteWhere} ORDER BY created_at DESC`).all(...params) as Record<string, unknown>[]
+  return rows.map(mapRow)
+}
+
+/** UX-M3: revoga (marca usado) um invite pendente. */
+export async function revokeAuthActionToken(tenantId: string, id: string): Promise<boolean> {
+  if (!tenantId || !id) return false
+  const now = new Date().toISOString()
+  if (usePostgresStorage()) {
+    const result = await queryPostgres(
+      `UPDATE auth_action_tokens SET used_at = $1 WHERE id = $2 AND tenant_id = $3 AND used_at IS NULL`,
+      [now, id, tenantId],
+    )
+    return Boolean(result.rowCount && result.rowCount > 0)
+  }
+  const result = db.prepare('UPDATE auth_action_tokens SET used_at = ? WHERE id = ? AND tenant_id = ? AND used_at IS NULL').run(now, id, tenantId)
+  return result.changes > 0
+}
+

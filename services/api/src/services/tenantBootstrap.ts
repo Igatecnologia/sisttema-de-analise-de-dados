@@ -249,3 +249,4 @@ export function generateTempPassword(): string {
    *  Adiciona '!' pra satisfazer o regex de caractere especial. */
   return `${randomBytes(16).toString('base64url').slice(0, 20)}!A1`
 }
+

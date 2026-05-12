@@ -173,7 +173,13 @@ export function LoginPage() {
                 type="info"
                 showIcon
                 title="Sistema ainda não configurado"
-                description="O administrador precisa configurar a conexão com seu ERP antes do primeiro uso."
+                description={
+                  <span>
+                    Faça login como administrador para iniciar a configuração.
+                    {' '}
+                    <Link to="/onboarding" style={{ fontWeight: 600 }}>Ver passo a passo →</Link>
+                  </span>
+                }
                 style={{ marginBottom: 16 }}
               />
             )}

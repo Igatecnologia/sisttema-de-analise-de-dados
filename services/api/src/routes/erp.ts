@@ -6,11 +6,6 @@ import { ConnectorRegistry } from '../connectors/connectorRegistry.js'
 import { findTenantBySlug } from '../tenantStorage.js'
 import { findDsIdForAreaAsync } from '../connectors/findDsIdForArea.js'
 import type { ConnectorArea, IndustryConnector } from '../connectors/industryConnector.js'
-import {
-  demoLotesProducao,
-  demoPedidos,
-  demoOrdensProducao,
-} from '../fixtures/erpDemoData.js'
 
 export const erpRouter = Router()
 
@@ -316,14 +311,14 @@ erpRouter.get('/compras-materia-prima', async (req, res) => {
   })
 })
 
-// GET /erp/lotes-producao — fixtures de demonstracao (ate haver integracao real)
-erpRouter.get('/lotes-producao', (_req, res) => res.json(demoLotesProducao))
+// GET /erp/lotes-producao — sem connector real implementado ainda
+erpRouter.get('/lotes-producao', (_req, res) => res.json([]))
 
-// GET /erp/pedidos — fixtures de demonstracao
-erpRouter.get('/pedidos', (_req, res) => res.json(demoPedidos))
+// GET /erp/pedidos — sem connector real implementado ainda
+erpRouter.get('/pedidos', (_req, res) => res.json([]))
 
-// GET /erp/ordens-producao — fixtures de demonstracao
-erpRouter.get('/ordens-producao', (_req, res) => res.json(demoOrdensProducao))
+// GET /erp/ordens-producao — sem connector real implementado ainda
+erpRouter.get('/ordens-producao', (_req, res) => res.json([]))
 
 /* GET /erp/faturamentos — Notas fiscais via proxy SGBR (vendanfe ou notasfiscais) */
 erpRouter.get('/faturamentos', async (req, res) => {
@@ -351,45 +346,11 @@ erpRouter.get('/faturamentos', async (req, res) => {
   res.json(rows)
 })
 
-// GET /erp/movimentos-estoque — fixtures de demonstracao
-const demoMovimentosEstoque = [
-  { id: 'ME-001', data: '2026-05-10', nivelEstoque: 'Insumo' as const, item: 'MDI Polimerico', tipoMovimento: 'Entrada' as const, origem: 'Compra' as const, referenciaId: 'CMP-0042', quantidade: 500, unidade: 'KG', custoUnitario: 18.5, custoTotal: 9250, saldoAnterior: 320, saldoAtual: 820 },
-  { id: 'ME-002', data: '2026-05-09', nivelEstoque: 'Produto Base' as const, item: 'Espuma D28 Premium', tipoMovimento: 'Saída' as const, origem: 'Venda' as const, referenciaId: 'PED-2298', quantidade: 4.5, unidade: 'M3', custoUnitario: 168, custoTotal: 756, saldoAnterior: 32, saldoAtual: 27.5 },
-  { id: 'ME-003', data: '2026-05-08', nivelEstoque: 'Produto Base' as const, item: 'Espuma D33 Alta Resiliencia', tipoMovimento: 'Entrada' as const, origem: 'Produção' as const, referenciaId: 'LP-2026-004', quantidade: 18.2, unidade: 'M3', custoUnitario: 195, custoTotal: 3549, saldoAnterior: 12, saldoAtual: 30.2 },
-  { id: 'ME-004', data: '2026-05-07', nivelEstoque: 'Insumo' as const, item: 'Poliol Padrao Flexivel', tipoMovimento: 'Saída' as const, origem: 'OP' as const, referenciaId: 'OP-1078', quantidade: 120, unidade: 'KG', custoUnitario: 14.2, custoTotal: 1704, saldoAnterior: 980, saldoAtual: 860 },
-  { id: 'ME-005', data: '2026-05-06', nivelEstoque: 'Insumo' as const, item: 'Catalisador Amina A33', tipoMovimento: 'Entrada' as const, origem: 'Compra' as const, referenciaId: 'CMP-0041', quantidade: 80, unidade: 'L', custoUnitario: 45, custoTotal: 3600, saldoAnterior: 22, saldoAtual: 102 },
-  { id: 'ME-006', data: '2026-05-05', nivelEstoque: 'Produto Base' as const, item: 'Aglomerado AD-18 Premium', tipoMovimento: 'Entrada' as const, origem: 'Produção' as const, referenciaId: 'LP-2026-003', quantidade: 9.4, unidade: 'M3', custoUnitario: 108, custoTotal: 1015.2, saldoAnterior: 4, saldoAtual: 13.4 },
-  { id: 'ME-007', data: '2026-05-04', nivelEstoque: 'Insumo' as const, item: 'TDI Toluenodiisocianato', tipoMovimento: 'Saída' as const, origem: 'Produção' as const, referenciaId: 'LP-2026-003', quantidade: 180, unidade: 'KG', custoUnitario: 22, custoTotal: 3960, saldoAnterior: 420, saldoAtual: 240 },
-  { id: 'ME-008', data: '2026-05-03', nivelEstoque: 'Produto Base' as const, item: 'Espuma D23 Confort', tipoMovimento: 'Saída' as const, origem: 'Venda' as const, referenciaId: 'PED-2294', quantidade: 6.8, unidade: 'M3', custoUnitario: 138, custoTotal: 938.4, saldoAnterior: 22, saldoAtual: 15.2 },
-  { id: 'ME-009', data: '2026-05-02', nivelEstoque: 'Insumo' as const, item: 'Silicone Surfactante L-580', tipoMovimento: 'Entrada' as const, origem: 'Compra' as const, referenciaId: 'CMP-0040', quantidade: 60, unidade: 'L', custoUnitario: 38.5, custoTotal: 2310, saldoAnterior: 12, saldoAtual: 72 },
-  { id: 'ME-010', data: '2026-05-01', nivelEstoque: 'Produto Base' as const, item: 'Espuma D40 Firme', tipoMovimento: 'Saída' as const, origem: 'OP' as const, referenciaId: 'OP-1077', quantidade: 8, unidade: 'M3', custoUnitario: 222, custoTotal: 1776, saldoAnterior: 18, saldoAtual: 10 },
-  { id: 'ME-011', data: '2026-04-30', nivelEstoque: 'Insumo' as const, item: 'Pigmento Branco TiO2', tipoMovimento: 'Saída' as const, origem: 'Produção' as const, referenciaId: 'LP-2026-002', quantidade: 25, unidade: 'KG', custoUnitario: 12, custoTotal: 300, saldoAnterior: 180, saldoAtual: 155 },
-  { id: 'ME-012', data: '2026-04-28', nivelEstoque: 'Produto Base' as const, item: 'Espuma D26 Standard', tipoMovimento: 'Entrada' as const, origem: 'Produção' as const, referenciaId: 'LP-2026-002', quantidade: 22.5, unidade: 'M3', custoUnitario: 152, custoTotal: 3420, saldoAnterior: 8, saldoAtual: 30.5 },
-]
-erpRouter.get('/movimentos-estoque', (_req, res) => res.json(demoMovimentosEstoque))
+// GET /erp/movimentos-estoque — sem connector real implementado ainda
+erpRouter.get('/movimentos-estoque', (_req, res) => res.json([]))
 
-// GET /erp/custo-real — fixtures alinhados com fichas-tecnicas
-const demoCustoReal = [
-  { fichaTecnicaId: 'FT-3001', produto: 'Espuma D18 Soft', densidade: 'D18', custoMateriaPrima: 78, custoEnergia: 12, custoMaoDeObra: 14, custoPerdas: 4, custoIndiretos: 8, custoRealTotal: 116, custoRealPorM3: 116, precoVenda: 145, margemRealPct: 20.0, margemAlvoPct: 25, alertaMargem: true },
-  { fichaTecnicaId: 'FT-3002', produto: 'Espuma D20 Flexivel', densidade: 'D20', custoMateriaPrima: 88, custoEnergia: 14, custoMaoDeObra: 16, custoPerdas: 5, custoIndiretos: 9, custoRealTotal: 132, custoRealPorM3: 132, precoVenda: 170, margemRealPct: 22.4, margemAlvoPct: 25, alertaMargem: true },
-  { fichaTecnicaId: 'FT-3003', produto: 'Espuma D23 Confort', densidade: 'D23', custoMateriaPrima: 96, custoEnergia: 15, custoMaoDeObra: 17, custoPerdas: 5, custoIndiretos: 10, custoRealTotal: 143, custoRealPorM3: 143, precoVenda: 198, margemRealPct: 27.8, margemAlvoPct: 25, alertaMargem: false },
-  { fichaTecnicaId: 'FT-3004', produto: 'Espuma D26 Standard', densidade: 'D26', custoMateriaPrima: 108, custoEnergia: 17, custoMaoDeObra: 19, custoPerdas: 6, custoIndiretos: 11, custoRealTotal: 161, custoRealPorM3: 161, precoVenda: 225, margemRealPct: 28.4, margemAlvoPct: 25, alertaMargem: false },
-  { fichaTecnicaId: 'FT-3005', produto: 'Espuma D28 Premium', densidade: 'D28', custoMateriaPrima: 122, custoEnergia: 19, custoMaoDeObra: 21, custoPerdas: 7, custoIndiretos: 12, custoRealTotal: 181, custoRealPorM3: 181, precoVenda: 259, margemRealPct: 30.1, margemAlvoPct: 28, alertaMargem: false },
-  { fichaTecnicaId: 'FT-3006', produto: 'Espuma D33 Alta Resiliencia', densidade: 'D33', custoMateriaPrima: 142, custoEnergia: 22, custoMaoDeObra: 24, custoPerdas: 8, custoIndiretos: 14, custoRealTotal: 210, custoRealPorM3: 210, precoVenda: 299, margemRealPct: 29.8, margemAlvoPct: 30, alertaMargem: true },
-  { fichaTecnicaId: 'FT-3007', produto: 'Espuma D40 Firme', densidade: 'D40', custoMateriaPrima: 162, custoEnergia: 25, custoMaoDeObra: 27, custoPerdas: 9, custoIndiretos: 16, custoRealTotal: 239, custoRealPorM3: 239, precoVenda: 339, margemRealPct: 29.5, margemAlvoPct: 30, alertaMargem: true },
-  { fichaTecnicaId: 'FT-3008', produto: 'Espuma D45 Extra Firme', densidade: 'D45', custoMateriaPrima: 182, custoEnergia: 28, custoMaoDeObra: 30, custoPerdas: 10, custoIndiretos: 18, custoRealTotal: 268, custoRealPorM3: 268, precoVenda: 378, margemRealPct: 29.1, margemAlvoPct: 30, alertaMargem: true },
-  { fichaTecnicaId: 'FT-3102', produto: 'Aglomerado AD-15 Standard', densidade: 'AD15', custoMateriaPrima: 62, custoEnergia: 9, custoMaoDeObra: 11, custoPerdas: 3, custoIndiretos: 6, custoRealTotal: 91, custoRealPorM3: 91, precoVenda: 138, margemRealPct: 34.1, margemAlvoPct: 32, alertaMargem: false },
-  { fichaTecnicaId: 'FT-3103', produto: 'Aglomerado AD-18 Premium', densidade: 'AD18', custoMateriaPrima: 72, custoEnergia: 11, custoMaoDeObra: 12, custoPerdas: 4, custoIndiretos: 7, custoRealTotal: 106, custoRealPorM3: 106, precoVenda: 162, margemRealPct: 34.6, margemAlvoPct: 32, alertaMargem: false },
-]
-erpRouter.get('/custo-real', (_req, res) => res.json(demoCustoReal))
+// GET /erp/custo-real — sem connector real implementado ainda
+erpRouter.get('/custo-real', (_req, res) => res.json([]))
 
-// GET /erp/alertas — fixtures de demonstracao
-const demoAlertasOperacionais = [
-  { id: 'ALT-001', data: '2026-05-12', tipo: 'estoque_critico' as const, severidade: 'alta' as const, titulo: 'MDI Polimerico abaixo do minimo', descricao: 'Saldo de 80kg, abaixo do minimo de 200kg. Programar compra urgente.', referenciaId: '1001', lido: false },
-  { id: 'ALT-002', data: '2026-05-11', tipo: 'margem_baixa' as const, severidade: 'alta' as const, titulo: 'Espuma D18 com margem abaixo do alvo', descricao: 'Margem real 20% vs alvo 25%. Revisar precificacao ou custos.', referenciaId: 'FT-3001', lido: false },
-  { id: 'ALT-003', data: '2026-05-10', tipo: 'producao_atrasada' as const, severidade: 'media' as const, titulo: 'OP-1078 com atraso de 2 dias', descricao: 'Producao de Espuma D40 Firme atrasada — risco de quebra de estoque.', referenciaId: 'OP-1078', lido: true },
-  { id: 'ALT-004', data: '2026-05-09', tipo: 'vazamento_lucro' as const, severidade: 'media' as const, titulo: 'Variacao de custo materia-prima > 8%', descricao: 'Poliol Padrao com aumento de 12% no ultimo lote. Negociar com fornecedor.', referenciaId: 'CMP-0041', lido: false },
-  { id: 'ALT-005', data: '2026-05-08', tipo: 'inadimplencia' as const, severidade: 'baixa' as const, titulo: '3 titulos vencidos < 7 dias', descricao: 'Cliente Magnifica Estofados com R$ 12.480 em atraso.', referenciaId: '5003', lido: false },
-  { id: 'ALT-006', data: '2026-05-06', tipo: 'estoque_critico' as const, severidade: 'media' as const, titulo: 'Pigmento Branco TiO2 proximo do minimo', descricao: 'Saldo 155kg, minimo 120kg. Comprar nas proximas semanas.', referenciaId: '2003', lido: true },
-]
-erpRouter.get('/alertas', (_req, res) => res.json(demoAlertasOperacionais))
+// GET /erp/alertas — sem connector real implementado ainda
+erpRouter.get('/alertas', (_req, res) => res.json([]))
