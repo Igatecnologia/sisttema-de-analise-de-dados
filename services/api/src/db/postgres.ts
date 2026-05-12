@@ -96,8 +96,20 @@ function resolveTenantIdForPostgresContext(req: Request): string {
  *  4) Fallback para garantir release no `next tick` se nem finish nem close
  *     dispararem (defesa em profundidade).
  */
+/**
+ * Rotas que operam cross-tenant por design (super-admin manage tenants/users
+ * de outros tenants, internal tools chamados pelo iga-ai). Estas rotas pulam
+ * o RLS context porque `SET app.current_tenant_id = <admin_tenant>` bloquearia
+ * qualquer INSERT/UPDATE/DELETE em outro tenant. Acesso ainda é gated por
+ * `requireSuperAdmin` (SUPER_ADMIN_EMAILS env) e auth do internalTools.
+ */
+const CROSS_TENANT_PREFIXES = ['/api/v1/super-admin', '/api/v1/_internal/']
+
 export function postgresTenantContext(req: Request, res: Response, next: NextFunction) {
   if (process.env.IGA_STORAGE_DRIVER !== 'postgres' || !hasPostgresConfig() || !req.path.startsWith('/api/')) {
+    return next()
+  }
+  if (CROSS_TENANT_PREFIXES.some((p) => req.path.startsWith(p))) {
     return next()
   }
 
