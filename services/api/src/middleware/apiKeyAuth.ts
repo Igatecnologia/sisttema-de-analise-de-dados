@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from 'express'
 import { getDb } from '../db/sqlite.js'
 import { getPostgresPool, hasPostgresConfig } from '../db/postgres.js'
 import { requireAuth, type AuthenticatedRequest } from './auth.js'
+import { ipMatchesAllowlist } from '../utils/ipAllowlist.js'
 
 type ApiKeyScope = 'reports:read' | 'dashboards:read' | 'datasources:read' | 'webhooks:write'
 
@@ -13,6 +14,18 @@ type ApiKeyAuthRow = {
   secret_hash: string
   scopes_json: string | string[]
   status: string
+  allowed_ips_json?: string | string[] | null
+}
+
+function parseAllowedIps(value: string | string[] | null | undefined): string[] {
+  if (!value) return []
+  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string')
+  try {
+    const parsed = JSON.parse(String(value))
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : []
+  } catch {
+    return []
+  }
 }
 
 export interface ApiKeyAuthenticatedRequest extends AuthenticatedRequest {
@@ -57,7 +70,7 @@ async function findApiKey(secret: string): Promise<ApiKeyAuthRow | null> {
   const secretHash = hashSecret(secret)
   if (usePostgresStorage()) {
     const result = await getPostgresPool().query<ApiKeyAuthRow>(`
-      SELECT id, tenant_id, user_id, secret_hash, scopes_json, status
+      SELECT id, tenant_id, user_id, secret_hash, scopes_json, status, allowed_ips_json
       FROM api_keys
       WHERE secret_hash = $1 AND status = 'active'
       LIMIT 1
@@ -67,7 +80,7 @@ async function findApiKey(secret: string): Promise<ApiKeyAuthRow | null> {
   }
 
   const row = db.prepare(`
-    SELECT id, tenant_id, user_id, secret_hash, scopes_json, status
+    SELECT id, tenant_id, user_id, secret_hash, scopes_json, status, allowed_ips_json
     FROM api_keys
     WHERE secret_hash = ? AND status = 'active'
     LIMIT 1
@@ -91,6 +104,18 @@ export function requireApiKeyScope(scope: ApiKeyScope) {
 
     const key = await findApiKey(token)
     if (!key) return res.status(401).json({ message: 'API key invalida ou revogada' })
+
+    /** P2-04: IP allowlist por API key (vazio = aceita qualquer IP). */
+    const allowedIps = parseAllowedIps(key.allowed_ips_json)
+    if (allowedIps.length > 0) {
+      const clientIp = req.ip ?? req.socket.remoteAddress ?? ''
+      if (!ipMatchesAllowlist(clientIp, allowedIps)) {
+        return res.status(403).json({
+          message: 'IP nao autorizado para esta API key',
+          ip: clientIp,
+        })
+      }
+    }
 
     const scopes = parseScopes(key.scopes_json)
     if (!scopes.includes(scope)) {
