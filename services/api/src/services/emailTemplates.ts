@@ -151,3 +151,48 @@ export function mfaToggleTemplate(ctx: SecurityAlertCtx & { enabled: boolean }):
   }
 }
 
+
+/**
+ * P1-02 (audit 2026-05-12): Daily AI Digest — email diário com resumo
+ * proativo gerado por LLM. Diferencial competitivo vs Metabase/Tableau.
+ * Renderiza highlights, alertas e recomendação de ação.
+ */
+export type DailyDigestSection = {
+  emoji?: string
+  title: string
+  body: string
+  link?: { label: string; url: string }
+}
+export function dailyDigestTemplate(input: {
+  companyName: string
+  userName: string
+  date: string
+  sections: DailyDigestSection[]
+  dashboardUrl: string
+  unsubscribeUrl: string
+}): EmailTemplate {
+  const dateBr = input.date
+  const subject = `[${input.companyName}] Resumo do dia · ${dateBr}`
+  const sectionsHtml = input.sections.map((s) => `
+    <div style="margin: 16px 0; padding: 12px 14px; background: #fafafa; border-left: 3px solid #0052ff; border-radius: 4px;">
+      <div style="font-weight: 600; font-size: 14px; color: #111;">${s.emoji ? `${s.emoji} ` : ''}${escapeHtml(s.title)}</div>
+      <div style="font-size: 13px; color: #444; margin-top: 4px; line-height: 1.5;">${escapeHtml(s.body)}</div>
+      ${s.link ? `<div style="margin-top: 6px;"><a href="${s.link.url}" style="color: #0052ff; font-size: 12px; text-decoration: none;">${escapeHtml(s.link.label)} →</a></div>` : ''}
+    </div>
+  `).join('')
+  const text = `Olá ${input.userName}, resumo do dia em ${input.companyName} (${dateBr}):\n\n` +
+    input.sections.map((s) => `${s.emoji ?? '•'} ${s.title}\n${s.body}\n${s.link ? s.link.url : ''}`).join('\n\n') +
+    `\n\nAbra o painel: ${input.dashboardUrl}\n\nPra parar de receber este resumo, ajuste em /configuracoes.`
+  return {
+    subject,
+    text,
+    html: shell(`Resumo · ${dateBr}`,
+      `<p style="font-size: 14px;">Olá <strong>${escapeHtml(input.userName)}</strong>,</p>
+       <p style="font-size: 13px; color: #555;">Aqui está o resumo da sua operação em <strong>${escapeHtml(input.companyName)}</strong>:</p>
+       ${sectionsHtml}
+       ${button(input.dashboardUrl, 'Abrir painel completo')}
+       <p style="font-size: 11px; color: #888; margin-top: 24px;">
+         <a href="${input.unsubscribeUrl}" style="color: #888;">Desativar este resumo</a>
+       </p>`),
+  }
+}

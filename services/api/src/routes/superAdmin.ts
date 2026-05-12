@@ -15,6 +15,8 @@ import { resolveEffectivePermissions } from '../permissions.js'
 import { readAllAsync as readAllDataSourcesAsync } from '../storage.js'
 import { getResilienceMetrics, resetCircuit } from '../services/proxyResilience.js'
 import { createTenantWithAdmin, createTenantWithAdminSchema } from '../services/tenantBootstrap.js'
+import { runDailyDigestForAllTenants, runDigestForTenant } from '../services/dailyDigest.js'
+import { notifyChannel, type NotificationChannelType } from '../services/notificationChannels.js'
 
 export const superAdminRouter = Router()
 
@@ -286,6 +288,57 @@ superAdminRouter.post('/tenants/bootstrap', async (req, res: Response) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erro ao criar empresa'
     res.status(500).json({ message })
+  }
+})
+
+/**
+ * P1-01 (audit): testa envio de notificação a webhook Slack/Teams.
+ * POST /api/v1/super-admin/notifications/test
+ * Body: { type: 'slack'|'teams', webhookUrl: string, title?: string, body?: string }
+ */
+const testNotificationSchema = z.object({
+  type: z.enum(['slack', 'teams']),
+  webhookUrl: z.string().url().regex(/^https:\/\//),
+  title: z.string().max(120).default('Teste IGA Gestão'),
+  body: z.string().max(2000).default('Se você está vendo isso, o webhook está funcionando!'),
+})
+superAdminRouter.post('/notifications/test', async (req, res: Response) => {
+  const parsed = testNotificationSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
+  const result = await notifyChannel(parsed.data.type as NotificationChannelType, parsed.data.webhookUrl, {
+    title: parsed.data.title,
+    body: parsed.data.body,
+    severity: 'info',
+    link: { label: 'Abrir IGA Gestão', url: process.env.FRONTEND_URL ?? 'https://iga-gestao-web.vercel.app' },
+    fields: [
+      { label: 'Origem', value: 'super-admin test' },
+      { label: 'Quando', value: new Date().toLocaleString('pt-BR') },
+    ],
+  })
+  res.status(result.ok ? 200 : 502).json(result)
+})
+
+/**
+ * P1-02 (audit): trigger manual do Daily AI Digest pra debug/teste.
+ * POST /api/v1/super-admin/digest/run-all  → roda pra todos os tenants
+ * POST /api/v1/super-admin/digest/run/:id  → roda pra tenant específico
+ */
+superAdminRouter.post('/digest/run-all', async (_req, res: Response) => {
+  try {
+    const result = await runDailyDigestForAllTenants()
+    res.json(result)
+  } catch (err) {
+    res.status(500).json({ message: err instanceof Error ? err.message : 'Erro' })
+  }
+})
+superAdminRouter.post('/digest/run/:id', async (req, res: Response) => {
+  const tenant = await findTenantByIdOrSlug(req.params.id)
+  if (!tenant) return res.status(404).json({ message: 'Tenant nao encontrado' })
+  try {
+    const result = await runDigestForTenant(tenant.id)
+    res.json(result)
+  } catch (err) {
+    res.status(500).json({ message: err instanceof Error ? err.message : 'Erro' })
   }
 })
 
