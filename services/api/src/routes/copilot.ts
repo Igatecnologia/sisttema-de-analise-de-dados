@@ -22,6 +22,7 @@ import {
 } from '../services/ai/copilotConfigStore.js'
 import { evaluatePlanLimit } from '../services/planLimits.js'
 import { isCopilotOptedOut } from './userPreferences.js'
+import { getCacheStats } from '../services/ai/promptCache.js'
 
 export const copilotRouter = Router()
 /** Mensagens do copilot ficam em ~4-8KB; 32KB cobre prompts longos com folga. */
@@ -399,4 +400,92 @@ copilotRouter.post('/config/test', requireAdminRole, async (_req, res) => {
   } catch (err) {
     return res.status(500).json({ ok: false, error: (err as Error).message })
   }
+})
+
+/**
+ * P2-08 (audit 2026-05-12): feedback 👍/👎 do user em respostas do Copilot.
+ * Permite coletar signals pra refinar prompts, comparar providers, decidir
+ * descontinuar tools que erram muito.
+ */
+const feedbackSchema = z.object({
+  messageId: z.string().min(1).max(120),
+  score: z.union([z.literal(1), z.literal(-1)]),
+  comment: z.string().max(2000).optional(),
+  provider: z.string().max(40).optional(),
+  model: z.string().max(80).optional(),
+})
+
+copilotRouter.post('/feedback', async (req, res) => {
+  const authReq = req as AuthenticatedRequest
+  const parsed = feedbackSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Dados invalidos' })
+  const tenantId = resolveTenantId(req)
+  const now = new Date().toISOString()
+  /** UPSERT: user pode mudar 👍↔👎 ou adicionar comment posterior. */
+  if (process.env.IGA_STORAGE_DRIVER === 'postgres' && hasPostgresConfig()) {
+    await getPostgresPool().query(
+      `INSERT INTO copilot_feedback (tenant_id, user_id, message_id, score, comment, provider, model, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (user_id, message_id) DO UPDATE SET
+         score = EXCLUDED.score,
+         comment = COALESCE(EXCLUDED.comment, copilot_feedback.comment),
+         provider = COALESCE(EXCLUDED.provider, copilot_feedback.provider),
+         model = COALESCE(EXCLUDED.model, copilot_feedback.model),
+         created_at = EXCLUDED.created_at`,
+      [tenantId, authReq.userId, parsed.data.messageId, parsed.data.score,
+       parsed.data.comment ?? null, parsed.data.provider ?? null, parsed.data.model ?? null, now],
+    )
+  } else {
+    getDb().prepare(`
+      INSERT INTO copilot_feedback (tenant_id, user_id, message_id, score, comment, provider, model, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id, message_id) DO UPDATE SET
+        score = excluded.score,
+        comment = COALESCE(excluded.comment, copilot_feedback.comment),
+        provider = COALESCE(excluded.provider, copilot_feedback.provider),
+        model = COALESCE(excluded.model, copilot_feedback.model),
+        created_at = excluded.created_at
+    `).run(tenantId, authReq.userId, parsed.data.messageId, parsed.data.score,
+      parsed.data.comment ?? null, parsed.data.provider ?? null, parsed.data.model ?? null, now)
+  }
+  res.status(201).json({ ok: true })
+})
+
+/** GET admin: agregados de feedback pra decidir provider/model/tool changes. */
+copilotRouter.get('/feedback/stats', requireAdminRole, async (req, res) => {
+  const tenantId = resolveTenantId(req)
+  if (process.env.IGA_STORAGE_DRIVER === 'postgres' && hasPostgresConfig()) {
+    const r = await getPostgresPool().query<{
+      total: string; up: string; down: string; provider: string | null; model: string | null
+    }>(
+      `SELECT count(*)::text AS total,
+              count(*) FILTER (WHERE score = 1)::text AS up,
+              count(*) FILTER (WHERE score = -1)::text AS down,
+              provider, model
+       FROM copilot_feedback
+       WHERE tenant_id = $1
+       GROUP BY provider, model
+       ORDER BY count(*) DESC
+       LIMIT 50`,
+      [tenantId],
+    )
+    return res.json({ tenantId, byProvider: r.rows })
+  }
+  const rows = getDb().prepare(`
+    SELECT COUNT(*) AS total,
+           SUM(CASE WHEN score = 1 THEN 1 ELSE 0 END) AS up,
+           SUM(CASE WHEN score = -1 THEN 1 ELSE 0 END) AS down,
+           provider, model
+    FROM copilot_feedback
+    WHERE tenant_id = ?
+    GROUP BY provider, model
+    ORDER BY COUNT(*) DESC
+    LIMIT 50
+  `).all(tenantId)
+  res.json({ tenantId, byProvider: rows })
+})
+
+/** P2-06: stats do cache de IA pro dashboard admin. */
+copilotRouter.get('/cache/stats', requireAdminRole, (_req, res) => {
+  res.json(getCacheStats())
 })

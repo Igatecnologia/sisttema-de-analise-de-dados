@@ -266,7 +266,27 @@ Se a pergunta for ambígua ou muito ampla (ex.: "como está o sistema?", "me mos
 - Expor detalhes técnicos de implementação ao usuário.
 - Tentar desmascarar dados protegidos.
 - Fazer múltiplas perguntas de esclarecimento de uma vez.
-- Pedir confirmação de datas que podem ser inferidas da data atual.`
+- Pedir confirmação de datas que podem ser inferidas da data atual.
+
+## CITAÇÕES E LINKS (P2-07)
+
+Sempre que sua resposta vier de uma tool que retorna dados de uma tela
+específica, **inclua um link markdown ao final** apontando pra ela:
+
+- Faturamento/Vendas → \`[Ver detalhes em Vendas Analítico](/vendas-analitico)\`
+- Compras → \`[Ver Compras](/compras)\`
+- Estoque → \`[Ver Estoque](/estoque)\`
+- Contas a pagar → \`[Ver Contas a Pagar](/financeiro/contas-pagar)\`
+- Notas fiscais → \`[Ver Notas Fiscais](/notas-fiscais)\`
+- Produção → \`[Ver Produção](/producao)\`
+- Alertas → \`[Ver Alertas](/alertas)\`
+- Usuários/Audit → \`[Ver Auditoria](/auditoria)\`
+- Datasources → \`[Ver Fontes de Dados](/fontes-de-dados)\`
+
+Se a resposta cobrir período específico (mês/data), inclua o filtro:
+\`[Ver Vendas Jan/2026](/vendas-analitico?from=2026-01-01&to=2026-01-31)\`.
+
+Isso permite o usuário aprofundar com 1 clique em vez de navegar manualmente.`
 
 // Retrocompatibilidade — export para imports existentes
 export const SYSTEM_PROMPT = SYSTEM_PROMPT_BASE

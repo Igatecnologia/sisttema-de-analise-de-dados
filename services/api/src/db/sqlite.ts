@@ -287,6 +287,24 @@ try { db.exec("ALTER TABLE sessions ADD COLUMN ua_hash TEXT NULL") } catch { /* 
 try { db.exec("ALTER TABLE sessions ADD COLUMN ua_family TEXT NULL") } catch { /* ja existe */ }
 // P2-04: IP allowlist por API key (lista de CIDRs/IPs em JSON)
 try { db.exec("ALTER TABLE api_keys ADD COLUMN allowed_ips_json TEXT NOT NULL DEFAULT '[]'") } catch { /* ja existe */ }
+
+// P2-08: feedback dos users em respostas do Copilot (👍/👎)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS copilot_feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    message_id TEXT NOT NULL,
+    score INTEGER NOT NULL CHECK (score IN (-1, 1)),
+    comment TEXT NULL,
+    provider TEXT NULL,
+    model TEXT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(user_id, message_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_copilot_feedback_tenant_created
+    ON copilot_feedback(tenant_id, created_at DESC);
+`)
 // Migração v6: MFA/TOTP (SEC-2.1)
 db.exec(`
   CREATE TABLE IF NOT EXISTS user_mfa (
