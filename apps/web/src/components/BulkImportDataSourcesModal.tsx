@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { App, Alert, Button, Card, Input, Modal, Space, Table, Tabs, Tag, Typography } from 'antd'
-import { CheckCircleOutlined, CloseCircleOutlined, RocketOutlined } from '@ant-design/icons'
+import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, RocketOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { http } from '../services/http'
 import { trackEvent } from '../services/analytics'
+import { testDataSourceDraft, type DataSourceCreatePayload } from '../services/dataSourceService'
 
 type BulkResult = {
   created: Array<{ index: number; id: string; name: string }>
@@ -82,7 +83,7 @@ const JSON_EXAMPLE = JSON.stringify(
     {
       name: 'Vendas SGBR',
       type: 'sgbr_bi',
-      apiUrl: 'http://108.181.223.103:3007',
+      apiUrl: 'http://26.212.153.77:3007',
       authMethod: 'jwt',
       apiLogin: 'iga',
       apiPassword: '123456',
@@ -96,13 +97,23 @@ const JSON_EXAMPLE = JSON.stringify(
   2,
 )
 
+type DraftTestResult = {
+  name: string
+  endpoint: string
+  ok: boolean | null
+  message: string
+  latencyMs?: number
+}
+
 type Props = {
   open: boolean
   onClose: () => void
   onCompleted?: () => void
+  /** Pré-seleciona um template ao abrir (ex.: 'sgbr-tiete' ou 'iga-custom-api'). */
+  defaultTemplate?: string
 }
 
-export function BulkImportDataSourcesModal({ open, onClose, onCompleted }: Props) {
+export function BulkImportDataSourcesModal({ open, onClose, onCompleted, defaultTemplate }: Props) {
   const { message: msg } = App.useApp()
   const [activeTab, setActiveTab] = useState<'template' | 'json'>('template')
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
@@ -112,15 +123,31 @@ export function BulkImportDataSourcesModal({ open, onClose, onCompleted }: Props
   const [jsonText, setJsonText] = useState(JSON_EXAMPLE)
   const [result, setResult] = useState<BulkResult | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testResults, setTestResults] = useState<DraftTestResult[] | null>(null)
+
+  /** Quando reabrir com defaultTemplate diferente, pré-seleciona. */
+  useEffect(() => {
+    if (open && defaultTemplate && TEMPLATES.some((t) => t.id === defaultTemplate)) {
+      setSelectedTemplate(defaultTemplate)
+    }
+  }, [open, defaultTemplate])
+
+  /** Mudar credenciais/URL/template invalida o teste anterior. */
+  useEffect(() => {
+    setTestResults(null)
+  }, [apiUrl, apiLogin, apiPassword, selectedTemplate])
 
   function reset() {
-    setSelectedTemplate(null)
+    setSelectedTemplate(defaultTemplate ?? null)
     setApiUrl('')
     setApiLogin('')
     setApiPassword('')
     setJsonText(JSON_EXAMPLE)
     setResult(null)
     setSubmitting(false)
+    setTesting(false)
+    setTestResults(null)
   }
 
   async function submit(items: Record<string, unknown>[]) {
@@ -160,6 +187,52 @@ export function BulkImportDataSourcesModal({ open, onClose, onCompleted }: Props
     if (!apiUrl.trim()) return msg.warning('URL do servidor obrigatória.')
     const items = tpl.build({ apiUrl: apiUrl.trim(), apiLogin: apiLogin.trim(), apiPassword: apiPassword.trim() })
     void submit(items)
+  }
+
+  /**
+   * Sonda cada endpoint do template em paralelo via /api/v1/datasources/test
+   * (que valida draft sem persistir). Mostra status por área antes do usuário
+   * clicar em "Criar". Evita criar 6 fontes que vão estourar lastError no boot.
+   */
+  async function handleTestTemplate() {
+    const tpl = TEMPLATES.find((t) => t.id === selectedTemplate)
+    if (!tpl) return msg.warning('Selecione um template.')
+    if (!apiUrl.trim()) return msg.warning('URL do servidor obrigatória.')
+
+    const items = tpl.build({ apiUrl: apiUrl.trim(), apiLogin: apiLogin.trim(), apiPassword: apiPassword.trim() })
+    /** Estado inicial: cada item começa "carregando" (ok=null). */
+    const pending: DraftTestResult[] = items.map((item) => ({
+      name: String(item.name ?? '(sem nome)'),
+      endpoint: String(item.dataEndpoint ?? ''),
+      ok: null,
+      message: '',
+    }))
+    setTestResults(pending)
+    setTesting(true)
+    try {
+      const checks = await Promise.all(
+        items.map(async (item, idx) => {
+          try {
+            const r = await testDataSourceDraft(item as unknown as DataSourceCreatePayload)
+            return { idx, ok: r.success, message: r.message, latencyMs: r.latencyMs }
+          } catch (err) {
+            return { idx, ok: false, message: (err as Error).message ?? 'Falha desconhecida' }
+          }
+        }),
+      )
+      const next = pending.map((p, i) => {
+        const found = checks.find((c) => c.idx === i)
+        return found ? { ...p, ok: found.ok, message: found.message, latencyMs: found.latencyMs } : p
+      })
+      setTestResults(next)
+      const okCount = next.filter((r) => r.ok).length
+      trackEvent('bulk_import_tested', { template: tpl.id, total: next.length, ok: okCount })
+      if (okCount === next.length) msg.success(`Todos os ${okCount} endpoints responderam.`)
+      else if (okCount === 0) msg.error('Nenhum endpoint respondeu — confira URL, login e senha.')
+      else msg.warning(`${okCount} de ${next.length} responderam.`)
+    } finally {
+      setTesting(false)
+    }
   }
 
   function handleJsonSubmit() {
@@ -241,7 +314,7 @@ export function BulkImportDataSourcesModal({ open, onClose, onCompleted }: Props
                   {selectedTemplate ? (
                     <>
                       <Input
-                        placeholder="URL do servidor (ex.: http://108.181.223.103:3007)"
+                        placeholder="URL do servidor (ex.: http://26.212.153.77:3007)"
                         value={apiUrl}
                         onChange={(e) => setApiUrl(e.target.value)}
                       />
@@ -255,15 +328,29 @@ export function BulkImportDataSourcesModal({ open, onClose, onCompleted }: Props
                         value={apiPassword}
                         onChange={(e) => setApiPassword(e.target.value)}
                       />
-                      <Button
-                        type="primary"
-                        size="large"
-                        block
-                        loading={submitting}
-                        onClick={handleTemplateSubmit}
-                      >
-                        Criar {TEMPLATES.find((t) => t.id === selectedTemplate)?.count} fontes
-                      </Button>
+
+                      {testResults ? <TestResultsPanel results={testResults} /> : null}
+
+                      <Space style={{ width: '100%' }} direction="vertical" size={8}>
+                        <Button
+                          icon={<ThunderboltOutlined />}
+                          size="large"
+                          block
+                          loading={testing}
+                          onClick={handleTestTemplate}
+                        >
+                          Testar antes de criar
+                        </Button>
+                        <Button
+                          type="primary"
+                          size="large"
+                          block
+                          loading={submitting}
+                          onClick={handleTemplateSubmit}
+                        >
+                          Criar {TEMPLATES.find((t) => t.id === selectedTemplate)?.count} fontes
+                        </Button>
+                      </Space>
                     </>
                   ) : null}
                 </Space>
@@ -295,6 +382,58 @@ export function BulkImportDataSourcesModal({ open, onClose, onCompleted }: Props
         />
       )}
     </Modal>
+  )
+}
+
+function TestResultsPanel({ results }: { results: DraftTestResult[] }) {
+  const okCount = results.filter((r) => r.ok).length
+  const failCount = results.filter((r) => r.ok === false).length
+  const pendingCount = results.filter((r) => r.ok === null).length
+  const tone: 'success' | 'warning' | 'error' = failCount === 0 && pendingCount === 0
+    ? 'success'
+    : okCount === 0 && pendingCount === 0
+      ? 'error'
+      : 'warning'
+  return (
+    <Card size="small" style={{ background: 'rgba(15,23,42,0.02)' }}>
+      <Space direction="vertical" size={8} style={{ width: '100%' }}>
+        <Alert
+          type={tone}
+          showIcon
+          title={
+            pendingCount > 0
+              ? `Testando ${results.length} endpoints…`
+              : `${okCount} de ${results.length} endpoints responderam`
+          }
+        />
+        <Space direction="vertical" size={4} style={{ width: '100%' }}>
+          {results.map((r) => (
+            <Space key={r.name} style={{ width: '100%', justifyContent: 'space-between' }} size={8}>
+              <Space size={6}>
+                {r.ok === null ? (
+                  <LoadingOutlined style={{ color: '#1d4ed8' }} />
+                ) : r.ok ? (
+                  <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                ) : (
+                  <CloseCircleOutlined style={{ color: '#cf1322' }} />
+                )}
+                <Typography.Text strong style={{ fontSize: 13 }}>{r.name}</Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 11 }} code>
+                  {r.endpoint}
+                </Typography.Text>
+              </Space>
+              {r.ok === false ? (
+                <Typography.Text type="danger" style={{ fontSize: 12, maxWidth: 280, textAlign: 'right' }} ellipsis={{ tooltip: r.message }}>
+                  {r.message}
+                </Typography.Text>
+              ) : r.latencyMs ? (
+                <Typography.Text type="secondary" style={{ fontSize: 11 }}>{r.latencyMs}ms</Typography.Text>
+              ) : null}
+            </Space>
+          ))}
+        </Space>
+      </Space>
+    </Card>
   )
 }
 

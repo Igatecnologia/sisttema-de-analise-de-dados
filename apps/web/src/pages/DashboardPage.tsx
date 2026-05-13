@@ -1,4 +1,5 @@
 import {
+  ApiOutlined,
   ArrowDownOutlined,
   ArrowUpOutlined,
   CalendarOutlined,
@@ -6,6 +7,7 @@ import {
   ReloadOutlined,
   RiseOutlined,
   ShoppingCartOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons'
 import {
   Alert,
@@ -49,7 +51,8 @@ import { PageHeaderCard } from '../components/PageHeaderCard'
 import { Home as HomeIconLucide } from 'lucide-react'
 import { DevErrorDetail } from '../components/DevErrorDetail'
 import { ANALITICO_STALE_MS } from '../api/apiEnv'
-import { hasAnySources } from '../services/dataSourceService'
+import { hasAnySources, listDataSourcesFromApi } from '../services/dataSourceService'
+import { BulkImportDataSourcesModal } from '../components/BulkImportDataSourcesModal'
 import {
   getVendasAnaliticoDataSourceLabel,
   getVendasAnaliticoQuerySourceKey,
@@ -113,6 +116,14 @@ export function DashboardPage() {
   const chartAnimation = useChartAnimationProps()
   const realtimeEnabled = pollMs > 0
   const { lastPulseAt, transport } = useRealtimeHeartbeat(realtimeEnabled, pollMs || 5_000)
+
+  /**
+   * Estado mirror de hasAnySources() para que o early-return do "Conectar API"
+   * re-renderize quando o usuário criar fontes via Bulk Import. hasAnySources()
+   * lê de localStorage, então precisamos disparar setState manualmente.
+   */
+  const [hasSources, setHasSources] = useState(() => hasAnySources())
+  const [bulkModalOpen, setBulkModalOpen] = useState(false)
 
   const dashboardQuery = useQuery({
     queryKey: queryKeys.dashboard({ period, pollMs: String(pollMs), start: startDate, end: endDate, sourceId: sourceKey }),
@@ -226,6 +237,64 @@ export function DashboardPage() {
       }
     />
   )
+
+  async function handleBulkCompleted() {
+    try {
+      await listDataSourcesFromApi()
+    } catch {
+      /* mantém cache local */
+    }
+    setHasSources(hasAnySources())
+    void dashboardQuery.refetch()
+  }
+
+  /**
+   * Sem fontes ainda → CTA prominente em vez de skeleton + EmptyState.
+   * Abre Bulk Import direto no template SGBR BI (caso de uso #1 da base).
+   */
+  if (!hasSources) {
+    return (
+      <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        {header}
+        <Card className="app-card" variant="borderless">
+          <Space
+            direction="vertical"
+            align="center"
+            size={16}
+            style={{ width: '100%', padding: '32px 16px', textAlign: 'center' }}
+          >
+            <ApiOutlined style={{ fontSize: 48, color: '#1d4ed8' }} />
+            <Typography.Title level={3} style={{ margin: 0 }}>
+              Conecte sua API para começar
+            </Typography.Title>
+            <Typography.Text type="secondary" style={{ maxWidth: 520 }}>
+              Em 1 clique criamos 6 fontes (Vendas, NF, Contas, Produção, Estoque, Compras) com a
+              configuração correta. Preencha URL, usuário e senha — você pode testar antes de salvar.
+            </Typography.Text>
+            <Space size={12} wrap>
+              <Button
+                type="primary"
+                size="large"
+                icon={<ThunderboltOutlined />}
+                onClick={() => setBulkModalOpen(true)}
+              >
+                Conectar minha API
+              </Button>
+              <Link to="/fontes-de-dados">
+                <Button size="large">Configurar manualmente</Button>
+              </Link>
+            </Space>
+          </Space>
+        </Card>
+        <BulkImportDataSourcesModal
+          open={bulkModalOpen}
+          defaultTemplate="sgbr-tiete"
+          onClose={() => setBulkModalOpen(false)}
+          onCompleted={handleBulkCompleted}
+        />
+      </Space>
+    )
+  }
 
   if (dashboardQuery.isLoading || dashboardQuery.isFetching) {
     return (
